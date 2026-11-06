@@ -367,7 +367,7 @@ export component MainWindow inherits Window {
 
                                     d-touch := TouchArea {
                                         mouse-cursor: pointer;
-                                        clicked => { root.open-url("https://discord.gg/vivavoce"); }
+                                        clicked => { root.open-url("https://discord.gg/EAwNYqs3Ra"); }
                                     }
 
                                     HorizontalLayout {
@@ -406,7 +406,7 @@ export component MainWindow inherits Window {
 
                                     g-touch := TouchArea {
                                         mouse-cursor: pointer;
-                                        clicked => { root.open-url("https://github.com/VivaVoceProject/VivaVoce"); }
+                                        clicked => { root.open-url("https://github.com/Master-Antonio/Vivavoce-Releases"); }
                                     }
 
                                     HorizontalLayout {
@@ -574,7 +574,7 @@ export component MainWindow inherits Window {
                                                 width: 15px;
                                                 height: 15px;
                                                 source: @image-url("assets/icons/shield-check.svg");
-                                                colorize: Theme.status-success;
+                                                colorize: Theme.gold-primary;
                                                 image-fit: contain;
                                                 vertical-alignment: center;
                                             }
@@ -732,23 +732,24 @@ export component MainWindow inherits Window {
                                     // Subtle horizontal separator
                                     Rectangle { height: 1px; background: Theme.border-subtle; }
 
-                                    // Feature Highlights Grid: Quiet metadata indicators
-                                    HorizontalLayout {
-                                        spacing: 10px;
-                                        alignment: space-around;
+                                    // Feature Highlights: Clean 3-column metadata bar (no nested cards)
+                                    Rectangle {
+                                        height: 48px;
+                                        background: Theme.bg-card;
+                                        border-radius: Theme.radius-sm;
+                                        border-width: 1px;
+                                        border-color: Theme.border-subtle;
 
-                                        // Feature 1
-                                        Rectangle {
-                                            background: #0d1119;
-                                            border-radius: Theme.radius-sm;
-                                            border-width: 1px;
-                                            border-color: Theme.border-subtle;
+                                        HorizontalLayout {
+                                            alignment: space-around;
+
+                                            // Feature 1
                                             HorizontalLayout {
-                                                padding: 10px;
+                                                alignment: center;
                                                 spacing: 8px;
                                                 Image {
-                                                    width: 16px;
-                                                    height: 16px;
+                                                    width: 15px;
+                                                    height: 15px;
                                                     source: @image-url("assets/icons/mic.svg");
                                                     colorize: Theme.gold-primary;
                                                     image-fit: contain;
@@ -757,24 +758,21 @@ export component MainWindow inherits Window {
                                                 VerticalLayout {
                                                     alignment: center;
                                                     spacing: 1px;
-                                                    Text { text: "Doppiaggio italiano"; color: Theme.text-primary; font-size: 11px; font-weight: 600; }
+                                                    Text { text: "Doppiaggio italiano"; color: Theme.text-primary; font-size: 11px; font-weight: 500; }
                                                     Text { text: "Dialoghi e missioni recitati"; color: Theme.text-muted; font-size: 10px; }
                                                 }
                                             }
-                                        }
 
-                                        // Feature 2
-                                        Rectangle {
-                                            background: #0d1119;
-                                            border-radius: Theme.radius-sm;
-                                            border-width: 1px;
-                                            border-color: Theme.border-subtle;
+                                            // Divider
+                                            Rectangle { width: 1px; height: 26px; background: Theme.border-subtle; y: (parent.height - self.height) / 2; }
+
+                                            // Feature 2
                                             HorizontalLayout {
-                                                padding: 10px;
+                                                alignment: center;
                                                 spacing: 8px;
                                                 Image {
-                                                    width: 16px;
-                                                    height: 16px;
+                                                    width: 15px;
+                                                    height: 15px;
                                                     source: @image-url("assets/icons/zap.svg");
                                                     colorize: Theme.gold-primary;
                                                     image-fit: contain;
@@ -783,33 +781,30 @@ export component MainWindow inherits Window {
                                                 VerticalLayout {
                                                     alignment: center;
                                                     spacing: 1px;
-                                                    Text { text: "Formato OGG Vorbis"; color: Theme.text-primary; font-size: 11px; font-weight: 600; }
+                                                    Text { text: "Formato OGG Vorbis"; color: Theme.text-primary; font-size: 11px; font-weight: 500; }
                                                     Text { text: "Stream audio a 48 kHz"; color: Theme.text-muted; font-size: 10px; }
                                                 }
                                             }
-                                        }
 
-                                        // Feature 3
-                                        Rectangle {
-                                            background: #0d1119;
-                                            border-radius: Theme.radius-sm;
-                                            border-width: 1px;
-                                            border-color: Theme.border-subtle;
+                                            // Divider
+                                            Rectangle { width: 1px; height: 26px; background: Theme.border-subtle; y: (parent.height - self.height) / 2; }
+
+                                            // Feature 3
                                             HorizontalLayout {
-                                                padding: 10px;
+                                                alignment: center;
                                                 spacing: 8px;
                                                 Image {
-                                                    width: 16px;
-                                                    height: 16px;
+                                                    width: 15px;
+                                                    height: 15px;
                                                     source: @image-url("assets/icons/shield-check.svg");
-                                                    colorize: Theme.status-success;
+                                                    colorize: Theme.gold-primary;
                                                     image-fit: contain;
                                                     vertical-alignment: center;
                                                 }
                                                 VerticalLayout {
                                                     alignment: center;
                                                     spacing: 1px;
-                                                    Text { text: "Integrazione nativa"; color: Theme.text-primary; font-size: 11px; font-weight: 600; }
+                                                    Text { text: "Integrazione nativa"; color: Theme.text-primary; font-size: 11px; font-weight: 500; }
                                                     Text { text: "Solo cartella Interface/AddOns"; color: Theme.text-muted; font-size: 10px; }
                                                 }
                                             }
@@ -875,7 +870,7 @@ export component MainWindow inherits Window {
 
                             // Scrollable list of modules
                             ScrollView {
-                                height: 490px;
+                                height: 440px;
                                 VerticalLayout {
                                     spacing: 6px;
                                     padding-right: 4px;
@@ -986,7 +981,7 @@ export component MainWindow inherits Window {
                                 }
 
                                 open-github(cat, desc, sound) => {
-                                    root.open-url("https://github.com/VivaVoceProject/VivaVoce/issues/new");
+                                    root.open-url("https://github.com/Master-Antonio/Vivavoce-Releases/issues/new");
                                 }
                             }
                         }
@@ -1158,7 +1153,7 @@ export component MainWindow inherits Window {
                                 }
                             }
 
-                            // Card 3: Crediti e Info Progetto
+                            // Card 3: Community & Canali Ufficiali
                             Rectangle {
                                 height: 60px;
                                 border-radius: Theme.radius-md;
@@ -1176,25 +1171,72 @@ export component MainWindow inherits Window {
                                         alignment: center;
 
                                         Text {
-                                            text: "VivaVoce Voiceover Project · Community World of Warcraft: Forever";
+                                            text: "VivaVoce Voiceover Project · World of Warcraft: Forever";
                                             color: Theme.gold-light;
                                             font-size: 12px;
                                             font-weight: 500;
                                         }
 
                                         Text {
-                                            text: "Launcher nativo Rust sviluppato con Slint GUI. Licenza MIT / Open Source.";
+                                            text: "Launcher open source sviluppato in Rust con interfaccia nativa Slint GUI.";
                                             color: Theme.text-muted;
                                             font-size: 11px;
                                         }
                                     }
 
-                                    SecondaryButton {
-                                        width: 160px;
-                                        text: "Repository GitHub";
-                                        icon: @image-url("assets/icons/external-link.svg");
-                                        custom-height: 32px;
-                                        clicked => { root.open-url("https://github.com/VivaVoceProject/VivaVoce"); }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        alignment: center;
+
+                                        SecondaryButton {
+                                            text: "Discord";
+                                            icon: @image-url("assets/icons/discord.svg");
+                                            custom-height: 32px;
+                                            clicked => { root.open-url("https://discord.gg/EAwNYqs3Ra"); }
+                                        }
+
+                                        SecondaryButton {
+                                            text: "GitHub";
+                                            icon: @image-url("assets/icons/github.svg");
+                                            custom-height: 32px;
+                                            clicked => { root.open-url("https://github.com/Master-Antonio/Vivavoce-Releases"); }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Card 4: Dettagli Tecnici & Runtime
+                            Rectangle {
+                                height: 50px;
+                                border-radius: Theme.radius-md;
+                                background: Theme.bg-card;
+                                border-width: 1px;
+                                border-color: Theme.border-subtle;
+
+                                HorizontalLayout {
+                                    padding-left: 14px;
+                                    padding-right: 14px;
+                                    alignment: space-between;
+
+                                    HorizontalLayout {
+                                        spacing: 6px;
+                                        alignment: center;
+                                        Text { text: "Client WoW:"; color: Theme.text-muted; font-size: 11px; vertical-alignment: center; }
+                                        Text { text: root.wow-flavor; color: Theme.text-secondary; font-size: 11px; font-weight: 500; vertical-alignment: center; }
+                                    }
+
+                                    HorizontalLayout {
+                                        spacing: 6px;
+                                        alignment: center;
+                                        Text { text: "Audio engine:"; color: Theme.text-muted; font-size: 11px; vertical-alignment: center; }
+                                        Text { text: "OGG Vorbis 48 kHz"; color: Theme.text-secondary; font-size: 11px; font-weight: 500; vertical-alignment: center; }
+                                    }
+
+                                    HorizontalLayout {
+                                        spacing: 6px;
+                                        alignment: center;
+                                        Text { text: "GUI stack:"; color: Theme.text-muted; font-size: 11px; vertical-alignment: center; }
+                                        Text { text: "Slint 1.18 (Skia)"; color: Theme.text-secondary; font-size: 11px; font-weight: 500; vertical-alignment: center; }
                                     }
                                 }
                             }

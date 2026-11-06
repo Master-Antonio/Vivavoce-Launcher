@@ -36,7 +36,7 @@ impl Submitter {
         );
         let body = report.to_markdown();
         format!(
-            "https://github.com/VivaVoceProject/VivaVoce/issues/new?title={}&body={}",
+            "https://github.com/Master-Antonio/Vivavoce-Releases/issues/new?title={}&body={}",
             urlencoding::encode(&title),
             urlencoding::encode(&body)
         )

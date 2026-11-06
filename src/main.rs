@@ -25,7 +25,7 @@ use wow::discovery::{
 use wow::saved_variables::{load_all_saved_variables, RecentDialogue};
 
 pub const REMOTE_MANIFEST_URL: &str =
-    "https://raw.githubusercontent.com/Master-Antonio/Vivavoce-Releases/main/manifest.json";
+    "https://raw.githubusercontent.com/Master-Antonio/Vivavoce-Releases/refs/heads/main/manifest.json";
 
 slint::include_modules!();
 

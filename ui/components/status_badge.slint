@@ -42,8 +42,8 @@ export component StatusBadge inherits Rectangle {
     border-width: 1px;
     border-color: badge-border;
 
-    animate background { duration: Theme.transition-normal; }
-    animate border-color { duration: Theme.transition-normal; }
+    animate background { duration: Theme.transition-normal; easing: ease-out; }
+    animate border-color { duration: Theme.transition-normal; easing: ease-out; }
 
     HorizontalLayout {
         padding-left: 12px;

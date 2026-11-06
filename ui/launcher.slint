@@ -148,12 +148,15 @@ export component MainWindow inherits Window {
                                 // Tab 0: Dashboard
                                 tab0 := Rectangle {
                                     height: 42px;
+                                    x: t0-touch.pressed ? 1.5px : 0px;
                                     border-radius: Theme.radius-sm;
                                     background: root.active-tab == 0 ? #1f2738 : (t0-touch.has-hover ? #151c2a : transparent);
                                     border-width: 1px;
                                     border-color: root.active-tab == 0 ? Theme.border-gold-subtle : transparent;
 
-                                    animate background { duration: Theme.transition-fast; }
+                                    animate x { duration: Theme.transition-instant; easing: ease-out; }
+                                    animate background { duration: Theme.transition-fast; easing: ease-out; }
+                                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
 
                                     // Active gold bar marker
                                     if (root.active-tab == 0) : Rectangle {
@@ -193,12 +196,15 @@ export component MainWindow inherits Window {
                                 // Tab 1: Pacchetti & Dettagli
                                 tab1 := Rectangle {
                                     height: 42px;
+                                    x: t1-touch.pressed ? 1.5px : 0px;
                                     border-radius: Theme.radius-sm;
                                     background: root.active-tab == 1 ? #1f2738 : (t1-touch.has-hover ? #151c2a : transparent);
                                     border-width: 1px;
                                     border-color: root.active-tab == 1 ? Theme.border-gold-subtle : transparent;
 
-                                    animate background { duration: Theme.transition-fast; }
+                                    animate x { duration: Theme.transition-instant; easing: ease-out; }
+                                    animate background { duration: Theme.transition-fast; easing: ease-out; }
+                                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
 
                                     if (root.active-tab == 1) : Rectangle {
                                         x: 0;
@@ -237,12 +243,15 @@ export component MainWindow inherits Window {
                                 // Tab 2: Segnala Bug
                                 tab2 := Rectangle {
                                     height: 42px;
+                                    x: t2-touch.pressed ? 1.5px : 0px;
                                     border-radius: Theme.radius-sm;
                                     background: root.active-tab == 2 ? #1f2738 : (t2-touch.has-hover ? #151c2a : transparent);
                                     border-width: 1px;
                                     border-color: root.active-tab == 2 ? Theme.border-gold-subtle : transparent;
 
-                                    animate background { duration: Theme.transition-fast; }
+                                    animate x { duration: Theme.transition-instant; easing: ease-out; }
+                                    animate background { duration: Theme.transition-fast; easing: ease-out; }
+                                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
 
                                     if (root.active-tab == 2) : Rectangle {
                                         x: 0;
@@ -281,12 +290,15 @@ export component MainWindow inherits Window {
                                 // Tab 3: Impostazioni
                                 tab3 := Rectangle {
                                     height: 42px;
+                                    x: t3-touch.pressed ? 1.5px : 0px;
                                     border-radius: Theme.radius-sm;
                                     background: root.active-tab == 3 ? #1f2738 : (t3-touch.has-hover ? #151c2a : transparent);
                                     border-width: 1px;
                                     border-color: root.active-tab == 3 ? Theme.border-gold-subtle : transparent;
 
-                                    animate background { duration: Theme.transition-fast; }
+                                    animate x { duration: Theme.transition-instant; easing: ease-out; }
+                                    animate background { duration: Theme.transition-fast; easing: ease-out; }
+                                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
 
                                     if (root.active-tab == 3) : Rectangle {
                                         x: 0;
@@ -365,10 +377,15 @@ export component MainWindow inherits Window {
                                 // Discord Link
                                 Rectangle {
                                     height: 30px;
+                                    y: d-touch.pressed ? 1px : 0px;
                                     border-radius: Theme.radius-xs;
                                     background: d-touch.has-hover ? #222a3d : #141924;
                                     border-width: 1px;
-                                    border-color: Theme.border-subtle;
+                                    border-color: d-touch.has-hover ? Theme.border-bright : Theme.border-subtle;
+
+                                    animate y { duration: Theme.transition-instant; easing: ease-out; }
+                                    animate background { duration: Theme.transition-fast; easing: ease-out; }
+                                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
 
                                     d-touch := TouchArea {
                                         mouse-cursor: pointer;
@@ -391,10 +408,15 @@ export component MainWindow inherits Window {
                                 // GitHub Link
                                 Rectangle {
                                     height: 30px;
+                                    y: g-touch.pressed ? 1px : 0px;
                                     border-radius: Theme.radius-xs;
                                     background: g-touch.has-hover ? #222a3d : #141924;
                                     border-width: 1px;
-                                    border-color: Theme.border-subtle;
+                                    border-color: g-touch.has-hover ? Theme.border-bright : Theme.border-subtle;
+
+                                    animate y { duration: Theme.transition-instant; easing: ease-out; }
+                                    animate background { duration: Theme.transition-fast; easing: ease-out; }
+                                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
 
                                     g-touch := TouchArea {
                                         mouse-cursor: pointer;

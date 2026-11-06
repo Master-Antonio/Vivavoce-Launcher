@@ -38,12 +38,12 @@ export component ProgressBar inherits VerticalLayout {
         border-color: root.is-active ? Theme.border-gold-subtle : Theme.border-normal;
         clip: true;
 
-        animate border-color { duration: Theme.transition-normal; }
+        animate border-color { duration: Theme.transition-normal; easing: ease-out; }
 
         // Subtle sunken track shadow line
         Rectangle {
             height: 1px;
-            background: #00000088;
+            background: #000000aa;
             y: 0;
         }
 
@@ -56,29 +56,29 @@ export component ProgressBar inherits VerticalLayout {
             border-radius: Theme.radius-sm;
             background: root.is-active ? Theme.progress-fill-gradient : #3a4254;
 
-            animate width { duration: 180ms; easing: ease-out; }
-            animate background { duration: Theme.transition-normal; }
+            animate width { duration: 160ms; easing: ease-out; }
+            animate background { duration: Theme.transition-normal; easing: ease-out; }
 
-            // Top metallic sheen highlight line
+            // Top metallic specular highlight line
             Rectangle {
                 x: 0;
                 y: 0;
                 height: 1px;
-                background: #ffffff50;
+                background: #ffffff55;
             }
 
-            // Glow flare on the right edge of progress fill
-            if (root.progress > 0.02 && root.progress < 0.99) : Rectangle {
+            // Glow flare on the right leading edge of progress fill
+            if (root.progress > 0.01 && root.progress < 0.995) : Rectangle {
                 x: parent.width - 4px;
                 y: 0;
                 width: 4px;
                 height: parent.height;
-                background: #ffffffaa;
+                background: #ffffffbb;
             }
         }
     }
 
-    // Footer: Detailed transfer statistics (e.g., speed, bytes, ETA)
+    // Footer: Detailed transfer statistics (speed, bytes, ETA)
     if (root.details != "") : HorizontalLayout {
         alignment: space-between;
 

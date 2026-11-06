@@ -15,10 +15,26 @@ export component PackageCard inherits Rectangle {
     in-out property <PackageInfo> package-data;
     in-out property <string> icon: "📦";
 
-    background: Theme.bg-card;
+    background: p-touch.has-hover ? Theme.bg-card-hover : Theme.bg-card;
     border-radius: Theme.radius-md;
     border-width: 1px;
-    border-color: root.package-data.verified ? #2a4534 : Theme.border-normal;
+    border-color: root.package-data.verified ? #2a4534 : (p-touch.has-hover ? Theme.border-bright : Theme.border-normal);
+
+    animate background { duration: Theme.transition-fast; easing: ease-out; }
+    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+    p-touch := TouchArea {
+        mouse-cursor: default;
+    }
+
+    // Top subtle 1px specular bevel
+    Rectangle {
+        x: 4px;
+        y: 1px;
+        width: parent.width - 8px;
+        height: 1px;
+        background: #ffffff0d;
+    }
 
     VerticalLayout {
         padding: 14px;

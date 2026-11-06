@@ -142,13 +142,15 @@ export component BugCard inherits Rectangle {
                         padding-right: 4px;
                         for item[idx] in root.recent-dialogues : item-row := Rectangle {
                         height: 64px;
+                        x: root.selected-index == idx ? 3px : (row-touch.has-hover ? 1px : 0px);
                         background: root.selected-index == idx ? Theme.bg-card-selected : (row-touch.has-hover ? Theme.bg-card-hover : Theme.bg-card);
                         border-width: 1px;
                         border-color: root.selected-index == idx ? Theme.border-gold-normal : Theme.border-subtle;
                         border-radius: Theme.radius-sm;
 
-                        animate background { duration: Theme.transition-fast; }
-                        animate border-color { duration: Theme.transition-fast; }
+                        animate x { duration: Theme.transition-instant; easing: ease-out; }
+                        animate background { duration: Theme.transition-fast; easing: ease-out; }
+                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
 
                         row-touch := TouchArea {
                             mouse-cursor: pointer;
@@ -285,13 +287,15 @@ export component BugCard inherits Rectangle {
 
                 for cat-name[c-idx] in root.categories : cat-pill := Rectangle {
                     height: 28px;
+                    y: pill-touch.pressed ? 1px : 0px;
                     border-radius: Theme.radius-pill;
                     background: root.selected-category == c-idx ? #c89b3c33 : (pill-touch.has-hover ? #252e42 : Theme.bg-card);
                     border-width: 1px;
                     border-color: root.selected-category == c-idx ? Theme.border-gold-bright : Theme.border-normal;
 
-                    animate background { duration: Theme.transition-fast; }
-                    animate border-color { duration: Theme.transition-fast; }
+                    animate y { duration: Theme.transition-instant; easing: ease-out; }
+                    animate background { duration: Theme.transition-fast; easing: ease-out; }
+                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
 
                     pill-touch := TouchArea {
                         mouse-cursor: pointer;
@@ -334,7 +338,7 @@ export component BugCard inherits Rectangle {
                 border-width: 1px;
                 border-color: desc-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
 
-                animate border-color { duration: Theme.transition-fast; }
+                animate border-color { duration: Theme.transition-fast; easing: ease-out; }
 
                 VerticalLayout {
                     padding: 8px;

@@ -1,20 +1,21 @@
 // VivaVoce Launcher - World of Warcraft Theme & Design Tokens
 // Handcrafted with high-end dark slate, chiseled gold and runic accents.
+// Emil Kowalski Craft Standards: Custom ease-outs, micro-displacement, tactile feedback.
 
 export global Theme {
     // === BACKGROUND PALETTE ===
     out property <color> bg-main: #0e1117;
-    out property <color> bg-main-gradient-bottom: #080a0e;
-    out property <color> bg-sidebar: #0a0d13;
-    out property <color> bg-panel: #151922;
-    out property <color> bg-panel-translucent: #151922ee;
+    out property <color> bg-main-gradient-bottom: #07090d;
+    out property <color> bg-sidebar: #090c12;
+    out property <color> bg-panel: #141822;
+    out property <color> bg-panel-translucent: #141822f0;
     out property <color> bg-panel-hover: #1b212f;
-    out property <color> bg-card: #121620;
-    out property <color> bg-card-hover: #181e2b;
-    out property <color> bg-card-selected: #21293a;
-    out property <color> bg-inset: #090c12;
-    out property <color> bg-input: #0c0f16;
-    out property <color> bg-overlay: #05070ae6;
+    out property <color> bg-card: #11151f;
+    out property <color> bg-card-hover: #171d2b;
+    out property <color> bg-card-selected: #1f2738;
+    out property <color> bg-inset: #080a10;
+    out property <color> bg-input: #0a0d14;
+    out property <color> bg-overlay: #040609ee;
 
     // === WOW RUNIC & GOLD ACCENTS ===
     out property <color> gold-primary: #c89b3c;
@@ -26,31 +27,31 @@ export global Theme {
     out property <color> gold-amber: #d4af37;
 
     // === GRADIENTS (BRUSHES) ===
-    out property <brush> gold-gradient: @linear-gradient(135deg, #f5d77f 0%, #d4af37 40%, #996515 100%);
-    out property <brush> gold-gradient-hover: @linear-gradient(135deg, #fff0a0 0%, #e2be4a 40%, #b27a1e 100%);
-    out property <brush> gold-gradient-pressed: @linear-gradient(135deg, #b8860b 0%, #8b5a00 100%);
-    out property <brush> gold-subtle-glow: @linear-gradient(180deg, #c89b3c25 0%, #c89b3c05 100%);
-    out property <brush> panel-gradient: @linear-gradient(180deg, #181d28 0%, #131720 100%);
-    out property <brush> card-gradient: @linear-gradient(180deg, #161b25 0%, #10141d 100%);
-    out property <brush> main-window-gradient: @linear-gradient(180deg, #11151e 0%, #080a0f 100%);
-    out property <brush> progress-fill-gradient: @linear-gradient(90deg, #996515 0%, #d4af37 60%, #ffd875 100%);
+    out property <brush> gold-gradient: @linear-gradient(135deg, #f7db8c 0%, #d4af37 45%, #996515 100%);
+    out property <brush> gold-gradient-hover: @linear-gradient(135deg, #fff2aa 0%, #e8c659 45%, #b27a1e 100%);
+    out property <brush> gold-gradient-pressed: @linear-gradient(135deg, #b8860b 0%, #7d5200 100%);
+    out property <brush> gold-subtle-glow: @linear-gradient(180deg, #c89b3c28 0%, #c89b3c04 100%);
+    out property <brush> panel-gradient: @linear-gradient(180deg, #171c26 0%, #11141d 100%);
+    out property <brush> card-gradient: @linear-gradient(180deg, #151a24 0%, #0e121a 100%);
+    out property <brush> main-window-gradient: @linear-gradient(180deg, #121620 0%, #07090d 100%);
+    out property <brush> progress-fill-gradient: @linear-gradient(90deg, #8a5710 0%, #d4af37 55%, #ffd875 100%);
 
     // === BORDERS & HIGHLIGHTS ===
-    out property <color> border-subtle: #1e2434;
-    out property <color> border-normal: #2a3142;
-    out property <color> border-bright: #384259;
-    out property <color> border-gold-subtle: #c89b3c38;
+    out property <color> border-subtle: #1c2230;
+    out property <color> border-normal: #283042;
+    out property <color> border-bright: #39445c;
+    out property <color> border-gold-subtle: #c89b3c33;
     out property <color> border-gold-normal: #c89b3c;
     out property <color> border-gold-bright: #e5c07b;
     out property <color> border-gold-glow: #ffd875;
 
     // === TYPOGRAPHY (WoW Parchment & Metals) ===
     out property <color> text-primary: #f3ebd8;      // Warm parchment white
-    out property <color> text-secondary: #9ba1b0;    // Cool slate gray
-    out property <color> text-muted: #5e6677;        // Subdued placeholder
+    out property <color> text-secondary: #9aa1b2;    // Cool slate gray
+    out property <color> text-muted: #5a6274;        // Subdued placeholder
     out property <color> text-gold: #e5c07b;         // WoW quest text gold
     out property <color> text-gold-bright: #fff2d1;  // Highlighted gold
-    out property <color> text-dark: #111111;         // Solid contrast on gold
+    out property <color> text-dark: #0d0f14;         // Solid contrast on gold
 
     // === STATUS INDICATORS ===
     out property <color> status-success: #4ade80;
@@ -77,7 +78,9 @@ export global Theme {
     out property <length> radius-xl: 18px;
     out property <length> radius-pill: 999px;
 
-    // === ANIMATION TIMINGS ===
-    out property <duration> transition-fast: 150ms;
-    out property <duration> transition-normal: 200ms;
+    // === ANIMATION TIMINGS (Emil Kowalski Snappy UI Standards) ===
+    out property <duration> transition-instant: 90ms;
+    out property <duration> transition-fast: 130ms;
+    out property <duration> transition-normal: 170ms;
+    out property <duration> transition-smooth: 220ms;
 }

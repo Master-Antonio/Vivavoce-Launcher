@@ -49,11 +49,19 @@ export component TitleBar inherits Rectangle {
                 width: 28px;
                 height: 28px;
                 border-radius: Theme.radius-sm;
-                background: @linear-gradient(135deg, #2a2012 0%, #17141b 100%);
+                background: @linear-gradient(135deg, #2e2213 0%, #15131a 100%);
                 border-width: 1px;
                 border-color: Theme.border-gold-normal;
 
-                // Inner runic / sound-crest glow
+                // Top metallic bevel highlight
+                Rectangle {
+                    x: 2px;
+                    y: 1px;
+                    width: parent.width - 4px;
+                    height: 1px;
+                    background: #ffffff35;
+                }
+
                 Text {
                     text: "🛡️";
                     font-size: 14px;
@@ -72,6 +80,7 @@ export component TitleBar inherits Rectangle {
                     color: Theme.gold-light;
                     font-size: 14px;
                     font-weight: 700;
+                    letter-spacing: 0.3px;
                     vertical-alignment: center;
                 }
 
@@ -92,15 +101,15 @@ export component TitleBar inherits Rectangle {
 
                 // Small Tag Pill
                 Rectangle {
-                    height: 18px;
+                    height: 20px;
                     border-radius: Theme.radius-pill;
                     background: #c89b3c1a;
                     border-width: 1px;
                     border-color: #c89b3c40;
 
                     HorizontalLayout {
-                        padding-left: 6px;
-                        padding-right: 6px;
+                        padding-left: 8px;
+                        padding-right: 8px;
                         Text {
                             text: root.version-tag;
                             color: Theme.gold-bright;
@@ -126,7 +135,10 @@ export component TitleBar inherits Rectangle {
                 background: min-touch.has-hover ? (min-touch.pressed ? #2d364a : #1c2333) : transparent;
                 border-width: min-touch.has-hover ? 1px : 0px;
                 border-color: Theme.border-bright;
-                animate background { duration: Theme.transition-fast; }
+
+                y: min-touch.pressed ? 1px : 0px;
+                animate y { duration: Theme.transition-instant; easing: ease-out; }
+                animate background { duration: Theme.transition-fast; easing: ease-out; }
 
                 // Minimize bar icon
                 Rectangle {
@@ -152,7 +164,10 @@ export component TitleBar inherits Rectangle {
                 background: close-touch.has-hover ? (close-touch.pressed ? #b91c1c : #ef444433) : transparent;
                 border-width: close-touch.has-hover ? 1px : 0px;
                 border-color: close-touch.has-hover ? #ef444488 : transparent;
-                animate background { duration: Theme.transition-fast; }
+
+                y: close-touch.pressed ? 1px : 0px;
+                animate y { duration: Theme.transition-instant; easing: ease-out; }
+                animate background { duration: Theme.transition-fast; easing: ease-out; }
 
                 Text {
                     text: "✕";
@@ -161,7 +176,7 @@ export component TitleBar inherits Rectangle {
                     font-weight: 600;
                     horizontal-alignment: center;
                     vertical-alignment: center;
-                    animate color { duration: Theme.transition-fast; }
+                    animate color { duration: Theme.transition-fast; easing: ease-out; }
                 }
 
                 close-touch := TouchArea {

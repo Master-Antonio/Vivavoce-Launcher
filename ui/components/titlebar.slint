@@ -21,7 +21,7 @@ export component TitleBar inherits Rectangle {
 
     // Draggable window area covering the non-button space
     TouchArea {
-        width: parent.width - 90px;
+        width: parent.width - 100px;
         height: parent.height;
         x: 0;
         y: 0;
@@ -48,6 +48,7 @@ export component TitleBar inherits Rectangle {
             Rectangle {
                 width: 28px;
                 height: 28px;
+                y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-sm;
                 background: @linear-gradient(135deg, #2e2213 0%, #15131a 100%);
                 border-width: 1px;
@@ -102,6 +103,7 @@ export component TitleBar inherits Rectangle {
                 // Small Tag Pill
                 Rectangle {
                     height: 20px;
+                    y: (parent.height - self.height) / 2;
                     border-radius: Theme.radius-pill;
                     background: #c89b3c1a;
                     border-width: 1px;
@@ -131,12 +133,12 @@ export component TitleBar inherits Rectangle {
             min-btn := Rectangle {
                 width: 32px;
                 height: 28px;
+                y: (parent.height - self.height) / 2 + (min-touch.pressed ? 1px : 0px);
                 border-radius: Theme.radius-xs;
-                background: min-touch.has-hover ? (min-touch.pressed ? #2d364a : #1c2333) : transparent;
+                background: min-touch.has-hover ? (min-touch.pressed ? #252e40 : #19202f) : transparent;
                 border-width: min-touch.has-hover ? 1px : 0px;
                 border-color: Theme.border-bright;
 
-                y: min-touch.pressed ? 1px : 0px;
                 animate y { duration: Theme.transition-instant; easing: ease-out; }
                 animate background { duration: Theme.transition-fast; easing: ease-out; }
 
@@ -146,8 +148,9 @@ export component TitleBar inherits Rectangle {
                     height: 2px;
                     background: min-touch.has-hover ? Theme.text-primary : Theme.text-secondary;
                     border-radius: 1px;
-                    y: parent.height / 2 + 1px;
+                    y: (parent.height - self.height) / 2 + 1px;
                     x: (parent.width - self.width) / 2;
+                    animate background { duration: Theme.transition-fast; easing: ease-out; }
                 }
 
                 min-touch := TouchArea {
@@ -160,18 +163,18 @@ export component TitleBar inherits Rectangle {
             close-btn := Rectangle {
                 width: 32px;
                 height: 28px;
+                y: (parent.height - self.height) / 2 + (close-touch.pressed ? 1px : 0px);
                 border-radius: Theme.radius-xs;
-                background: close-touch.has-hover ? (close-touch.pressed ? #b91c1c : #ef444433) : transparent;
+                background: close-touch.has-hover ? (close-touch.pressed ? #b91c1c : #ef444426) : transparent;
                 border-width: close-touch.has-hover ? 1px : 0px;
-                border-color: close-touch.has-hover ? #ef444488 : transparent;
+                border-color: close-touch.has-hover ? #ef444466 : transparent;
 
-                y: close-touch.pressed ? 1px : 0px;
                 animate y { duration: Theme.transition-instant; easing: ease-out; }
                 animate background { duration: Theme.transition-fast; easing: ease-out; }
 
                 Text {
                     text: "✕";
-                    color: close-touch.has-hover ? (close-touch.pressed ? #ffffff : #ef4444) : Theme.text-secondary;
+                    color: close-touch.has-hover ? (close-touch.pressed ? #ffffff : #f87171) : Theme.text-secondary;
                     font-size: 13px;
                     font-weight: 600;
                     horizontal-alignment: center;

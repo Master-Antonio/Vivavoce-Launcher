@@ -43,8 +43,8 @@ export component BugCard inherits Rectangle {
     clip: true;
 
     VerticalLayout {
-        padding: 20px;
-        spacing: 16px;
+        padding: 18px;
+        spacing: 14px;
 
         // Card Header
         HorizontalLayout {
@@ -77,6 +77,7 @@ export component BugCard inherits Rectangle {
             // Status tag
             Rectangle {
                 height: 24px;
+                y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-pill;
                 background: #c89b3c1a;
                 border-width: 1px;
@@ -96,9 +97,9 @@ export component BugCard inherits Rectangle {
             }
         }
 
-        // Section 1: Recent Dialogues List (or Empty Note)
+        // Section 1: Recent Dialogues List (or Stylized Empty State)
         VerticalLayout {
-            spacing: 8px;
+            spacing: 6px;
 
             Text {
                 text: "1. SELEZIONA DIALOGO DALLA CRONOLOGIA";
@@ -108,158 +109,184 @@ export component BugCard inherits Rectangle {
                 letter-spacing: 0.8px;
             }
 
-            // Container for Dialogue List
+            // Container for Dialogue List or Empty State
             Rectangle {
-                height: 140px;
+                height: root.recent-dialogues.length == 0 ? 84px : 124px;
                 background: Theme.bg-inset;
                 border-radius: Theme.radius-md;
                 border-width: 1px;
                 border-color: Theme.border-subtle;
                 clip: true;
 
-                if (root.recent-dialogues.length == 0) : CenterContainer := Rectangle {
-                    VerticalLayout {
+                // Craft Empty State: Warm, polished icon badge + helpful prompt
+                if (root.recent-dialogues.length == 0) : Rectangle {
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
                         alignment: center;
-                        spacing: 6px;
-                        Text {
-                            text: "Nessun dialogo recente trovato in SavedVariables.";
-                            color: Theme.text-secondary;
-                            font-size: 12px;
-                            horizontal-alignment: center;
+                        spacing: 12px;
+
+                        // Mini headphone icon badge
+                        Rectangle {
+                            width: 36px;
+                            height: 36px;
+                            border-radius: 18px;
+                            background: #141a26;
+                            border-width: 1px;
+                            border-color: Theme.border-gold-subtle;
+
+                            Text {
+                                text: "🎧";
+                                font-size: 16px;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
                         }
-                        Text {
-                            text: "Puoi comunque inviare una segnalazione inserendo le note e il file audio qui sotto.";
-                            color: Theme.text-muted;
-                            font-size: 11px;
-                            horizontal-alignment: center;
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 3px;
+
+                            Text {
+                                text: "Nessun dialogo recente in memoria";
+                                color: Theme.text-primary;
+                                font-size: 12px;
+                                font-weight: 600;
+                            }
+                            Text {
+                                text: "Avvia WoW con VivaVoce per catturare l'audio in-game, oppure scrivi le note e il file sotto.";
+                                color: Theme.text-muted;
+                                font-size: 11px;
+                            }
                         }
                     }
                 }
 
+                // Populated Dialogues List
                 if (root.recent-dialogues.length > 0) : ScrollView {
                     VerticalLayout {
                         spacing: 4px;
-                        padding-right: 4px;
+                        padding: 6px;
+
                         for item[idx] in root.recent-dialogues : item-row := Rectangle {
-                        height: 64px;
-                        x: root.selected-index == idx ? 3px : (row-touch.has-hover ? 1px : 0px);
-                        background: root.selected-index == idx ? Theme.bg-card-selected : (row-touch.has-hover ? Theme.bg-card-hover : Theme.bg-card);
-                        border-width: 1px;
-                        border-color: root.selected-index == idx ? Theme.border-gold-normal : Theme.border-subtle;
-                        border-radius: Theme.radius-sm;
+                            height: 56px;
+                            x: root.selected-index == idx ? 2px : (row-touch.has-hover ? 1px : 0px);
+                            background: root.selected-index == idx ? Theme.bg-card-selected : (row-touch.has-hover ? Theme.bg-card-hover : Theme.bg-card);
+                            border-width: 1px;
+                            border-color: root.selected-index == idx ? Theme.border-gold-normal : Theme.border-subtle;
+                            border-radius: Theme.radius-sm;
 
-                        animate x { duration: Theme.transition-instant; easing: ease-out; }
-                        animate background { duration: Theme.transition-fast; easing: ease-out; }
-                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+                            animate x { duration: Theme.transition-instant; easing: ease-out; }
+                            animate background { duration: Theme.transition-fast; easing: ease-out; }
+                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
 
-                        row-touch := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => {
-                                root.selected-index = idx;
+                            row-touch := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.selected-index = idx;
+                                }
                             }
-                        }
 
-                        HorizontalLayout {
-                            padding-left: 12px;
-                            padding-right: 12px;
-                            padding-top: 8px;
-                            padding-bottom: 8px;
-                            alignment: space-between;
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                alignment: space-between;
 
-                            VerticalLayout {
-                                spacing: 4px;
-                                alignment: center;
+                                VerticalLayout {
+                                    spacing: 3px;
+                                    alignment: center;
 
-                                HorizontalLayout {
-                                    spacing: 8px;
+                                    HorizontalLayout {
+                                        spacing: 8px;
 
-                                    // NPC Name Badge
-                                    Rectangle {
-                                        height: 20px;
-                                        background: #c89b3c20;
-                                        border-radius: Theme.radius-xs;
-                                        border-width: 1px;
-                                        border-color: #c89b3c44;
+                                        // NPC Name Badge
+                                        Rectangle {
+                                            height: 18px;
+                                            background: #c89b3c20;
+                                            border-radius: Theme.radius-xs;
+                                            border-width: 1px;
+                                            border-color: #c89b3c44;
 
-                                        HorizontalLayout {
-                                            padding-left: 6px;
-                                            padding-right: 6px;
-                                            Text {
-                                                text: item.npc-name != "" ? item.npc-name : "NPC Sconosciuto";
-                                                color: Theme.gold-bright;
-                                                font-size: 11px;
-                                                font-weight: 700;
-                                                vertical-alignment: center;
+                                            HorizontalLayout {
+                                                padding-left: 6px;
+                                                padding-right: 6px;
+                                                Text {
+                                                    text: item.npc-name != "" ? item.npc-name : "NPC Sconosciuto";
+                                                    color: Theme.gold-bright;
+                                                    font-size: 10px;
+                                                    font-weight: 700;
+                                                    vertical-alignment: center;
+                                                }
                                             }
+                                        }
+
+                                        // Quest ID Badge
+                                        if (item.quest-id > 0) : Rectangle {
+                                            height: 18px;
+                                            background: #38bdf818;
+                                            border-radius: Theme.radius-xs;
+                                            border-width: 1px;
+                                            border-color: #38bdf844;
+
+                                            HorizontalLayout {
+                                                padding-left: 6px;
+                                                padding-right: 6px;
+                                                Text {
+                                                    text: "Quest #" + item.quest-id;
+                                                    color: Theme.status-info;
+                                                    font-size: 10px;
+                                                    font-weight: 600;
+                                                    vertical-alignment: center;
+                                                }
+                                            }
+                                        }
+
+                                        Text {
+                                            text: item.sound-file;
+                                            color: Theme.text-secondary;
+                                            font-size: 10px;
+                                            vertical-alignment: center;
                                         }
                                     }
 
-                                    // Quest ID Badge
-                                    if (item.quest-id > 0) : Rectangle {
-                                        height: 20px;
-                                        background: #38bdf818;
-                                        border-radius: Theme.radius-xs;
-                                        border-width: 1px;
-                                        border-color: #38bdf844;
-
-                                        HorizontalLayout {
-                                            padding-left: 6px;
-                                            padding-right: 6px;
-                                            Text {
-                                                text: "Quest #" + item.quest-id;
-                                                color: Theme.status-info;
-                                                font-size: 11px;
-                                                font-weight: 600;
-                                                vertical-alignment: center;
-                                            }
-                                        }
-                                    }
-
-                                    // Sound File
+                                    // Dialogue text snippet
                                     Text {
-                                        text: item.sound-file;
-                                        color: Theme.text-secondary;
+                                        text: "\"" + item.text + "\"";
+                                        color: Theme.text-primary;
                                         font-size: 11px;
-                                        vertical-alignment: center;
+                                        overflow: elide;
+                                        max-width: 480px;
                                     }
                                 }
 
-                                // Dialogue text snippet
-                                Text {
-                                    text: "\"" + item.text + "\"";
-                                    color: Theme.text-primary;
-                                    font-size: 11px;
-                                    overflow: elide;
-                                }
-                            }
-
-                            // Selection indicator or time
-                            VerticalLayout {
-                                alignment: center;
-                                spacing: 4px;
-
-                                Text {
-                                    text: item.timestamp;
-                                    color: Theme.text-muted;
-                                    font-size: 10px;
-                                    horizontal-alignment: right;
-                                }
-
-                                Rectangle {
-                                    width: 72px;
-                                    height: 22px;
-                                    border-radius: Theme.radius-xs;
-                                    background: root.selected-index == idx ? Theme.gold-gradient : transparent;
-                                    border-width: 1px;
-                                    border-color: root.selected-index == idx ? Theme.border-gold-bright : Theme.border-normal;
+                                // Selection indicator & timestamp
+                                VerticalLayout {
+                                    alignment: center;
+                                    spacing: 3px;
 
                                     Text {
-                                        text: root.selected-index == idx ? "Selezionato" : "Seleziona";
-                                        color: root.selected-index == idx ? Theme.text-dark : Theme.text-secondary;
+                                        text: item.timestamp;
+                                        color: Theme.text-muted;
                                         font-size: 10px;
-                                        font-weight: 700;
-                                        horizontal-alignment: center;
-                                        vertical-alignment: center;
+                                        horizontal-alignment: right;
+                                    }
+
+                                    Rectangle {
+                                        width: 72px;
+                                        height: 20px;
+                                        border-radius: Theme.radius-xs;
+                                        background: root.selected-index == idx ? Theme.gold-gradient : transparent;
+                                        border-width: 1px;
+                                        border-color: root.selected-index == idx ? Theme.border-gold-bright : Theme.border-normal;
+
+                                        Text {
+                                            text: root.selected-index == idx ? "Selezionato" : "Seleziona";
+                                            color: root.selected-index == idx ? Theme.text-dark : Theme.text-secondary;
+                                            font-size: 10px;
+                                            font-weight: 700;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
                                     }
                                 }
                             }
@@ -268,11 +295,10 @@ export component BugCard inherits Rectangle {
                 }
             }
         }
-        }
 
         // Section 2: Category Selection Pills
         VerticalLayout {
-            spacing: 8px;
+            spacing: 6px;
 
             Text {
                 text: "2. CATEGORIA DEL PROBLEMA";
@@ -289,7 +315,7 @@ export component BugCard inherits Rectangle {
                     height: 28px;
                     y: pill-touch.pressed ? 1px : 0px;
                     border-radius: Theme.radius-pill;
-                    background: root.selected-category == c-idx ? #c89b3c33 : (pill-touch.has-hover ? #252e42 : Theme.bg-card);
+                    background: root.selected-category == c-idx ? #c89b3c25 : (pill-touch.has-hover ? #1f2738 : Theme.bg-card);
                     border-width: 1px;
                     border-color: root.selected-category == c-idx ? Theme.border-gold-bright : Theme.border-normal;
 
@@ -309,7 +335,7 @@ export component BugCard inherits Rectangle {
                         padding-right: 12px;
                         Text {
                             text: cat-name;
-                            color: root.selected-category == c-idx ? Theme.gold-bright : Theme.text-secondary;
+                            color: root.selected-category == c-idx ? Theme.gold-bright : (pill-touch.has-hover ? Theme.text-primary : Theme.text-secondary);
                             font-size: 11px;
                             font-weight: root.selected-category == c-idx ? 700 : 500;
                             vertical-alignment: center;
@@ -321,7 +347,7 @@ export component BugCard inherits Rectangle {
 
         // Section 3: Description Field & Manual Sound File
         VerticalLayout {
-            spacing: 8px;
+            spacing: 6px;
 
             Text {
                 text: "3. DESCRIZIONE DETTAGLIATA & NOTE";
@@ -332,7 +358,7 @@ export component BugCard inherits Rectangle {
             }
 
             Rectangle {
-                height: 70px;
+                height: 74px;
                 background: Theme.bg-input;
                 border-radius: Theme.radius-md;
                 border-width: 1px;
@@ -353,87 +379,142 @@ export component BugCard inherits Rectangle {
 
                 if (root.user-description == "") : Text {
                     x: 10px;
-                    y: 8px;
+                    y: 9px;
                     text: "Descrivi il problema (es: 'L'accento sulla parola X è errato', 'Audio interrotto a metà')...";
                     color: Theme.text-muted;
-                    font-size: 12px;
+                    font-size: 11px;
                 }
             }
         }
 
-        // Action Buttons Row (Esporta / GitHub)
+        // Action Buttons Row (Esporta / GitHub) with Balanced Weights & Aligned Baselines
         HorizontalLayout {
-            spacing: 12px;
-            alignment: end;
+            alignment: space-between;
 
-            // GitHub Issue Button
-            Rectangle {
-                width: 160px;
-                height: 36px;
-                border-radius: Theme.radius-md;
-                background: gh-touch.has-hover ? (gh-touch.pressed ? #2d384e : #1c2333) : #141a26;
-                border-width: 1px;
-                border-color: gh-touch.has-hover ? Theme.border-bright : Theme.border-normal;
+            // Selected dialogue status summary pill
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: start;
 
-                animate background { duration: Theme.transition-fast; }
+                Rectangle {
+                    height: 24px;
+                    y: (parent.height - self.height) / 2;
+                    border-radius: Theme.radius-xs;
+                    background: #141924;
+                    border-width: 1px;
+                    border-color: Theme.border-subtle;
 
-                gh-touch := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => {
-                        root.open-github(root.current-category-name, root.user-description, root.current-sound-file);
-                    }
-                }
-
-                HorizontalLayout {
-                    alignment: center;
-                    spacing: 6px;
-                    Text {
-                        text: "🌐";
-                        font-size: 12px;
-                        vertical-alignment: center;
-                    }
-                    Text {
-                        text: "Apri Issue GitHub";
-                        color: Theme.text-primary;
-                        font-size: 12px;
-                        font-weight: 600;
-                        vertical-alignment: center;
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        spacing: 5px;
+                        Text {
+                            text: "Target:";
+                            color: Theme.text-muted;
+                            font-size: 10px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: root.current-sound-file != "" ? root.current-sound-file : "Segnalazione generale / Testo";
+                            color: root.current-sound-file != "" ? Theme.gold-light : Theme.text-secondary;
+                            font-size: 10px;
+                            vertical-alignment: center;
+                        }
                     }
                 }
             }
 
-            // Export / Submit Report Button
-            Rectangle {
-                width: 190px;
-                height: 36px;
-                border-radius: Theme.radius-md;
-                background: sub-touch.has-hover ? (sub-touch.pressed ? Theme.gold-gradient-pressed : Theme.gold-gradient-hover) : Theme.gold-gradient;
-                border-width: 1px;
-                border-color: Theme.border-gold-glow;
+            // Right Button Pair
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: end;
 
-                animate background { duration: Theme.transition-fast; }
+                // GitHub Issue Button
+                Rectangle {
+                    width: 165px;
+                    height: 38px;
+                    y: gh-touch.pressed ? 1px : 0px;
+                    border-radius: Theme.radius-md;
+                    background: gh-touch.has-hover ? (gh-touch.pressed ? #252e42 : #182030) : #131824;
+                    border-width: 1px;
+                    border-color: gh-touch.has-hover ? Theme.border-gold-normal : Theme.border-normal;
 
-                sub-touch := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => {
-                        root.submit-report(root.current-category-name, root.user-description, root.current-sound-file);
+                    animate y { duration: Theme.transition-instant; easing: ease-out; }
+                    animate background { duration: Theme.transition-fast; }
+                    animate border-color { duration: Theme.transition-fast; }
+
+                    gh-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.open-github(root.current-category-name, root.user-description, root.current-sound-file);
+                        }
+                    }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 7px;
+                        Text {
+                            text: "🌐";
+                            font-size: 13px;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: "Apri Issue GitHub";
+                            color: gh-touch.has-hover ? Theme.gold-light : Theme.text-primary;
+                            font-size: 12px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
                     }
                 }
 
-                HorizontalLayout {
-                    alignment: center;
-                    spacing: 6px;
-                    Text {
-                        text: "💾";
-                        font-size: 12px;
-                        vertical-alignment: center;
+                // Export / Submit Report Button
+                Rectangle {
+                    width: 210px;
+                    height: 38px;
+                    y: sub-touch.pressed ? 1.5px : 0px;
+                    border-radius: Theme.radius-md;
+                    background: sub-touch.has-hover ? (sub-touch.pressed ? Theme.gold-gradient-pressed : Theme.gold-gradient-hover) : Theme.gold-gradient;
+                    border-width: 1px;
+                    border-color: sub-touch.has-hover ? Theme.border-gold-glow : Theme.border-gold-bright;
+
+                    animate y { duration: Theme.transition-instant; easing: ease-out; }
+                    animate background { duration: Theme.transition-fast; }
+                    animate border-color { duration: Theme.transition-fast; }
+
+                    // Top specular highlight
+                    Rectangle {
+                        x: 4px;
+                        y: 1px;
+                        width: parent.width - 8px;
+                        height: 1px;
+                        background: #ffffff44;
                     }
-                    Text {
-                        text: "Esporta Segnalazione (.md)";
-                        color: Theme.text-dark;
-                        font-size: 12px;
-                        font-weight: 700;
-                        vertical-alignment: center;
+
+                    sub-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.submit-report(root.current-category-name, root.user-description, root.current-sound-file);
+                        }
+                    }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 7px;
+                        Text {
+                            text: "💾";
+                            font-size: 13px;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: "Esporta Segnalazione (.md)";
+                            color: Theme.text-dark;
+                            font-size: 12px;
+                            font-weight: 800;
+                            letter-spacing: 0.3px;
+                            vertical-alignment: center;
+                        }
                     }
                 }
             }

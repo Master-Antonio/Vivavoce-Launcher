@@ -4,7 +4,7 @@ export component PrimaryButton inherits Rectangle {
     in-out property <string> text: "Pulsante";
     in-out property <string> icon: "";
     in-out property <bool> enabled: true;
-    in-out property <length> custom-height: 44px;
+    in-out property <length> custom-height: 48px;
 
     callback clicked();
 
@@ -16,21 +16,21 @@ export component PrimaryButton inherits Rectangle {
     y: (touch.pressed && root.enabled) ? 1.5px : 0px;
     animate y { duration: Theme.transition-instant; easing: ease-out; }
 
-    background: !root.enabled ? #232836 : (touch.has-hover ? (touch.pressed ? Theme.gold-gradient-pressed : Theme.gold-gradient-hover) : Theme.gold-gradient);
+    background: !root.enabled ? #1e2430 : (touch.has-hover ? (touch.pressed ? Theme.gold-gradient-pressed : Theme.gold-gradient-hover) : Theme.gold-gradient);
     border-width: 1px;
-    border-color: !root.enabled ? #161a24 : (touch.has-hover ? Theme.border-gold-glow : Theme.border-gold-bright);
+    border-color: !root.enabled ? #141822 : (touch.has-hover ? Theme.border-gold-glow : Theme.border-gold-bright);
 
     animate background { duration: Theme.transition-fast; easing: ease-out; }
     animate border-color { duration: Theme.transition-fast; easing: ease-out; }
 
-    // Top metallic specular reflection line (compresses on click)
+    // Top metallic specular reflection line
     Rectangle {
         x: 4px;
         y: 1px;
         width: parent.width - 8px;
         height: 1px;
         border-radius: 1px;
-        background: !root.enabled ? #ffffff10 : (touch.pressed ? #ffffff20 : #ffffff55);
+        background: !root.enabled ? #ffffff08 : (touch.pressed ? #ffffff18 : #ffffff50);
         animate background { duration: Theme.transition-instant; easing: ease-out; }
     }
 
@@ -55,7 +55,7 @@ export component PrimaryButton inherits Rectangle {
             color: !root.enabled ? Theme.text-muted : Theme.text-dark;
             font-size: 13px;
             font-weight: 800;
-            letter-spacing: 0.4px;
+            letter-spacing: 0.5px;
             vertical-alignment: center;
         }
     }
@@ -65,7 +65,7 @@ export component SecondaryButton inherits Rectangle {
     in-out property <string> text: "Pulsante";
     in-out property <string> icon: "";
     in-out property <bool> enabled: true;
-    in-out property <length> custom-height: 40px;
+    in-out property <length> custom-height: 38px;
 
     callback clicked();
 
@@ -77,9 +77,9 @@ export component SecondaryButton inherits Rectangle {
     y: (touch.pressed && root.enabled) ? 1px : 0px;
     animate y { duration: Theme.transition-instant; easing: ease-out; }
 
-    background: !root.enabled ? #11151f44 : (touch.has-hover ? (touch.pressed ? #252e42 : #1a2233) : #141a26);
+    background: !root.enabled ? #10141e40 : (touch.has-hover ? (touch.pressed ? #222a3d : #182030) : #131824);
     border-width: 1px;
-    border-color: !root.enabled ? Theme.border-subtle : (touch.has-hover ? Theme.border-gold-bright : Theme.border-normal);
+    border-color: !root.enabled ? Theme.border-subtle : (touch.has-hover ? Theme.border-gold-normal : Theme.border-normal);
 
     animate background { duration: Theme.transition-fast; easing: ease-out; }
     animate border-color { duration: Theme.transition-fast; easing: ease-out; }
@@ -90,7 +90,7 @@ export component SecondaryButton inherits Rectangle {
         y: 1px;
         width: parent.width - 8px;
         height: 1px;
-        background: #ffffff14;
+        background: #ffffff10;
     }
 
     touch := TouchArea {
@@ -107,7 +107,7 @@ export component SecondaryButton inherits Rectangle {
 
         if (root.icon != "") : Text {
             text: root.icon;
-            font-size: 14px;
+            font-size: 13px;
             vertical-alignment: center;
         }
 
@@ -127,7 +127,7 @@ export component DangerButton inherits Rectangle {
     in-out property <string> text: "Elimina";
     in-out property <string> icon: "🗑️";
     in-out property <bool> enabled: true;
-    in-out property <length> custom-height: 40px;
+    in-out property <length> custom-height: 38px;
 
     callback clicked();
 
@@ -139,9 +139,9 @@ export component DangerButton inherits Rectangle {
     y: (touch.pressed && root.enabled) ? 1px : 0px;
     animate y { duration: Theme.transition-instant; easing: ease-out; }
 
-    background: !root.enabled ? #1a161833 : (touch.has-hover ? (touch.pressed ? #3d1418 : #2e1115) : #200d10);
+    background: !root.enabled ? #180d1033 : (touch.has-hover ? (touch.pressed ? #381216 : #2a0e12) : #1c0a0d);
     border-width: 1px;
-    border-color: !root.enabled ? #2a1b1d : (touch.has-hover ? #f87171 : #ef444455);
+    border-color: !root.enabled ? #261518 : (touch.has-hover ? #f87171 : #ef44444d);
 
     animate background { duration: Theme.transition-fast; easing: ease-out; }
     animate border-color { duration: Theme.transition-fast; easing: ease-out; }
@@ -152,7 +152,7 @@ export component DangerButton inherits Rectangle {
         y: 1px;
         width: parent.width - 8px;
         height: 1px;
-        background: #f8717122;
+        background: #f871711a;
     }
 
     touch := TouchArea {
@@ -169,7 +169,7 @@ export component DangerButton inherits Rectangle {
 
         if (root.icon != "") : Text {
             text: root.icon;
-            font-size: 14px;
+            font-size: 13px;
             vertical-alignment: center;
         }
 

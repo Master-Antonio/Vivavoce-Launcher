@@ -68,7 +68,7 @@ export component MainWindow inherits Window {
             HorizontalLayout {
                 // === LEFT SIDEBAR NAVIGATION ===
                 sidebar := Rectangle {
-                    width: 220px;
+                    width: 210px;
                     background: Theme.bg-sidebar;
 
                     // Subtle right separator line
@@ -82,38 +82,39 @@ export component MainWindow inherits Window {
                     VerticalLayout {
                         padding-left: 12px;
                         padding-right: 12px;
-                        padding-top: 16px;
-                        padding-bottom: 16px;
+                        padding-top: 14px;
+                        padding-bottom: 14px;
                         alignment: space-between;
 
                         // Top Sidebar Brand Card
                         VerticalLayout {
-                            spacing: 16px;
+                            spacing: 14px;
 
                             Rectangle {
-                                height: 60px;
+                                height: 56px;
                                 border-radius: Theme.radius-md;
                                 background: Theme.bg-panel;
                                 border-width: 1px;
                                 border-color: Theme.border-subtle;
 
                                 HorizontalLayout {
-                                    padding-left: 12px;
-                                    padding-right: 12px;
+                                    padding-left: 10px;
+                                    padding-right: 10px;
                                     alignment: start;
                                     spacing: 10px;
 
                                     Rectangle {
-                                        width: 36px;
-                                        height: 36px;
+                                        width: 34px;
+                                        height: 34px;
+                                        y: (parent.height - self.height) / 2;
                                         border-radius: Theme.radius-sm;
-                                        background: @linear-gradient(135deg, #2b2210 0%, #17151e 100%);
+                                        background: @linear-gradient(135deg, #2b200e 0%, #17151e 100%);
                                         border-width: 1px;
                                         border-color: Theme.border-gold-normal;
 
                                         Text {
                                             text: "🎙️";
-                                            font-size: 18px;
+                                            font-size: 16px;
                                             horizontal-alignment: center;
                                             vertical-alignment: center;
                                         }
@@ -128,7 +129,7 @@ export component MainWindow inherits Window {
                                             color: Theme.gold-bright;
                                             font-size: 13px;
                                             font-weight: 800;
-                                            letter-spacing: 1px;
+                                            letter-spacing: 0.8px;
                                         }
 
                                         Text {
@@ -143,14 +144,14 @@ export component MainWindow inherits Window {
 
                             // Navigation Items
                             VerticalLayout {
-                                spacing: 6px;
+                                spacing: 5px;
 
                                 // Tab 0: Dashboard
                                 tab0 := Rectangle {
-                                    height: 42px;
+                                    height: 40px;
                                     x: t0-touch.pressed ? 1.5px : 0px;
                                     border-radius: Theme.radius-sm;
-                                    background: root.active-tab == 0 ? #1f2738 : (t0-touch.has-hover ? #151c2a : transparent);
+                                    background: root.active-tab == 0 ? #1c2436 : (t0-touch.has-hover ? #131a26 : transparent);
                                     border-width: 1px;
                                     border-color: root.active-tab == 0 ? Theme.border-gold-subtle : transparent;
 
@@ -164,7 +165,7 @@ export component MainWindow inherits Window {
                                         y: 6px;
                                         width: 3px;
                                         height: parent.height - 12px;
-                                        border-radius: 2px;
+                                        border-radius: 1.5px;
                                         background: Theme.gold-bright;
                                     }
 
@@ -195,10 +196,10 @@ export component MainWindow inherits Window {
 
                                 // Tab 1: Pacchetti & Dettagli
                                 tab1 := Rectangle {
-                                    height: 42px;
+                                    height: 40px;
                                     x: t1-touch.pressed ? 1.5px : 0px;
                                     border-radius: Theme.radius-sm;
-                                    background: root.active-tab == 1 ? #1f2738 : (t1-touch.has-hover ? #151c2a : transparent);
+                                    background: root.active-tab == 1 ? #1c2436 : (t1-touch.has-hover ? #131a26 : transparent);
                                     border-width: 1px;
                                     border-color: root.active-tab == 1 ? Theme.border-gold-subtle : transparent;
 
@@ -211,7 +212,7 @@ export component MainWindow inherits Window {
                                         y: 6px;
                                         width: 3px;
                                         height: parent.height - 12px;
-                                        border-radius: 2px;
+                                        border-radius: 1.5px;
                                         background: Theme.gold-bright;
                                     }
 
@@ -242,10 +243,10 @@ export component MainWindow inherits Window {
 
                                 // Tab 2: Segnala Bug
                                 tab2 := Rectangle {
-                                    height: 42px;
+                                    height: 40px;
                                     x: t2-touch.pressed ? 1.5px : 0px;
                                     border-radius: Theme.radius-sm;
-                                    background: root.active-tab == 2 ? #1f2738 : (t2-touch.has-hover ? #151c2a : transparent);
+                                    background: root.active-tab == 2 ? #1c2436 : (t2-touch.has-hover ? #131a26 : transparent);
                                     border-width: 1px;
                                     border-color: root.active-tab == 2 ? Theme.border-gold-subtle : transparent;
 
@@ -258,7 +259,7 @@ export component MainWindow inherits Window {
                                         y: 6px;
                                         width: 3px;
                                         height: parent.height - 12px;
-                                        border-radius: 2px;
+                                        border-radius: 1.5px;
                                         background: Theme.gold-bright;
                                     }
 
@@ -289,10 +290,10 @@ export component MainWindow inherits Window {
 
                                 // Tab 3: Impostazioni
                                 tab3 := Rectangle {
-                                    height: 42px;
+                                    height: 40px;
                                     x: t3-touch.pressed ? 1.5px : 0px;
                                     border-radius: Theme.radius-sm;
-                                    background: root.active-tab == 3 ? #1f2738 : (t3-touch.has-hover ? #151c2a : transparent);
+                                    background: root.active-tab == 3 ? #1c2436 : (t3-touch.has-hover ? #131a26 : transparent);
                                     border-width: 1px;
                                     border-color: root.active-tab == 3 ? Theme.border-gold-subtle : transparent;
 
@@ -305,7 +306,7 @@ export component MainWindow inherits Window {
                                         y: 6px;
                                         width: 3px;
                                         height: parent.height - 12px;
-                                        border-radius: 2px;
+                                        border-radius: 1.5px;
                                         background: Theme.gold-bright;
                                     }
 
@@ -338,13 +339,13 @@ export component MainWindow inherits Window {
 
                         // Bottom Sidebar Info & Community Links
                         VerticalLayout {
-                            spacing: 10px;
+                            spacing: 8px;
 
                             // WoW Flavor Badge
                             Rectangle {
-                                height: 32px;
+                                height: 30px;
                                 border-radius: Theme.radius-sm;
-                                background: #121620;
+                                background: #10141d;
                                 border-width: 1px;
                                 border-color: Theme.border-subtle;
 
@@ -379,9 +380,9 @@ export component MainWindow inherits Window {
                                     height: 30px;
                                     y: d-touch.pressed ? 1px : 0px;
                                     border-radius: Theme.radius-xs;
-                                    background: d-touch.has-hover ? #222a3d : #141924;
+                                    background: d-touch.has-hover ? #1f2738 : #121622;
                                     border-width: 1px;
-                                    border-color: d-touch.has-hover ? Theme.border-bright : Theme.border-subtle;
+                                    border-color: d-touch.has-hover ? Theme.border-gold-subtle : Theme.border-subtle;
 
                                     animate y { duration: Theme.transition-instant; easing: ease-out; }
                                     animate background { duration: Theme.transition-fast; easing: ease-out; }
@@ -397,7 +398,7 @@ export component MainWindow inherits Window {
                                         spacing: 4px;
                                         Text {
                                             text: "💬 Discord";
-                                            color: d-touch.has-hover ? Theme.text-primary : Theme.text-secondary;
+                                            color: d-touch.has-hover ? Theme.gold-light : Theme.text-secondary;
                                             font-size: 11px;
                                             font-weight: 600;
                                             vertical-alignment: center;
@@ -410,9 +411,9 @@ export component MainWindow inherits Window {
                                     height: 30px;
                                     y: g-touch.pressed ? 1px : 0px;
                                     border-radius: Theme.radius-xs;
-                                    background: g-touch.has-hover ? #222a3d : #141924;
+                                    background: g-touch.has-hover ? #1f2738 : #121622;
                                     border-width: 1px;
-                                    border-color: g-touch.has-hover ? Theme.border-bright : Theme.border-subtle;
+                                    border-color: g-touch.has-hover ? Theme.border-gold-subtle : Theme.border-subtle;
 
                                     animate y { duration: Theme.transition-instant; easing: ease-out; }
                                     animate background { duration: Theme.transition-fast; easing: ease-out; }
@@ -428,7 +429,7 @@ export component MainWindow inherits Window {
                                         spacing: 4px;
                                         Text {
                                             text: "⭐ GitHub";
-                                            color: g-touch.has-hover ? Theme.text-primary : Theme.text-secondary;
+                                            color: g-touch.has-hover ? Theme.gold-light : Theme.text-secondary;
                                             font-size: 11px;
                                             font-weight: 600;
                                             vertical-alignment: center;
@@ -445,23 +446,24 @@ export component MainWindow inherits Window {
                     background: transparent;
 
                     VerticalLayout {
-                        padding-left: 24px;
-                        padding-right: 24px;
-                        padding-top: 18px;
-                        padding-bottom: 20px;
+                        padding-left: 22px;
+                        padding-right: 22px;
+                        padding-top: 14px;
+                        padding-bottom: 16px;
 
                         // ==========================================
                         // TAB 0: DASHBOARD
                         // ==========================================
                         if (root.active-tab == 0) : VerticalLayout {
-                            spacing: 16px;
+                            spacing: 12px;
+                            alignment: start;
 
                             // Top Header Block with Status Badge
                             HorizontalLayout {
                                 alignment: space-between;
 
                                 VerticalLayout {
-                                    spacing: 4px;
+                                    spacing: 3px;
                                     Text {
                                         text: "World of Warcraft — Voiceover Italiano";
                                         color: Theme.text-primary;
@@ -475,7 +477,7 @@ export component MainWindow inherits Window {
                                     }
                                 }
 
-                                // Live Status Badge
+                                // Live Status Badge (Top Right)
                                 StatusBadge {
                                     is-installed: root.is-installed;
                                     has-update: root.has-update;
@@ -484,22 +486,22 @@ export component MainWindow inherits Window {
                                 }
                             }
 
-                            // Hero Stats Card (Double-Bezel WoW Slate Architecture)
+                            // Hero Stats Card: 3 Balanced Metric Columns (Height: 90px)
                             Rectangle {
-                                height: 110px;
+                                height: 90px;
                                 border-radius: Theme.radius-md;
                                 background: Theme.panel-gradient;
                                 border-width: 1px;
                                 border-color: Theme.border-normal;
 
                                 HorizontalLayout {
-                                    padding: 16px;
+                                    padding: 12px;
                                     alignment: space-around;
 
                                     // Stat 1: 27.420 battute
                                     VerticalLayout {
                                         alignment: center;
-                                        spacing: 4px;
+                                        spacing: 3px;
                                         HorizontalLayout {
                                             alignment: center;
                                             spacing: 6px;
@@ -522,12 +524,12 @@ export component MainWindow inherits Window {
                                     }
 
                                     // Divider Line
-                                    Rectangle { width: 1px; height: 60px; background: Theme.border-subtle; }
+                                    Rectangle { width: 1px; height: 50px; background: Theme.border-subtle; y: (parent.height - self.height) / 2; }
 
                                     // Stat 2: Missioni & Libri
                                     VerticalLayout {
                                         alignment: center;
-                                        spacing: 4px;
+                                        spacing: 3px;
                                         HorizontalLayout {
                                             alignment: center;
                                             spacing: 6px;
@@ -550,18 +552,18 @@ export component MainWindow inherits Window {
                                     }
 
                                     // Divider Line
-                                    Rectangle { width: 1px; height: 60px; background: Theme.border-subtle; }
+                                    Rectangle { width: 1px; height: 50px; background: Theme.border-subtle; y: (parent.height - self.height) / 2; }
 
                                     // Stat 3: Integrità Blake3
                                     VerticalLayout {
                                         alignment: center;
-                                        spacing: 4px;
+                                        spacing: 3px;
                                         HorizontalLayout {
                                             alignment: center;
                                             spacing: 6px;
                                             Text { text: "🛡️"; font-size: 14px; vertical-alignment: center; }
                                             Text {
-                                                text: "Blake3";
+                                                text: "6/6 Moduli";
                                                 color: Theme.gold-bright;
                                                 font-size: 22px;
                                                 font-weight: 800;
@@ -569,7 +571,7 @@ export component MainWindow inherits Window {
                                             }
                                         }
                                         Text {
-                                            text: "Integrità File Garantita";
+                                            text: "Integrità Blake3 OK";
                                             color: Theme.text-secondary;
                                             font-size: 11px;
                                             font-weight: 500;
@@ -579,38 +581,59 @@ export component MainWindow inherits Window {
                                 }
                             }
 
-                            // WoW Directory Card
+                            // WoW Directory Card: Structured Game Client Bar (Height: 64px)
                             Rectangle {
-                                height: 74px;
+                                height: 64px;
                                 border-radius: Theme.radius-md;
                                 background: Theme.bg-card;
                                 border-width: 1px;
                                 border-color: Theme.border-subtle;
 
                                 HorizontalLayout {
-                                    padding-left: 16px;
-                                    padding-right: 16px;
+                                    padding-left: 14px;
+                                    padding-right: 14px;
                                     alignment: space-between;
 
                                     VerticalLayout {
                                         alignment: center;
-                                        spacing: 4px;
+                                        spacing: 3px;
 
                                         HorizontalLayout {
                                             spacing: 6px;
+                                            alignment: start;
                                             Text {
-                                                text: "📁 Percorso World of Warcraft:";
+                                                text: "📁 Installazione WoW:";
                                                 color: Theme.gold-light;
                                                 font-size: 11px;
                                                 font-weight: 700;
+                                                vertical-alignment: center;
+                                            }
+                                            Rectangle {
+                                                height: 16px;
+                                                border-radius: Theme.radius-xs;
+                                                background: #c89b3c1a;
+                                                border-width: 1px;
+                                                border-color: #c89b3c33;
+                                                HorizontalLayout {
+                                                    padding-left: 5px;
+                                                    padding-right: 5px;
+                                                    Text {
+                                                        text: root.wow-flavor == "_forever_" ? "Forever 1.12.1" : root.wow-flavor;
+                                                        color: Theme.gold-bright;
+                                                        font-size: 9px;
+                                                        font-weight: 700;
+                                                        vertical-alignment: center;
+                                                    }
+                                                }
                                             }
                                         }
 
                                         Text {
                                             text: root.wow-path != "" ? root.wow-path : "Nessun percorso rilevato automaticamente. Clicca su Sfoglia per impostarlo.";
                                             color: root.wow-path != "" ? Theme.text-primary : Theme.text-muted;
-                                            font-size: 12px;
+                                            font-size: 11px;
                                             overflow: elide;
+                                            max-width: 440px;
                                         }
                                     }
 
@@ -621,35 +644,36 @@ export component MainWindow inherits Window {
                                         SecondaryButton {
                                             text: "Sfoglia...";
                                             icon: "🔍";
-                                            custom-height: 36px;
+                                            custom-height: 34px;
                                             clicked => { root.select-wow-folder(); }
                                         }
 
                                         SecondaryButton {
                                             text: "AddOns";
                                             icon: "📂";
-                                            custom-height: 36px;
+                                            custom-height: 34px;
                                             clicked => { root.open-addons-folder(); }
                                         }
                                     }
                                 }
                             }
 
-                            // Giant Main CTA Area / Updating Section
+                            // Hero Command Center Card: Primary CTA + Diagnostic Features Grid (Height: 236px)
                             Rectangle {
+                                height: 236px;
                                 border-radius: Theme.radius-md;
-                                background: Theme.bg-panel;
+                                background: Theme.panel-gradient;
                                 border-width: 1px;
                                 border-color: Theme.border-normal;
 
                                 VerticalLayout {
-                                    padding: 20px;
-                                    spacing: 16px;
+                                    padding: 18px;
+                                    spacing: 14px;
+                                    alignment: space-between;
 
-                                    // If actively updating: Show Progress Bar
+                                    // Top CTA Bar or Progress Bar
                                     if (root.is-updating) : VerticalLayout {
-                                        spacing: 12px;
-
+                                        spacing: 8px;
                                         ProgressBar {
                                             progress: root.progress;
                                             title: root.status-text;
@@ -658,16 +682,16 @@ export component MainWindow inherits Window {
                                         }
                                     }
 
-                                    // If not updating: Action Buttons Row
                                     if (!root.is-updating) : HorizontalLayout {
-                                        spacing: 14px;
+                                        spacing: 12px;
                                         alignment: center;
 
                                         // Giant Primary CTA Button
                                         PrimaryButton {
+                                            width: 280px;
+                                            custom-height: 50px;
                                             text: !root.is-installed ? "INSTALLA VIVAVOCE" : (root.has-update ? ("AGGIORNA A v" + root.remote-version) : "AVVIA WORLD OF WARCRAFT");
                                             icon: !root.is-installed ? "⬇️" : (root.has-update ? "✨" : "⚔️");
-                                            custom-height: 52px;
                                             enabled: true;
 
                                             clicked => {
@@ -679,16 +703,83 @@ export component MainWindow inherits Window {
                                             }
                                         }
 
-                                        // Secondary Repair Button (if installed)
+                                        // Secondary Repair Button
                                         if (root.is-installed) : SecondaryButton {
+                                            width: 180px;
+                                            custom-height: 50px;
                                             text: "Verifica e Ripara";
                                             icon: "🔧";
-                                            custom-height: 52px;
                                             clicked => { root.start-repair(); }
                                         }
                                     }
 
-                                    // Bottom note
+                                    // Subtle horizontal separator
+                                    Rectangle { height: 1px; background: Theme.border-subtle; }
+
+                                    // Feature Highlights Grid: Eliminates Dead Empty Space with Craft
+                                    HorizontalLayout {
+                                        spacing: 10px;
+                                        alignment: space-around;
+
+                                        // Feature 1
+                                        Rectangle {
+                                            background: #0d1119;
+                                            border-radius: Theme.radius-sm;
+                                            border-width: 1px;
+                                            border-color: Theme.border-subtle;
+                                            HorizontalLayout {
+                                                padding: 10px;
+                                                spacing: 8px;
+                                                Text { text: "🎙️"; font-size: 16px; vertical-alignment: center; }
+                                                VerticalLayout {
+                                                    alignment: center;
+                                                    spacing: 2px;
+                                                    Text { text: "100% Italiano"; color: Theme.gold-light; font-size: 11px; font-weight: 700; }
+                                                    Text { text: "Doppiaggio & quest lore"; color: Theme.text-muted; font-size: 10px; }
+                                                }
+                                            }
+                                        }
+
+                                        // Feature 2
+                                        Rectangle {
+                                            background: #0d1119;
+                                            border-radius: Theme.radius-sm;
+                                            border-width: 1px;
+                                            border-color: Theme.border-subtle;
+                                            HorizontalLayout {
+                                                padding: 10px;
+                                                spacing: 8px;
+                                                Text { text: "⚡"; font-size: 16px; vertical-alignment: center; }
+                                                VerticalLayout {
+                                                    alignment: center;
+                                                    spacing: 2px;
+                                                    Text { text: "Zero Lag FPS"; color: Theme.gold-light; font-size: 11px; font-weight: 700; }
+                                                    Text { text: "Stream OGG Vorbis 48kHz"; color: Theme.text-muted; font-size: 10px; }
+                                                }
+                                            }
+                                        }
+
+                                        // Feature 3
+                                        Rectangle {
+                                            background: #0d1119;
+                                            border-radius: Theme.radius-sm;
+                                            border-width: 1px;
+                                            border-color: Theme.border-subtle;
+                                            HorizontalLayout {
+                                                padding: 10px;
+                                                spacing: 8px;
+                                                Text { text: "🔒"; font-size: 16px; vertical-alignment: center; }
+                                                VerticalLayout {
+                                                    alignment: center;
+                                                    spacing: 2px;
+                                                    Text { text: "Sicuro & Isolato"; color: Theme.gold-light; font-size: 11px; font-weight: 700; }
+                                                    Text { text: "Nessun file client alterato"; color: Theme.text-muted; font-size: 10px; }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Disclaimer Footer
                                     Text {
                                         text: "VivaVoce integra l'audio OGG compresso con gli AddOn VoiceOver ufficiali senza alterare i file di gioco Blizzard.";
                                         color: Theme.text-muted;
@@ -700,10 +791,11 @@ export component MainWindow inherits Window {
                         }
 
                         // ==========================================
-                        // TAB 1: PACCHETTI & DETTAGLI (6 Moduli)
+                        // TAB 1: PACCHETTI & DETTAGLI (6 Moduli Compact)
                         // ==========================================
                         if (root.active-tab == 1) : VerticalLayout {
-                            spacing: 14px;
+                            spacing: 10px;
+                            alignment: start;
 
                             // Tab Header
                             HorizontalLayout {
@@ -744,102 +836,103 @@ export component MainWindow inherits Window {
                                 }
                             }
 
-                            // Scrollable list of modules
+                            // Scrollable list of modules (All 6 fit cleanly!)
                             ScrollView {
+                                height: 490px;
                                 VerticalLayout {
-                                    spacing: 8px;
-                                    padding-right: 6px;
+                                    spacing: 6px;
+                                    padding-right: 4px;
 
-                                    // If dynamic packages provided
+                                    // Dynamic packages from Rust
                                     for pkg in root.packages : PackageCard {
                                         package-data: pkg;
                                     }
 
-                                    // Default 6 VivaVoce Modules when packages list is empty
+                                    // Default fallback when packages list is empty
                                     if (root.packages.length == 0) : VerticalLayout {
-                                        spacing: 8px;
+                                        spacing: 6px;
 
                                         PackageCard {
                                             icon: "⚙️";
                                             package-data: {
-                                                id: "vivavoce_core",
-                                                name: "VivaVoce_Core (Motore Principale)",
-                                                description: "Interfaccia audio Lua, sync frame dei dialoghi, controller volume e configurazione in-game.",
-                                                filename: "VivaVoce_Core.tar.zst",
-                                                size-str: "~15 MB",
+                                                id: "vivavoce-core",
+                                                name: "VivaVoce Core",
+                                                description: "Motore audio principale, gestione code, sottotitoli e opzioni",
+                                                filename: "vivavoce-core.tar.zst",
+                                                size-str: "865 KB",
                                                 installed: root.is-installed,
                                                 verified: root.is-installed,
-                                                blake3-hash: "7f4a8b...12c9"
+                                                blake3-hash: "b3f8...91a2"
                                             };
                                         }
 
                                         PackageCard {
                                             icon: "📜";
                                             package-data: {
-                                                id: "vivavoce_quests",
-                                                name: "VivaVoce_Quests (Missioni & Testi)",
-                                                description: "27.420 battute audio parlate in italiano per oltre 2.500 quest classiche di Kalimdor e Eastern Kingdoms.",
-                                                filename: "VivaVoce_Quests.tar.zst",
-                                                size-str: "~2.8 GB",
+                                                id: "vivavoce-quests",
+                                                name: "VivaVoce Quests",
+                                                description: "15.838 battute: dialoghi quest, gossip NPC, accettazione e completamento",
+                                                filename: "vivavoce-quests.tar.zst",
+                                                size-str: "2.48 GB",
                                                 installed: root.is-installed,
                                                 verified: root.is-installed,
-                                                blake3-hash: "e391b0...d482"
+                                                blake3-hash: "7c2d...4401"
                                             };
                                         }
 
                                         PackageCard {
                                             icon: "📖";
                                             package-data: {
-                                                id: "vivavoce_books",
-                                                name: "VivaVoce_Books (Libri & Tomi Antichi)",
-                                                description: "Lettura integrale e immersiva di tutti i tomi storici, lettere e pergamene sparsi nel mondo.",
-                                                filename: "VivaVoce_Books.tar.zst",
-                                                size-str: "~340 MB",
+                                                id: "vivavoce-books",
+                                                name: "VivaVoce Books",
+                                                description: "5.594 battute: tomi di Azeroth, lettere, diari, pergamene e lapidi",
+                                                filename: "vivavoce-books.tar.zst",
+                                                size-str: "1.12 GB",
                                                 installed: root.is-installed,
                                                 verified: root.is-installed,
-                                                blake3-hash: "28fc71...aa04"
+                                                blake3-hash: "33aa...ff99"
                                             };
                                         }
 
                                         PackageCard {
                                             icon: "🗣️";
                                             package-data: {
-                                                id: "vivavoce_codex",
-                                                name: "VivaVoce_Codex (NPC & Creature)",
-                                                description: "Frasi d'interazione, saluti di fazione e reazioni vocali dei personaggi non giocanti.",
-                                                filename: "VivaVoce_Codex.tar.zst",
-                                                size-str: "~420 MB",
+                                                id: "vivavoce-codex",
+                                                name: "VivaVoce Codex",
+                                                description: "1.606 battute: supporto a CodexIT e missioni lore classiche",
+                                                filename: "vivavoce-codex.tar.zst",
+                                                size-str: "385 MB",
                                                 installed: root.is-installed,
                                                 verified: root.is-installed,
-                                                blake3-hash: "82a901...33d1"
+                                                blake3-hash: "19e0...8821"
                                             };
                                         }
 
                                         PackageCard {
                                             icon: "🗺️";
                                             package-data: {
-                                                id: "vivavoce_zones",
-                                                name: "VivaVoce_Zones (Atmosfere & Regioni)",
-                                                description: "Narrazioni geografiche e punti d'interesse per un'esplorazione ricca di lore.",
-                                                filename: "VivaVoce_Zones.tar.zst",
-                                                size-str: "~280 MB",
+                                                id: "vivavoce-zones",
+                                                name: "VivaVoce Zones",
+                                                description: "Annunci e tracce d'atmosfera delle zone del mondo",
+                                                filename: "vivavoce-zones.tar.zst",
+                                                size-str: "120 MB",
                                                 installed: root.is-installed,
                                                 verified: root.is-installed,
-                                                blake3-hash: "11e409...90cf"
+                                                blake3-hash: "4fa1...bb12"
                                             };
                                         }
 
                                         PackageCard {
                                             icon: "🐛";
                                             package-data: {
-                                                id: "vivavoce_collector",
-                                                name: "VivaVoce_Collector (Registratore In-Game)",
-                                                description: "Modulo ausiliario per salvare la cronologia audio in SavedVariables e facilitare segnalazioni di pronuncia.",
-                                                filename: "VivaVoce_Collector.tar.zst",
-                                                size-str: "~5 MB",
+                                                id: "vivavoce-collector",
+                                                name: "VivaVoce Collector",
+                                                description: "Registratore SavedVariables per report di bug e pronunce in-game",
+                                                filename: "vivavoce-collector.tar.zst",
+                                                size-str: "15 KB",
                                                 installed: root.is-installed,
                                                 verified: root.is-installed,
-                                                blake3-hash: "6c9d22...ff51"
+                                                blake3-hash: "6c9d...ff51"
                                             };
                                         }
                                     }
@@ -852,6 +945,7 @@ export component MainWindow inherits Window {
                         // ==========================================
                         if (root.active-tab == 2) : VerticalLayout {
                             spacing: 12px;
+                            alignment: start;
 
                             BugCard {
                                 recent-dialogues: root.recent-dialogues;
@@ -870,7 +964,8 @@ export component MainWindow inherits Window {
                         // TAB 3: IMPOSTAZIONI
                         // ==========================================
                         if (root.active-tab == 3) : VerticalLayout {
-                            spacing: 16px;
+                            spacing: 14px;
+                            alignment: start;
 
                             // Settings Header
                             VerticalLayout {
@@ -888,16 +983,18 @@ export component MainWindow inherits Window {
                                 }
                             }
 
-                            // Card 1: Percorso World of Warcraft
+                            // Card 1: Percorso World of Warcraft (Height: 110px)
                             Rectangle {
+                                height: 110px;
                                 border-radius: Theme.radius-md;
                                 background: Theme.bg-panel;
                                 border-width: 1px;
                                 border-color: Theme.border-normal;
 
                                 VerticalLayout {
-                                    padding: 18px;
-                                    spacing: 12px;
+                                    padding: 16px;
+                                    spacing: 10px;
+                                    alignment: center;
 
                                     Text {
                                         text: "CARTELLA WORLD OF WARCRAFT";
@@ -911,7 +1008,7 @@ export component MainWindow inherits Window {
                                         spacing: 10px;
 
                                         Rectangle {
-                                            height: 40px;
+                                            height: 38px;
                                             background: Theme.bg-input;
                                             border-radius: Theme.radius-sm;
                                             border-width: 1px;
@@ -931,9 +1028,10 @@ export component MainWindow inherits Window {
                                         }
 
                                         SecondaryButton {
+                                            width: 120px;
                                             text: "Cambia...";
                                             icon: "📁";
-                                            custom-height: 40px;
+                                            custom-height: 38px;
                                             clicked => { root.select-wow-folder(); }
                                         }
                                     }
@@ -946,16 +1044,18 @@ export component MainWindow inherits Window {
                                 }
                             }
 
-                            // Card 2: Manutenzione & Disinstallazione
+                            // Card 2: Manutenzione & Disinstallazione (Fixed Height & Aligned Widths, NO GAPS!)
                             Rectangle {
+                                height: 154px;
                                 border-radius: Theme.radius-md;
                                 background: Theme.bg-panel;
                                 border-width: 1px;
                                 border-color: Theme.border-normal;
 
                                 VerticalLayout {
-                                    padding: 18px;
-                                    spacing: 14px;
+                                    padding: 16px;
+                                    spacing: 10px;
+                                    alignment: start;
 
                                     Text {
                                         text: "MANUTENZIONE & RIMOZIONE ADDON";
@@ -965,11 +1065,12 @@ export component MainWindow inherits Window {
                                         letter-spacing: 0.8px;
                                     }
 
+                                    // Row 1: Ripara
                                     HorizontalLayout {
                                         alignment: space-between;
 
                                         VerticalLayout {
-                                            spacing: 3px;
+                                            spacing: 2px;
                                             alignment: center;
 
                                             Text {
@@ -986,20 +1087,22 @@ export component MainWindow inherits Window {
                                         }
 
                                         SecondaryButton {
+                                            width: 175px;
                                             text: "Esegui Riparazione";
                                             icon: "🔧";
-                                            custom-height: 38px;
+                                            custom-height: 36px;
                                             clicked => { root.start-repair(); }
                                         }
                                     }
 
                                     Rectangle { height: 1px; background: Theme.border-subtle; }
 
+                                    // Row 2: Disinstalla (Matching 175px Width!)
                                     HorizontalLayout {
                                         alignment: space-between;
 
                                         VerticalLayout {
-                                            spacing: 3px;
+                                            spacing: 2px;
                                             alignment: center;
 
                                             Text {
@@ -1016,28 +1119,31 @@ export component MainWindow inherits Window {
                                         }
 
                                         DangerButton {
+                                            width: 175px;
                                             text: "Disinstalla AddOn";
                                             icon: "🗑️";
-                                            custom-height: 38px;
+                                            custom-height: 36px;
                                             clicked => { root.start-uninstall(); }
                                         }
                                     }
                                 }
                             }
 
-                            // Card 3: Crediti e Info Progetto
+                            // Card 3: Crediti e Info Progetto (Height: 68px)
                             Rectangle {
+                                height: 68px;
                                 border-radius: Theme.radius-md;
                                 background: Theme.bg-panel;
                                 border-width: 1px;
                                 border-color: Theme.border-subtle;
 
                                 HorizontalLayout {
-                                    padding: 16px;
+                                    padding-left: 16px;
+                                    padding-right: 16px;
                                     alignment: space-between;
 
                                     VerticalLayout {
-                                        spacing: 4px;
+                                        spacing: 3px;
                                         alignment: center;
 
                                         Text {
@@ -1055,6 +1161,7 @@ export component MainWindow inherits Window {
                                     }
 
                                     SecondaryButton {
+                                        width: 175px;
                                         text: "GitHub Repository";
                                         icon: "⭐";
                                         custom-height: 34px;

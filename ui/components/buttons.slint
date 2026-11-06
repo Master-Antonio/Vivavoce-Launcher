@@ -2,9 +2,9 @@ import { Theme } from "../theme.slint";
 
 export component PrimaryButton inherits Rectangle {
     in-out property <string> text: "Pulsante";
-    in-out property <string> icon: "";
+    in-out property <image> icon;
     in-out property <bool> enabled: true;
-    in-out property <length> custom-height: 48px;
+    in-out property <length> custom-height: 44px;
 
     callback clicked();
 
@@ -12,27 +12,15 @@ export component PrimaryButton inherits Rectangle {
     border-radius: Theme.radius-md;
     clip: true;
 
-    // Tactile micro-displacement on active/pressed
-    y: (touch.pressed && root.enabled) ? 1.5px : 0px;
+    y: (touch.pressed && root.enabled) ? 1px : 0px;
     animate y { duration: Theme.transition-instant; easing: ease-out; }
 
-    background: !root.enabled ? #1e2430 : (touch.has-hover ? (touch.pressed ? Theme.gold-gradient-pressed : Theme.gold-gradient-hover) : Theme.gold-gradient);
+    background: !root.enabled ? #1a202c : (touch.has-hover ? (touch.pressed ? Theme.btn-primary-pressed : Theme.btn-primary-hover) : Theme.btn-primary-bg);
     border-width: 1px;
-    border-color: !root.enabled ? #141822 : (touch.has-hover ? Theme.border-gold-glow : Theme.border-gold-bright);
+    border-color: !root.enabled ? Theme.border-subtle : Theme.border-gold-normal;
 
     animate background { duration: Theme.transition-fast; easing: ease-out; }
     animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-    // Top metallic specular reflection line
-    Rectangle {
-        x: 4px;
-        y: 1px;
-        width: parent.width - 8px;
-        height: 1px;
-        border-radius: 1px;
-        background: !root.enabled ? #ffffff08 : (touch.pressed ? #ffffff18 : #ffffff50);
-        animate background { duration: Theme.transition-instant; easing: ease-out; }
-    }
 
     touch := TouchArea {
         enabled: root.enabled;
@@ -42,20 +30,22 @@ export component PrimaryButton inherits Rectangle {
 
     HorizontalLayout {
         alignment: center;
-        spacing: 9px;
+        spacing: 8px;
 
-        if (root.icon != "") : Text {
-            text: root.icon;
-            font-size: 15px;
+        if (root.icon.width > 0) : Image {
+            source: root.icon;
+            width: 16px;
+            height: 16px;
+            colorize: !root.enabled ? Theme.text-muted : Theme.btn-primary-text;
+            image-fit: contain;
             vertical-alignment: center;
         }
 
         Text {
             text: root.text;
-            color: !root.enabled ? Theme.text-muted : Theme.text-dark;
+            color: !root.enabled ? Theme.text-muted : Theme.btn-primary-text;
             font-size: 13px;
-            font-weight: 800;
-            letter-spacing: 0.5px;
+            font-weight: 600;
             vertical-alignment: center;
         }
     }
@@ -63,9 +53,9 @@ export component PrimaryButton inherits Rectangle {
 
 export component SecondaryButton inherits Rectangle {
     in-out property <string> text: "Pulsante";
-    in-out property <string> icon: "";
+    in-out property <image> icon;
     in-out property <bool> enabled: true;
-    in-out property <length> custom-height: 38px;
+    in-out property <length> custom-height: 36px;
 
     callback clicked();
 
@@ -73,25 +63,15 @@ export component SecondaryButton inherits Rectangle {
     border-radius: Theme.radius-md;
     clip: true;
 
-    // Tactile micro-displacement on active/pressed
     y: (touch.pressed && root.enabled) ? 1px : 0px;
     animate y { duration: Theme.transition-instant; easing: ease-out; }
 
-    background: !root.enabled ? #10141e40 : (touch.has-hover ? (touch.pressed ? #222a3d : #182030) : #131824);
+    background: !root.enabled ? #0f131a : (touch.has-hover ? (touch.pressed ? Theme.btn-secondary-pressed : Theme.btn-secondary-hover) : Theme.btn-secondary-bg);
     border-width: 1px;
-    border-color: !root.enabled ? Theme.border-subtle : (touch.has-hover ? Theme.border-gold-normal : Theme.border-normal);
+    border-color: !root.enabled ? Theme.border-subtle : (touch.has-hover ? Theme.btn-secondary-border-hover : Theme.btn-secondary-border);
 
     animate background { duration: Theme.transition-fast; easing: ease-out; }
     animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-    // Subtle top inner highlight bevel
-    Rectangle {
-        x: 4px;
-        y: 1px;
-        width: parent.width - 8px;
-        height: 1px;
-        background: #ffffff10;
-    }
 
     touch := TouchArea {
         enabled: root.enabled;
@@ -100,34 +80,37 @@ export component SecondaryButton inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: 14px;
-        padding-right: 14px;
+        padding-left: 12px;
+        padding-right: 12px;
         alignment: center;
-        spacing: 8px;
+        spacing: 7px;
 
-        if (root.icon != "") : Text {
-            text: root.icon;
-            font-size: 13px;
+        if (root.icon.width > 0) : Image {
+            source: root.icon;
+            width: 14px;
+            height: 14px;
+            colorize: !root.enabled ? Theme.text-muted : (touch.has-hover ? Theme.text-primary : Theme.text-secondary);
+            image-fit: contain;
             vertical-alignment: center;
+            animate colorize { duration: Theme.transition-fast; }
         }
 
         Text {
             text: root.text;
-            color: !root.enabled ? Theme.text-muted : (touch.has-hover ? Theme.gold-light : Theme.text-primary);
+            color: !root.enabled ? Theme.text-muted : (touch.has-hover ? Theme.text-primary : Theme.text-secondary);
             font-size: 12px;
-            font-weight: 600;
+            font-weight: 500;
             vertical-alignment: center;
-
-            animate color { duration: Theme.transition-fast; easing: ease-out; }
+            animate color { duration: Theme.transition-fast; }
         }
     }
 }
 
 export component DangerButton inherits Rectangle {
     in-out property <string> text: "Elimina";
-    in-out property <string> icon: "🗑️";
+    in-out property <image> icon;
     in-out property <bool> enabled: true;
-    in-out property <length> custom-height: 38px;
+    in-out property <length> custom-height: 36px;
 
     callback clicked();
 
@@ -135,25 +118,15 @@ export component DangerButton inherits Rectangle {
     border-radius: Theme.radius-md;
     clip: true;
 
-    // Tactile micro-displacement on active/pressed
     y: (touch.pressed && root.enabled) ? 1px : 0px;
     animate y { duration: Theme.transition-instant; easing: ease-out; }
 
-    background: !root.enabled ? #180d1033 : (touch.has-hover ? (touch.pressed ? #381216 : #2a0e12) : #1c0a0d);
+    background: !root.enabled ? #150a0d : (touch.has-hover ? (touch.pressed ? Theme.btn-danger-pressed : Theme.btn-danger-hover) : Theme.btn-danger-bg);
     border-width: 1px;
-    border-color: !root.enabled ? #261518 : (touch.has-hover ? #f87171 : #ef44444d);
+    border-color: !root.enabled ? #200f12 : (touch.has-hover ? Theme.btn-danger-border-hover : Theme.btn-danger-border);
 
     animate background { duration: Theme.transition-fast; easing: ease-out; }
     animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-    // Subtle top red highlight line
-    Rectangle {
-        x: 4px;
-        y: 1px;
-        width: parent.width - 8px;
-        height: 1px;
-        background: #f871711a;
-    }
 
     touch := TouchArea {
         enabled: root.enabled;
@@ -162,25 +135,27 @@ export component DangerButton inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: 14px;
-        padding-right: 14px;
+        padding-left: 12px;
+        padding-right: 12px;
         alignment: center;
-        spacing: 8px;
+        spacing: 7px;
 
-        if (root.icon != "") : Text {
-            text: root.icon;
-            font-size: 13px;
+        if (root.icon.width > 0) : Image {
+            source: root.icon;
+            width: 14px;
+            height: 14px;
+            colorize: !root.enabled ? Theme.text-muted : Theme.btn-danger-text;
+            image-fit: contain;
             vertical-alignment: center;
         }
 
         Text {
             text: root.text;
-            color: !root.enabled ? Theme.text-muted : (touch.has-hover ? #fca5a5 : #f87171);
+            color: !root.enabled ? Theme.text-muted : (touch.has-hover ? #fca5a5 : Theme.btn-danger-text);
             font-size: 12px;
-            font-weight: 600;
+            font-weight: 500;
             vertical-alignment: center;
-
-            animate color { duration: Theme.transition-fast; easing: ease-out; }
+            animate color { duration: Theme.transition-fast; }
         }
     }
 }

@@ -13,30 +13,30 @@ export component StatusBadge inherits Rectangle {
         (root.has-update ? 2 :
         (root.is-installed ? 1 : 0));
 
-    // Dynamic color assignment
+    // Colors
     private property <color> badge-color:
         effective-state == 3 ? Theme.status-info :
         (effective-state == 2 ? Theme.gold-bright :
-        (effective-state == 1 ? Theme.status-success : #9097a8));
+        (effective-state == 1 ? Theme.status-success : Theme.text-secondary));
 
     private property <color> badge-bg:
         effective-state == 3 ? Theme.status-info-bg :
-        (effective-state == 2 ? #c89b3c1a :
-        (effective-state == 1 ? Theme.status-success-bg : #161b2680));
+        (effective-state == 2 ? Theme.status-warning-bg :
+        (effective-state == 1 ? Theme.status-success-bg : #14182480));
 
     private property <color> badge-border:
         effective-state == 3 ? Theme.status-info-border :
-        (effective-state == 2 ? Theme.border-gold-normal :
+        (effective-state == 2 ? Theme.status-warning-border :
         (effective-state == 1 ? Theme.status-success-border : Theme.border-normal));
 
     private property <string> display-text:
         root.custom-text != "" ? root.custom-text :
-        (effective-state == 3 ? "VERIFICA IN CORSO..." :
-        (effective-state == 2 ? "AGGIORNAMENTO DISPONIBILE" :
-        (effective-state == 1 ? ("INSTALLATO E AGGIORNATO " + (root.installed-version != "" ? "(v" + root.installed-version + ")" : "(v1.0.0)")) :
-        "NON INSTALLATO")));
+        (effective-state == 3 ? "Verifica in corso" :
+        (effective-state == 2 ? "Aggiornamento disponibile" :
+        (effective-state == 1 ? ("Installato (v" + (root.installed-version != "" ? root.installed-version : "1.0.0") + ")") :
+        "Non installato")));
 
-    height: 28px;
+    height: 24px;
     border-radius: Theme.radius-pill;
     background: badge-bg;
     border-width: 1px;
@@ -46,46 +46,27 @@ export component StatusBadge inherits Rectangle {
     animate border-color { duration: Theme.transition-normal; easing: ease-out; }
 
     HorizontalLayout {
-        padding-left: 10px;
-        padding-right: 12px;
-        spacing: 7px;
+        padding-left: 8px;
+        padding-right: 10px;
+        spacing: 6px;
         alignment: center;
 
-        // Mathematically centered glowing jewel orb
+        // Clean solid status dot (No artificial multi-nested halos)
         Rectangle {
-            width: 14px;
-            height: 14px;
-
-            // Outer soft halo
-            Rectangle {
-                width: 14px;
-                height: 14px;
-                border-radius: 7px;
-                background: root.badge-color;
-                opacity: 0.22;
-            }
-
-            // Solid inner core
-            Rectangle {
-                width: 6px;
-                height: 6px;
-                border-radius: 3px;
-                background: root.badge-color;
-                x: 4px;
-                y: 4px;
-            }
+            width: 6px;
+            height: 6px;
+            border-radius: 3px;
+            background: root.badge-color;
+            y: (parent.height - self.height) / 2;
         }
 
-        // Status Label Text
+        // Status Label Text (Sentence case)
         Text {
             text: root.display-text;
             color: root.badge-color;
             font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.4px;
+            font-weight: 500;
             vertical-alignment: center;
-
-            animate color { duration: Theme.transition-normal; }
         }
     }
 }

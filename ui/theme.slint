@@ -1,86 +1,94 @@
 // VivaVoce Launcher - World of Warcraft Theme & Design Tokens
-// Handcrafted with high-end dark slate, chiseled gold and runic accents.
-// Emil Kowalski Craft Standards: Custom ease-outs, micro-displacement, tactile feedback.
+// Design Rules: Quiet dark slate surfaces, authentic Warcraft warm brass accent,
+// unified 4px-grid spacing scale, standard corner radii, WCAG compliant contrast.
 
 export global Theme {
     // === BACKGROUND PALETTE ===
     out property <color> bg-main: #0c0f15;
-    out property <color> bg-main-gradient-bottom: #06080c;
-    out property <color> bg-sidebar: #080b10;
-    out property <color> bg-panel: #131722;
-    out property <color> bg-panel-translucent: #131722f0;
-    out property <color> bg-panel-hover: #19202f;
-    out property <color> bg-card: #10141e;
-    out property <color> bg-card-hover: #161c2a;
-    out property <color> bg-card-selected: #1d2536;
+    out property <color> bg-sidebar: #090c12;
+    out property <color> bg-panel: #11151f;
+    out property <color> bg-card: #0e121a;
+    out property <color> bg-card-hover: #141a26;
+    out property <color> bg-card-selected: #182030;
     out property <color> bg-inset: #080a10;
     out property <color> bg-input: #090c13;
-    out property <color> bg-overlay: #040609ee;
 
     // === WOW RUNIC & GOLD ACCENTS ===
     out property <color> gold-primary: #c89b3c;
     out property <color> gold-light: #e5c07b;
     out property <color> gold-bright: #ffd875;
-    out property <color> gold-glow: #ffe699;
     out property <color> gold-dark: #785a28;
-    out property <color> gold-deep: #996515;
-    out property <color> gold-amber: #d4af37;
+    out property <color> gold-muted: #9e7a33;
 
-    // === GRADIENTS (BRUSHES) ===
-    out property <brush> gold-gradient: @linear-gradient(135deg, #fae29c 0%, #d4af37 48%, #9e6917 100%);
-    out property <brush> gold-gradient-hover: @linear-gradient(135deg, #fff3b8 0%, #e8c454 48%, #b57e1e 100%);
-    out property <brush> gold-gradient-pressed: @linear-gradient(135deg, #b8860b 0%, #7d5200 100%);
-    out property <brush> gold-subtle-glow: @linear-gradient(180deg, #c89b3c20 0%, #c89b3c02 100%);
-    out property <brush> panel-gradient: @linear-gradient(180deg, #161b27 0%, #0f131c 100%);
-    out property <brush> card-gradient: @linear-gradient(180deg, #141924 0%, #0d1119 100%);
-    out property <brush> main-window-gradient: @linear-gradient(180deg, #11151f 0%, #06080c 100%);
-    out property <brush> progress-fill-gradient: @linear-gradient(90deg, #8a5710 0%, #d4af37 55%, #ffd875 100%);
+    // === GRADIENTS / BRUSHES (CALM & DARK - NO NEON/AI GRADIENTS) ===
+    out property <brush> main-window-gradient: @linear-gradient(180deg, #10141e 0%, #080a0f 100%);
+    out property <brush> panel-gradient: @linear-gradient(180deg, #121622 0%, #0d1018 100%);
+    out property <brush> card-gradient: @linear-gradient(180deg, #10141e 0%, #0a0d14 100%);
+    out property <brush> progress-fill-gradient: @linear-gradient(90deg, #b38628 0%, #c89b3c 100%);
 
-    // === BORDERS & HIGHLIGHTS ===
-    out property <color> border-subtle: #1a202d;
-    out property <color> border-normal: #252e40;
-    out property <color> border-bright: #364259;
+    // === BUTTON COLORS (SOLID FILLS - NO AI GRADIENTS) ===
+    out property <color> btn-primary-bg: #c89b3c;
+    out property <color> btn-primary-hover: #d8aa47;
+    out property <color> btn-primary-pressed: #b38628;
+    out property <color> btn-primary-text: #141008;
+
+    out property <color> btn-secondary-bg: #131722;
+    out property <color> btn-secondary-hover: #1c2233;
+    out property <color> btn-secondary-pressed: #0d1018;
+    out property <color> btn-secondary-border: #232c3d;
+    out property <color> btn-secondary-border-hover: #35425c;
+
+    out property <color> btn-danger-bg: #1c0e12;
+    out property <color> btn-danger-hover: #291419;
+    out property <color> btn-danger-pressed: #150a0d;
+    out property <color> btn-danger-border: #ef444433;
+    out property <color> btn-danger-border-hover: #ef444466;
+    out property <color> btn-danger-text: #f87171;
+
+    // === PROGRESS FILL ===
+    out property <color> progress-fill: #c89b3c;
+    out property <color> progress-track: #090c13;
+
+    // === BORDERS & SEPARATORS (Hairlines at subtle opacity) ===
+    out property <color> border-subtle: #19202c;
+    out property <color> border-normal: #232c3d;
+    out property <color> border-bright: #323e54;
     out property <color> border-gold-subtle: #c89b3c33;
-    out property <color> border-gold-normal: #c89b3c;
-    out property <color> border-gold-bright: #e5c07b;
-    out property <color> border-gold-glow: #ffd875;
+    out property <color> border-gold-normal: #c89b3c80;
 
-    // === TYPOGRAPHY (WoW Parchment & Metals) ===
-    out property <color> text-primary: #f5eedf;      // Warm parchment white
-    out property <color> text-secondary: #959cb0;    // Cool slate gray
+    // === TYPOGRAPHY (WoW Parchment & Slate) ===
+    out property <color> text-primary: #f3eee3;      // Warm parchment white
+    out property <color> text-secondary: #949db0;    // Cool slate gray
     out property <color> text-muted: #565d70;        // Subdued placeholder
     out property <color> text-gold: #e5c07b;         // WoW quest text gold
-    out property <color> text-gold-bright: #fff2d1;  // Highlighted gold
-    out property <color> text-dark: #141008;         // Deep warm bronze charcoal for gold buttons
+    out property <color> text-dark: #141008;         // Dark charcoal for gold button text
 
     // === STATUS INDICATORS ===
-    out property <color> status-success: #4ade80;
-    out property <color> status-success-bg: #4ade8015;
-    out property <color> status-success-border: #4ade8040;
+    out property <color> status-success: #34d399;
+    out property <color> status-success-bg: #10b98115;
+    out property <color> status-success-border: #10b98133;
 
-    out property <color> status-warning: #f59e0b;
+    out property <color> status-warning: #fbbf24;
     out property <color> status-warning-bg: #f59e0b15;
-    out property <color> status-warning-border: #f59e0b40;
+    out property <color> status-warning-border: #f59e0b33;
 
-    out property <color> status-danger: #ef4444;
+    out property <color> status-danger: #f87171;
     out property <color> status-danger-bg: #ef444415;
-    out property <color> status-danger-border: #ef444440;
+    out property <color> status-danger-border: #ef444433;
 
     out property <color> status-info: #38bdf8;
     out property <color> status-info-bg: #38bdf815;
-    out property <color> status-info-border: #38bdf840;
+    out property <color> status-info-border: #38bdf833;
 
-    // === RADII ===
+    // === RADII SCALE ===
     out property <length> radius-xs: 4px;
-    out property <length> radius-sm: 8px;
-    out property <length> radius-md: 10px;
-    out property <length> radius-lg: 14px;
-    out property <length> radius-xl: 18px;
+    out property <length> radius-sm: 6px;
+    out property <length> radius-md: 8px;
+    out property <length> radius-lg: 12px;
     out property <length> radius-pill: 999px;
 
-    // === ANIMATION TIMINGS (Emil Kowalski Snappy UI Standards) ===
-    out property <duration> transition-instant: 90ms;
-    out property <duration> transition-fast: 130ms;
-    out property <duration> transition-normal: 170ms;
-    out property <duration> transition-smooth: 220ms;
+    // === ANIMATION TIMINGS (Snappy interface speed standards < 200ms) ===
+    out property <duration> transition-instant: 80ms;
+    out property <duration> transition-fast: 120ms;
+    out property <duration> transition-normal: 160ms;
 }

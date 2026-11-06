@@ -237,6 +237,7 @@ mod tests {
             total_files: 3,
             total_bytes: 0,
             packages: vec![],
+            patches: vec![],
             files: HashMap::new(),
         };
 

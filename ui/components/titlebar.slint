@@ -9,10 +9,10 @@ export component TitleBar inherits Rectangle {
     callback close-clicked();
     callback drag-window();
 
-    height: 44px;
+    height: 40px;
     background: transparent;
 
-    // Outer subtle border at bottom to delineate titlebar
+    // Subtle bottom border
     Rectangle {
         y: parent.height - 1px;
         height: 1px;
@@ -21,7 +21,7 @@ export component TitleBar inherits Rectangle {
 
     // Draggable window area covering the non-button space
     TouchArea {
-        width: parent.width - 100px;
+        width: parent.width - 90px;
         height: parent.height;
         x: 0;
         y: 0;
@@ -35,24 +35,24 @@ export component TitleBar inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: 18px;
-        padding-right: 14px;
+        padding-left: 14px;
+        padding-right: 12px;
         alignment: space-between;
 
         // Left Branding Block
         HorizontalLayout {
-            spacing: 12px;
+            spacing: 10px;
             alignment: start;
 
-            // VivaVoce Official Crest Logo
+            // VivaVoce Official Logo Crest
             Rectangle {
-                width: 28px;
-                height: 28px;
+                width: 24px;
+                height: 24px;
                 y: (parent.height - self.height) / 2;
-                border-radius: Theme.radius-sm;
-                background: #141822;
+                border-radius: Theme.radius-xs;
+                background: #11151f;
                 border-width: 1px;
-                border-color: Theme.border-gold-normal;
+                border-color: Theme.border-subtle;
                 clip: true;
 
                 Image {
@@ -63,7 +63,7 @@ export component TitleBar inherits Rectangle {
                 }
             }
 
-            // Title Text Block
+            // Title Text Block (Sentence case)
             HorizontalLayout {
                 spacing: 8px;
                 alignment: center;
@@ -71,44 +71,43 @@ export component TitleBar inherits Rectangle {
                 Text {
                     text: root.title;
                     color: Theme.gold-light;
-                    font-size: 14px;
-                    font-weight: 700;
-                    letter-spacing: 0.3px;
+                    font-size: 13px;
+                    font-weight: 600;
                     vertical-alignment: center;
                 }
 
                 Text {
-                    text: "—";
-                    color: Theme.gold-dark;
-                    font-size: 13px;
+                    text: "·";
+                    color: Theme.text-muted;
+                    font-size: 12px;
                     vertical-alignment: center;
                 }
 
                 Text {
                     text: root.subtitle;
-                    color: Theme.text-primary;
-                    font-size: 13px;
-                    font-weight: 500;
+                    color: Theme.text-secondary;
+                    font-size: 12px;
+                    font-weight: 400;
                     vertical-alignment: center;
                 }
 
                 // Small Tag Pill
                 Rectangle {
-                    height: 20px;
+                    height: 18px;
                     y: (parent.height - self.height) / 2;
                     border-radius: Theme.radius-pill;
-                    background: #c89b3c1a;
+                    background: #c89b3c15;
                     border-width: 1px;
-                    border-color: #c89b3c40;
+                    border-color: #c89b3c30;
 
                     HorizontalLayout {
-                        padding-left: 8px;
-                        padding-right: 8px;
+                        padding-left: 7px;
+                        padding-right: 7px;
                         Text {
                             text: root.version-tag;
-                            color: Theme.gold-bright;
+                            color: Theme.gold-light;
                             font-size: 10px;
-                            font-weight: 600;
+                            font-weight: 500;
                             vertical-alignment: center;
                         }
                     }
@@ -118,65 +117,60 @@ export component TitleBar inherits Rectangle {
 
         // Window Controls (Right side)
         HorizontalLayout {
-            spacing: 6px;
+            spacing: 4px;
             alignment: end;
 
             // Minimize Button
-            min-btn := Rectangle {
-                width: 32px;
-                height: 28px;
-                y: (parent.height - self.height) / 2 + (min-touch.pressed ? 1px : 0px);
+            Rectangle {
+                width: 28px;
+                height: 24px;
+                y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-xs;
-                background: min-touch.has-hover ? (min-touch.pressed ? #252e40 : #19202f) : transparent;
-                border-width: min-touch.has-hover ? 1px : 0px;
-                border-color: Theme.border-bright;
+                background: min-touch.has-hover ? (min-touch.pressed ? #1c2333 : #141a26) : transparent;
 
-                animate y { duration: Theme.transition-instant; easing: ease-out; }
                 animate background { duration: Theme.transition-fast; easing: ease-out; }
-
-                // Minimize bar icon
-                Rectangle {
-                    width: 10px;
-                    height: 2px;
-                    background: min-touch.has-hover ? Theme.text-primary : Theme.text-secondary;
-                    border-radius: 1px;
-                    y: (parent.height - self.height) / 2 + 1px;
-                    x: (parent.width - self.width) / 2;
-                    animate background { duration: Theme.transition-fast; easing: ease-out; }
-                }
 
                 min-touch := TouchArea {
                     mouse-cursor: pointer;
                     clicked => { root.minimize-clicked(); }
                 }
+
+                Image {
+                    width: 12px;
+                    height: 12px;
+                    source: @image-url("../assets/icons/minus.svg");
+                    colorize: min-touch.has-hover ? Theme.text-primary : Theme.text-secondary;
+                    image-fit: contain;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    animate colorize { duration: Theme.transition-fast; }
+                }
             }
 
             // Close Button
-            close-btn := Rectangle {
-                width: 32px;
-                height: 28px;
-                y: (parent.height - self.height) / 2 + (close-touch.pressed ? 1px : 0px);
+            Rectangle {
+                width: 28px;
+                height: 24px;
+                y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-xs;
-                background: close-touch.has-hover ? (close-touch.pressed ? #b91c1c : #ef444426) : transparent;
-                border-width: close-touch.has-hover ? 1px : 0px;
-                border-color: close-touch.has-hover ? #ef444466 : transparent;
+                background: close-touch.has-hover ? (close-touch.pressed ? #7f1d1d : #ef444422) : transparent;
 
-                animate y { duration: Theme.transition-instant; easing: ease-out; }
                 animate background { duration: Theme.transition-fast; easing: ease-out; }
-
-                Text {
-                    text: "✕";
-                    color: close-touch.has-hover ? (close-touch.pressed ? #ffffff : #f87171) : Theme.text-secondary;
-                    font-size: 13px;
-                    font-weight: 600;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                    animate color { duration: Theme.transition-fast; easing: ease-out; }
-                }
 
                 close-touch := TouchArea {
                     mouse-cursor: pointer;
                     clicked => { root.close-clicked(); }
+                }
+
+                Image {
+                    width: 12px;
+                    height: 12px;
+                    source: @image-url("../assets/icons/x.svg");
+                    colorize: close-touch.has-hover ? #fca5a5 : Theme.text-secondary;
+                    image-fit: contain;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    animate colorize { duration: Theme.transition-fast; }
                 }
             }
         }

@@ -13,9 +13,8 @@ export struct PackageInfo {
 
 export component PackageCard inherits Rectangle {
     in-out property <PackageInfo> package-data;
-    in-out property <string> icon: "📦";
 
-    // Real native PNG AddOn Icon from K:\WoW\VivaVoce\pack\*\Textures\Icon.tga
+    // Real native PNG AddOn Icon from textures
     private property <image> package-icon:
         root.package-data.id == "vivavoce-core" || root.package-data.id == "vivavoce_core" ? @image-url("../assets/core.png") :
         (root.package-data.id == "vivavoce-quests" || root.package-data.id == "vivavoce_quests" ? @image-url("../assets/quests.png") :
@@ -25,15 +24,13 @@ export component PackageCard inherits Rectangle {
         (root.package-data.id == "vivavoce-collector" || root.package-data.id == "vivavoce_collector" ? @image-url("../assets/collector.png") :
         @image-url("../assets/logo.png"))))));
 
-    height: 70px;
+    height: 64px;
     background: p-touch.has-hover ? Theme.bg-card-hover : Theme.bg-card;
     border-radius: Theme.radius-md;
     border-width: 1px;
-    border-color: root.package-data.verified ? #1f3a2b : (p-touch.has-hover ? Theme.border-bright : Theme.border-normal);
+    border-color: p-touch.has-hover ? Theme.border-bright : Theme.border-normal;
     clip: true;
 
-    x: p-touch.pressed ? 1px : 0px;
-    animate x { duration: Theme.transition-instant; easing: ease-out; }
     animate background { duration: Theme.transition-fast; easing: ease-out; }
     animate border-color { duration: Theme.transition-fast; easing: ease-out; }
 
@@ -41,29 +38,20 @@ export component PackageCard inherits Rectangle {
         mouse-cursor: default;
     }
 
-    // Top subtle 1px specular bevel
-    Rectangle {
-        x: 4px;
-        y: 1px;
-        width: parent.width - 8px;
-        height: 1px;
-        background: #ffffff0a;
-    }
-
     HorizontalLayout {
         padding-left: 12px;
-        padding-right: 12px;
+        padding-right: 14px;
         alignment: space-between;
 
-        // Left Block: Official AddOn Icon + Name / Description
+        // Left Block: Official AddOn Texture Icon + Name / Description
         HorizontalLayout {
             spacing: 12px;
             alignment: start;
 
             // Module Icon Box with Real WoW Texture
             Rectangle {
-                width: 44px;
-                height: 44px;
+                width: 40px;
+                height: 40px;
                 y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-sm;
                 background: #11151f;
@@ -82,7 +70,7 @@ export component PackageCard inherits Rectangle {
             // Text Info Block
             VerticalLayout {
                 alignment: center;
-                spacing: 3px;
+                spacing: 2px;
 
                 HorizontalLayout {
                     spacing: 8px;
@@ -90,17 +78,17 @@ export component PackageCard inherits Rectangle {
 
                     Text {
                         text: root.package-data.name;
-                        color: Theme.gold-light;
+                        color: Theme.text-primary;
                         font-size: 13px;
-                        font-weight: 700;
+                        font-weight: 600;
                         vertical-alignment: center;
                     }
 
                     Text {
                         text: root.package-data.filename;
                         color: Theme.text-muted;
-                        font-size: 10px;
-                        font-weight: 500;
+                        font-size: 11px;
+                        font-weight: 400;
                         vertical-alignment: center;
                     }
                 }
@@ -115,119 +103,71 @@ export component PackageCard inherits Rectangle {
             }
         }
 
-        // Right Block: Status Badge + Integrità & Size Pills
-        VerticalLayout {
-            alignment: center;
-            spacing: 5px;
+        // Right Block: Status Pill and Size (Single non-repetitive status line)
+        HorizontalLayout {
+            alignment: end;
+            spacing: 8px;
 
-            // Row 1: Status Badge (User-Friendly: File Integro)
-            HorizontalLayout {
-                alignment: end;
-                spacing: 6px;
+            // Status Badge
+            Rectangle {
+                height: 22px;
+                y: (parent.height - self.height) / 2;
+                border-radius: Theme.radius-pill;
+                background: root.package-data.verified ? Theme.status-success-bg :
+                            (root.package-data.installed ? Theme.status-info-bg : #14182480);
+                border-width: 1px;
+                border-color: root.package-data.verified ? Theme.status-success-border :
+                              (root.package-data.installed ? Theme.status-info-border : Theme.border-normal);
 
-                if (root.package-data.verified) : Rectangle {
-                    height: 20px;
-                    border-radius: Theme.radius-pill;
-                    background: Theme.status-success-bg;
-                    border-width: 1px;
-                    border-color: Theme.status-success-border;
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 5px;
+                    alignment: center;
 
-                    HorizontalLayout {
-                        padding-left: 7px;
-                        padding-right: 7px;
-                        Text {
-                            text: "✓ File Integro";
-                            color: Theme.status-success;
-                            font-size: 10px;
-                            font-weight: 700;
-                            vertical-alignment: center;
-                        }
+                    Image {
+                        width: 11px;
+                        height: 11px;
+                        source: root.package-data.verified ? @image-url("../assets/icons/check.svg") :
+                                (root.package-data.installed ? @image-url("../assets/icons/clock.svg") : @image-url("../assets/icons/alert-circle.svg"));
+                        colorize: root.package-data.verified ? Theme.status-success :
+                                  (root.package-data.installed ? Theme.status-info : Theme.text-muted);
+                        image-fit: contain;
+                        vertical-alignment: center;
                     }
-                }
 
-                if (!root.package-data.verified && root.package-data.installed) : Rectangle {
-                    height: 20px;
-                    border-radius: Theme.radius-pill;
-                    background: Theme.status-info-bg;
-                    border-width: 1px;
-                    border-color: Theme.status-info-border;
-
-                    HorizontalLayout {
-                        padding-left: 7px;
-                        padding-right: 7px;
-                        Text {
-                            text: "Installato";
-                            color: Theme.status-info;
-                            font-size: 10px;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                        }
-                    }
-                }
-
-                if (!root.package-data.installed) : Rectangle {
-                    height: 20px;
-                    border-radius: Theme.radius-pill;
-                    background: #1c223080;
-                    border-width: 1px;
-                    border-color: Theme.border-normal;
-
-                    HorizontalLayout {
-                        padding-left: 7px;
-                        padding-right: 7px;
-                        Text {
-                            text: "Mancante";
-                            color: Theme.text-muted;
-                            font-size: 10px;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                        }
+                    Text {
+                        text: root.package-data.verified ? "File integro" :
+                              (root.package-data.installed ? "Installato" : "Mancante");
+                        color: root.package-data.verified ? Theme.status-success :
+                               (root.package-data.installed ? Theme.status-info : Theme.text-muted);
+                        font-size: 10px;
+                        font-weight: 500;
+                        vertical-alignment: center;
                     }
                 }
             }
 
-            // Row 2: Integrità Verificata & Size Pill
-            HorizontalLayout {
-                alignment: end;
-                spacing: 8px;
+            // Size Badge
+            Rectangle {
+                height: 22px;
+                y: (parent.height - self.height) / 2;
+                background: #090c13;
+                border-radius: Theme.radius-xs;
+                border-width: 1px;
+                border-color: Theme.border-subtle;
 
                 HorizontalLayout {
-                    spacing: 4px;
+                    padding-left: 7px;
+                    padding-right: 7px;
                     alignment: center;
 
                     Text {
-                        text: "Integrità:";
-                        color: Theme.text-muted;
+                        text: root.package-data.size-str;
+                        color: Theme.text-secondary;
                         font-size: 10px;
-                        font-weight: 600;
+                        font-weight: 500;
                         vertical-alignment: center;
-                    }
-
-                    Text {
-                        text: root.package-data.verified ? "Verificata" : "Da verificare";
-                        color: root.package-data.verified ? Theme.status-success : Theme.text-muted;
-                        font-size: 10px;
-                        vertical-alignment: center;
-                    }
-                }
-
-                Rectangle {
-                    height: 18px;
-                    background: #090c13;
-                    border-radius: Theme.radius-xs;
-                    border-width: 1px;
-                    border-color: Theme.border-subtle;
-
-                    HorizontalLayout {
-                        padding-left: 6px;
-                        padding-right: 6px;
-                        Text {
-                            text: root.package-data.size-str;
-                            color: Theme.gold-bright;
-                            font-size: 10px;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                        }
                     }
                 }
             }

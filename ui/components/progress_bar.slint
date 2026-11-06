@@ -6,7 +6,7 @@ export component ProgressBar inherits VerticalLayout {
     in-out property <string> details: "";
     in-out property <bool> is-active: false;
 
-    spacing: 7px;
+    spacing: 6px;
 
     // Header: Operation Title and Percentage
     HorizontalLayout {
@@ -15,24 +15,24 @@ export component ProgressBar inherits VerticalLayout {
         Text {
             text: root.title;
             color: Theme.text-primary;
-            font-size: 13px;
-            font-weight: 600;
+            font-size: 12px;
+            font-weight: 500;
             vertical-alignment: center;
         }
 
         Text {
             text: Math.round(Math.max(0.0, Math.min(1.0, root.progress)) * 100) + "%";
-            color: root.is-active ? Theme.gold-bright : Theme.text-secondary;
-            font-size: 13px;
-            font-weight: 700;
+            color: root.is-active ? Theme.gold-light : Theme.text-secondary;
+            font-size: 12px;
+            font-weight: 600;
             vertical-alignment: center;
         }
     }
 
-    // Outer Doppelrand Track Shell
+    // Progress Bar Track
     Rectangle {
-        height: 14px;
-        border-radius: Theme.radius-sm;
+        height: 8px;
+        border-radius: Theme.radius-xs;
         background: Theme.bg-inset;
         border-width: 1px;
         border-color: root.is-active ? Theme.border-gold-subtle : Theme.border-normal;
@@ -40,45 +40,20 @@ export component ProgressBar inherits VerticalLayout {
 
         animate border-color { duration: Theme.transition-normal; easing: ease-out; }
 
-        // Subtle sunken track shadow line
-        Rectangle {
-            height: 1px;
-            background: #000000aa;
-            y: 0;
-        }
-
         // Progress Fill Bar
-        fill-bar := Rectangle {
+        Rectangle {
             x: 0;
             y: 0;
             height: parent.height;
             width: Math.max(0px, Math.min(parent.width, parent.width * root.progress));
-            border-radius: Theme.radius-sm;
-            background: root.is-active ? Theme.progress-fill-gradient : #3a4254;
+            border-radius: Theme.radius-xs;
+            background: Theme.progress-fill;
 
-            animate width { duration: 160ms; easing: ease-out; }
-            animate background { duration: Theme.transition-normal; easing: ease-out; }
-
-            // Top metallic specular highlight line
-            Rectangle {
-                x: 0;
-                y: 0;
-                height: 1px;
-                background: #ffffff55;
-            }
-
-            // Glow flare on the right leading edge of progress fill
-            if (root.progress > 0.01 && root.progress < 0.995) : Rectangle {
-                x: parent.width - 4px;
-                y: 0;
-                width: 4px;
-                height: parent.height;
-                background: #ffffffbb;
-            }
+            animate width { duration: 120ms; easing: ease-out; }
         }
     }
 
-    // Footer: Detailed transfer statistics (speed, bytes, ETA)
+    // Footer: Detailed transfer statistics
     if (root.details != "") : HorizontalLayout {
         alignment: space-between;
 
@@ -86,7 +61,7 @@ export component ProgressBar inherits VerticalLayout {
             text: root.details;
             color: Theme.text-secondary;
             font-size: 11px;
-            font-weight: 500;
+            font-weight: 400;
             vertical-alignment: center;
         }
     }

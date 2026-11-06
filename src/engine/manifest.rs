@@ -21,6 +21,30 @@ pub struct PackageChunk {
     pub uncompressed_size: u64,
 }
 
+/// Represents an incremental delta patch archive containing only new/modified files.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PatchChunk {
+    /// Unique identifier for this patch (e.g. "patch-1.0.0-to-1.0.1")
+    pub id: String,
+    /// The base version this patch applies on top of (e.g. "1.0.0")
+    pub from_version: String,
+    /// The target version after applying this patch (e.g. "1.0.1")
+    pub to_version: String,
+    /// Archive filename (e.g. "patch-v1.0.1.tar.zst")
+    pub filename: String,
+    /// Expected Blake3 checksum hex string of the compressed patch archive
+    pub blake3: String,
+    /// Direct URL to download the patch archive
+    pub download_url: String,
+    /// Size of the compressed archive in bytes
+    pub compressed_size: u64,
+    /// Total uncompressed size of all modified/new files contained inside
+    pub uncompressed_size: u64,
+    /// Number of modified or newly added files in this patch
+    #[serde(default)]
+    pub files_count: usize,
+}
+
 /// Represents an individual file inside the addon distribution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FileEntry {
@@ -43,6 +67,9 @@ pub struct RemoteManifest {
     pub total_bytes: u64,
     /// List of package chunks (.tar.zst archives) available for download
     pub packages: Vec<PackageChunk>,
+    /// List of incremental delta patches available for existing installations
+    #[serde(default)]
+    pub patches: Vec<PatchChunk>,
     /// Map of normalized relative paths to FileEntry
     pub files: HashMap<String, FileEntry>,
 }
@@ -82,6 +109,21 @@ impl RemoteManifest {
     /// Looks up a package chunk by its id.
     pub fn get_package_by_id(&self, id: &str) -> Option<&PackageChunk> {
         self.packages.iter().find(|p| p.id == id)
+    }
+
+    /// Finds a direct delta patch from `from_ver` to the current manifest `version`.
+    pub fn find_patch(&self, from_ver: &str) -> Option<&PatchChunk> {
+        self.patches
+            .iter()
+            .find(|p| p.from_version == from_ver && p.to_version == self.version)
+    }
+
+    /// Determines if an update is needed compared to the current local version.
+    pub fn is_newer_than(&self, local_version: Option<&str>) -> bool {
+        match local_version {
+            Some(v) => v != self.version,
+            None => true,
+        }
     }
 }
 
@@ -160,6 +202,7 @@ mod tests {
                 compressed_size: 1048576,
                 uncompressed_size: 2097152,
             }],
+            patches: Vec::new(),
             files: HashMap::new(),
         };
 
@@ -175,6 +218,20 @@ mod tests {
 
         assert_eq!(manifest.total_files, 1);
         assert_eq!(manifest.total_bytes, 2048);
+
+        manifest.patches.push(PatchChunk {
+            id: "patch-1.0.0-to-1.0.1".to_string(),
+            from_version: "1.0.0".to_string(),
+            to_version: "1.0.1".to_string(),
+            filename: "patch-v1.0.1.tar.zst".to_string(),
+            blake3: "9876543210fedcba".to_string(),
+            download_url: "https://example.com/patch-v1.0.1.tar.zst".to_string(),
+            compressed_size: 1024,
+            uncompressed_size: 4096,
+            files_count: 5,
+        });
+
+        assert_eq!(manifest.find_patch("1.0.0"), None); // because manifest.version is 1.0.0, patch targets 1.0.1
 
         let json = manifest.to_json_pretty().expect("Failed to serialize");
         let deserialized = RemoteManifest::from_json_str(&json).expect("Failed to deserialize");

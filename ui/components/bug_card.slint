@@ -1,5 +1,6 @@
 import { Theme } from "../theme.slint";
 import { ScrollView } from "std-widgets.slint";
+import { PrimaryButton, SecondaryButton } from "buttons.slint";
 
 export struct DialogueEntry {
     sound-file: string,
@@ -27,11 +28,11 @@ export component BugCard inherits Rectangle {
 
     // Category names
     private property <[string]> categories: [
-        "Pronuncia / Accento",
-        "Volume / Qualità",
-        "Audio tagliato / Glitch",
+        "Pronuncia ed enfasi",
+        "Volume o qualità",
+        "Audio tagliato o glitch",
         "Testo non corrispondente",
-        "Altro / Suggerimento"
+        "Altro o suggerimento"
     ];
 
     private property <string> current-category-name: root.categories[root.selected-category];
@@ -43,8 +44,8 @@ export component BugCard inherits Rectangle {
     clip: true;
 
     VerticalLayout {
-        padding: 18px;
-        spacing: 14px;
+        padding: 16px;
+        spacing: 12px;
 
         // Card Header
         HorizontalLayout {
@@ -54,16 +55,22 @@ export component BugCard inherits Rectangle {
                 spacing: 3px;
                 HorizontalLayout {
                     spacing: 8px;
-                    Text {
-                        text: "🐛";
-                        font-size: 16px;
+                    alignment: start;
+
+                    Image {
+                        width: 16px;
+                        height: 16px;
+                        source: @image-url("../assets/icons/bug.svg");
+                        colorize: Theme.gold-light;
+                        image-fit: contain;
                         vertical-alignment: center;
                     }
+
                     Text {
-                        text: "Segnala un Problema Audio In-Game";
+                        text: "Segnala un problema audio";
                         color: Theme.text-primary;
-                        font-size: 16px;
-                        font-weight: 700;
+                        font-size: 15px;
+                        font-weight: 600;
                         vertical-alignment: center;
                     }
                 }
@@ -76,49 +83,48 @@ export component BugCard inherits Rectangle {
 
             // Status tag
             Rectangle {
-                height: 24px;
+                height: 22px;
                 y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-pill;
-                background: #c89b3c1a;
+                background: #c89b3c15;
                 border-width: 1px;
-                border-color: #c89b3c40;
+                border-color: #c89b3c33;
 
                 HorizontalLayout {
-                    padding-left: 10px;
-                    padding-right: 10px;
+                    padding-left: 8px;
+                    padding-right: 8px;
                     Text {
-                        text: root.recent-dialogues.length > 0 ? (root.recent-dialogues.length + " dialoghi in cronologia") : "Cronologia vuota";
+                        text: root.recent-dialogues.length > 0 ? (root.recent-dialogues.length + " dialoghi in memoria") : "Cronologia vuota";
                         color: Theme.gold-light;
-                        font-size: 11px;
-                        font-weight: 600;
+                        font-size: 10px;
+                        font-weight: 500;
                         vertical-alignment: center;
                     }
                 }
             }
         }
 
-        // Section 1: Recent Dialogues List (or Stylized Empty State)
+        // Section 1: Recent Dialogues List (or Quiet Empty State)
         VerticalLayout {
             spacing: 6px;
 
             Text {
-                text: "1. SELEZIONA DIALOGO DALLA CRONOLOGIA";
-                color: Theme.gold-light;
-                font-size: 11px;
-                font-weight: 700;
-                letter-spacing: 0.8px;
+                text: "Dialoghi recenti";
+                color: Theme.text-primary;
+                font-size: 12px;
+                font-weight: 600;
             }
 
             // Container for Dialogue List or Empty State
             Rectangle {
-                height: root.recent-dialogues.length == 0 ? 84px : 124px;
+                height: root.recent-dialogues.length == 0 ? 80px : 124px;
                 background: Theme.bg-inset;
                 border-radius: Theme.radius-md;
                 border-width: 1px;
                 border-color: Theme.border-subtle;
                 clip: true;
 
-                // Craft Empty State: Warm, polished icon badge + helpful prompt
+                // Quiet empty state
                 if (root.recent-dialogues.length == 0) : Rectangle {
                     HorizontalLayout {
                         padding-left: 16px;
@@ -126,35 +132,37 @@ export component BugCard inherits Rectangle {
                         alignment: center;
                         spacing: 12px;
 
-                        // Mini headphone icon badge
                         Rectangle {
-                            width: 36px;
-                            height: 36px;
-                            border-radius: 18px;
-                            background: #141a26;
+                            width: 32px;
+                            height: 32px;
+                            border-radius: Theme.radius-sm;
+                            background: #121622;
                             border-width: 1px;
-                            border-color: Theme.border-gold-subtle;
+                            border-color: Theme.border-subtle;
 
-                            Text {
-                                text: "🎧";
-                                font-size: 16px;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
+                            Image {
+                                width: 16px;
+                                height: 16px;
+                                source: @image-url("../assets/icons/headphones.svg");
+                                colorize: Theme.gold-primary;
+                                image-fit: contain;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
                             }
                         }
 
                         VerticalLayout {
                             alignment: center;
-                            spacing: 3px;
+                            spacing: 2px;
 
                             Text {
                                 text: "Nessun dialogo recente in memoria";
                                 color: Theme.text-primary;
                                 font-size: 12px;
-                                font-weight: 600;
+                                font-weight: 500;
                             }
                             Text {
-                                text: "Avvia WoW con VivaVoce per catturare l'audio in-game, oppure scrivi le note e il file sotto.";
+                                text: "Avvia WoW Forever con VivaVoce per catturare l'audio in-game, oppure scrivi le note sotto.";
                                 color: Theme.text-muted;
                                 font-size: 11px;
                             }
@@ -168,15 +176,13 @@ export component BugCard inherits Rectangle {
                         spacing: 4px;
                         padding: 6px;
 
-                        for item[idx] in root.recent-dialogues : item-row := Rectangle {
-                            height: 56px;
-                            x: root.selected-index == idx ? 2px : (row-touch.has-hover ? 1px : 0px);
+                        for item[idx] in root.recent-dialogues : Rectangle {
+                            height: 52px;
                             background: root.selected-index == idx ? Theme.bg-card-selected : (row-touch.has-hover ? Theme.bg-card-hover : Theme.bg-card);
                             border-width: 1px;
                             border-color: root.selected-index == idx ? Theme.border-gold-normal : Theme.border-subtle;
                             border-radius: Theme.radius-sm;
 
-                            animate x { duration: Theme.transition-instant; easing: ease-out; }
                             animate background { duration: Theme.transition-fast; easing: ease-out; }
                             animate border-color { duration: Theme.transition-fast; easing: ease-out; }
 
@@ -193,28 +199,28 @@ export component BugCard inherits Rectangle {
                                 alignment: space-between;
 
                                 VerticalLayout {
-                                    spacing: 3px;
+                                    spacing: 2px;
                                     alignment: center;
 
                                     HorizontalLayout {
-                                        spacing: 8px;
+                                        spacing: 6px;
 
                                         // NPC Name Badge
                                         Rectangle {
                                             height: 18px;
-                                            background: #c89b3c20;
+                                            background: #c89b3c18;
                                             border-radius: Theme.radius-xs;
                                             border-width: 1px;
-                                            border-color: #c89b3c44;
+                                            border-color: #c89b3c33;
 
                                             HorizontalLayout {
                                                 padding-left: 6px;
                                                 padding-right: 6px;
                                                 Text {
-                                                    text: item.npc-name != "" ? item.npc-name : "NPC Sconosciuto";
-                                                    color: Theme.gold-bright;
+                                                    text: item.npc-name != "" ? item.npc-name : "NPC sconosciuto";
+                                                    color: Theme.gold-light;
                                                     font-size: 10px;
-                                                    font-weight: 700;
+                                                    font-weight: 500;
                                                     vertical-alignment: center;
                                                 }
                                             }
@@ -223,10 +229,10 @@ export component BugCard inherits Rectangle {
                                         // Quest ID Badge
                                         if (item.quest-id > 0) : Rectangle {
                                             height: 18px;
-                                            background: #38bdf818;
+                                            background: #38bdf814;
                                             border-radius: Theme.radius-xs;
                                             border-width: 1px;
-                                            border-color: #38bdf844;
+                                            border-color: #38bdf833;
 
                                             HorizontalLayout {
                                                 padding-left: 6px;
@@ -235,7 +241,7 @@ export component BugCard inherits Rectangle {
                                                     text: "Quest #" + item.quest-id;
                                                     color: Theme.status-info;
                                                     font-size: 10px;
-                                                    font-weight: 600;
+                                                    font-weight: 500;
                                                     vertical-alignment: center;
                                                 }
                                             }
@@ -275,15 +281,15 @@ export component BugCard inherits Rectangle {
                                         width: 72px;
                                         height: 20px;
                                         border-radius: Theme.radius-xs;
-                                        background: root.selected-index == idx ? Theme.gold-gradient : transparent;
+                                        background: root.selected-index == idx ? Theme.btn-primary-bg : transparent;
                                         border-width: 1px;
-                                        border-color: root.selected-index == idx ? Theme.border-gold-bright : Theme.border-normal;
+                                        border-color: root.selected-index == idx ? Theme.btn-primary-bg : Theme.border-normal;
 
                                         Text {
                                             text: root.selected-index == idx ? "Selezionato" : "Seleziona";
-                                            color: root.selected-index == idx ? Theme.text-dark : Theme.text-secondary;
+                                            color: root.selected-index == idx ? Theme.btn-primary-text : Theme.text-secondary;
                                             font-size: 10px;
-                                            font-weight: 700;
+                                            font-weight: 500;
                                             horizontal-alignment: center;
                                             vertical-alignment: center;
                                         }
@@ -301,25 +307,22 @@ export component BugCard inherits Rectangle {
             spacing: 6px;
 
             Text {
-                text: "2. CATEGORIA DEL PROBLEMA";
-                color: Theme.gold-light;
-                font-size: 11px;
-                font-weight: 700;
-                letter-spacing: 0.8px;
+                text: "Categoria del problema";
+                color: Theme.text-primary;
+                font-size: 12px;
+                font-weight: 600;
             }
 
             HorizontalLayout {
                 spacing: 8px;
 
-                for cat-name[c-idx] in root.categories : cat-pill := Rectangle {
+                for cat-name[c-idx] in root.categories : Rectangle {
                     height: 28px;
-                    y: pill-touch.pressed ? 1px : 0px;
                     border-radius: Theme.radius-pill;
-                    background: root.selected-category == c-idx ? #c89b3c25 : (pill-touch.has-hover ? #1f2738 : Theme.bg-card);
+                    background: root.selected-category == c-idx ? #c89b3c22 : (pill-touch.has-hover ? #182030 : Theme.bg-card);
                     border-width: 1px;
-                    border-color: root.selected-category == c-idx ? Theme.border-gold-bright : Theme.border-normal;
+                    border-color: root.selected-category == c-idx ? Theme.border-gold-normal : Theme.border-normal;
 
-                    animate y { duration: Theme.transition-instant; easing: ease-out; }
                     animate background { duration: Theme.transition-fast; easing: ease-out; }
                     animate border-color { duration: Theme.transition-fast; easing: ease-out; }
 
@@ -335,9 +338,9 @@ export component BugCard inherits Rectangle {
                         padding-right: 12px;
                         Text {
                             text: cat-name;
-                            color: root.selected-category == c-idx ? Theme.gold-bright : (pill-touch.has-hover ? Theme.text-primary : Theme.text-secondary);
+                            color: root.selected-category == c-idx ? Theme.gold-light : (pill-touch.has-hover ? Theme.text-primary : Theme.text-secondary);
                             font-size: 11px;
-                            font-weight: root.selected-category == c-idx ? 700 : 500;
+                            font-weight: root.selected-category == c-idx ? 600 : 400;
                             vertical-alignment: center;
                         }
                     }
@@ -350,15 +353,14 @@ export component BugCard inherits Rectangle {
             spacing: 6px;
 
             Text {
-                text: "3. DESCRIZIONE DETTAGLIATA & NOTE";
-                color: Theme.gold-light;
-                font-size: 11px;
-                font-weight: 700;
-                letter-spacing: 0.8px;
+                text: "Dettagli della segnalazione";
+                color: Theme.text-primary;
+                font-size: 12px;
+                font-weight: 600;
             }
 
             Rectangle {
-                height: 74px;
+                height: 70px;
                 background: Theme.bg-input;
                 border-radius: Theme.radius-md;
                 border-width: 1px;
@@ -380,141 +382,66 @@ export component BugCard inherits Rectangle {
                 if (root.user-description == "") : Text {
                     x: 10px;
                     y: 9px;
-                    text: "Descrivi il problema (es: 'L'accento sulla parola X è errato', 'Audio interrotto a metà')...";
+                    text: "Descrivi l'anomalia (es. accento errato o battuta interrotta)";
                     color: Theme.text-muted;
                     font-size: 11px;
                 }
             }
         }
 
-        // Action Buttons Row (Esporta / GitHub) with Balanced Weights & Aligned Baselines
+        // Action Buttons Row (Using shared SecondaryButton & PrimaryButton)
         HorizontalLayout {
             alignment: space-between;
 
-            // Selected dialogue status summary pill
-            HorizontalLayout {
-                spacing: 6px;
-                alignment: start;
+            // Target audio file badge
+            Rectangle {
+                height: 24px;
+                y: (parent.height - self.height) / 2;
+                border-radius: Theme.radius-xs;
+                background: #11151f;
+                border-width: 1px;
+                border-color: Theme.border-subtle;
 
-                Rectangle {
-                    height: 24px;
-                    y: (parent.height - self.height) / 2;
-                    border-radius: Theme.radius-xs;
-                    background: #141924;
-                    border-width: 1px;
-                    border-color: Theme.border-subtle;
-
-                    HorizontalLayout {
-                        padding-left: 8px;
-                        padding-right: 8px;
-                        spacing: 5px;
-                        Text {
-                            text: "Target:";
-                            color: Theme.text-muted;
-                            font-size: 10px;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                        }
-                        Text {
-                            text: root.current-sound-file != "" ? root.current-sound-file : "Segnalazione generale / Testo";
-                            color: root.current-sound-file != "" ? Theme.gold-light : Theme.text-secondary;
-                            font-size: 10px;
-                            vertical-alignment: center;
-                        }
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 5px;
+                    Text {
+                        text: "File target:";
+                        color: Theme.text-muted;
+                        font-size: 10px;
+                        font-weight: 500;
+                        vertical-alignment: center;
+                    }
+                    Text {
+                        text: root.current-sound-file != "" ? root.current-sound-file : "Segnalazione generale";
+                        color: root.current-sound-file != "" ? Theme.gold-light : Theme.text-secondary;
+                        font-size: 10px;
+                        vertical-alignment: center;
                     }
                 }
             }
 
             // Right Button Pair
             HorizontalLayout {
-                spacing: 10px;
+                spacing: 8px;
                 alignment: end;
 
-                // GitHub Issue Button
-                Rectangle {
-                    width: 165px;
-                    height: 38px;
-                    y: gh-touch.pressed ? 1px : 0px;
-                    border-radius: Theme.radius-md;
-                    background: gh-touch.has-hover ? (gh-touch.pressed ? #252e42 : #182030) : #131824;
-                    border-width: 1px;
-                    border-color: gh-touch.has-hover ? Theme.border-gold-normal : Theme.border-normal;
-
-                    animate y { duration: Theme.transition-instant; easing: ease-out; }
-                    animate background { duration: Theme.transition-fast; }
-                    animate border-color { duration: Theme.transition-fast; }
-
-                    gh-touch := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.open-github(root.current-category-name, root.user-description, root.current-sound-file);
-                        }
-                    }
-
-                    HorizontalLayout {
-                        alignment: center;
-                        spacing: 7px;
-                        Text {
-                            text: "🌐";
-                            font-size: 13px;
-                            vertical-alignment: center;
-                        }
-                        Text {
-                            text: "Apri Issue GitHub";
-                            color: gh-touch.has-hover ? Theme.gold-light : Theme.text-primary;
-                            font-size: 12px;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                        }
+                SecondaryButton {
+                    text: "Apri issue su GitHub";
+                    icon: @image-url("../assets/icons/external-link.svg");
+                    custom-height: 36px;
+                    clicked => {
+                        root.open-github(root.current-category-name, root.user-description, root.current-sound-file);
                     }
                 }
 
-                // Export / Submit Report Button
-                Rectangle {
-                    width: 210px;
-                    height: 38px;
-                    y: sub-touch.pressed ? 1.5px : 0px;
-                    border-radius: Theme.radius-md;
-                    background: sub-touch.has-hover ? (sub-touch.pressed ? Theme.gold-gradient-pressed : Theme.gold-gradient-hover) : Theme.gold-gradient;
-                    border-width: 1px;
-                    border-color: sub-touch.has-hover ? Theme.border-gold-glow : Theme.border-gold-bright;
-
-                    animate y { duration: Theme.transition-instant; easing: ease-out; }
-                    animate background { duration: Theme.transition-fast; }
-                    animate border-color { duration: Theme.transition-fast; }
-
-                    // Top specular highlight
-                    Rectangle {
-                        x: 4px;
-                        y: 1px;
-                        width: parent.width - 8px;
-                        height: 1px;
-                        background: #ffffff44;
-                    }
-
-                    sub-touch := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.submit-report(root.current-category-name, root.user-description, root.current-sound-file);
-                        }
-                    }
-
-                    HorizontalLayout {
-                        alignment: center;
-                        spacing: 7px;
-                        Text {
-                            text: "💾";
-                            font-size: 13px;
-                            vertical-alignment: center;
-                        }
-                        Text {
-                            text: "Esporta Segnalazione (.md)";
-                            color: Theme.text-dark;
-                            font-size: 12px;
-                            font-weight: 800;
-                            letter-spacing: 0.3px;
-                            vertical-alignment: center;
-                        }
+                PrimaryButton {
+                    text: "Esporta segnalazione";
+                    icon: @image-url("../assets/icons/file-text.svg");
+                    custom-height: 36px;
+                    clicked => {
+                        root.submit-report(root.current-category-name, root.user-description, root.current-sound-file);
                     }
                 }
             }

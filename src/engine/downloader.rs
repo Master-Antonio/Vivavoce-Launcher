@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc::Sender;
 
-use crate::engine::manifest::PackageChunk;
+use crate::engine::manifest::{PackageChunk, PatchChunk};
 
 /// Current phase of the download / installation process.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -99,6 +99,65 @@ impl Downloader {
         // Atomically rename part file to final file
         tokio::fs::rename(&part_file_path, &output_file_path).await?;
         Ok(output_file_path)
+    }
+
+    /// Downloads a `PatchChunk` delta update archive.
+    pub async fn download_patch<P: AsRef<Path>>(
+        &self,
+        patch: &PatchChunk,
+        target_dir: P,
+        progress: Option<Sender<ProgressEvent>>,
+        cancel_token: Option<Arc<AtomicBool>>,
+    ) -> Result<PathBuf, DownloadError> {
+        let target_dir = target_dir.as_ref();
+        tokio::fs::create_dir_all(target_dir).await?;
+
+        let output_file_path = target_dir.join(&patch.filename);
+        let part_file_path = output_file_path.with_extension(format!("part.{}", std::process::id()));
+
+        self.download_file_internal(
+            &patch.download_url,
+            &part_file_path,
+            Some(&patch.blake3),
+            Some(patch.compressed_size),
+            progress,
+            cancel_token,
+        )
+        .await?;
+
+        tokio::fs::rename(&part_file_path, &output_file_path).await?;
+        Ok(output_file_path)
+    }
+
+    /// Downloads a generic file with optional Blake3 verification.
+    pub async fn download_file<P: AsRef<Path>>(
+        &self,
+        url: &str,
+        dest_path: P,
+        expected_blake3: Option<&str>,
+        expected_size: Option<u64>,
+        progress: Option<Sender<ProgressEvent>>,
+        cancel_token: Option<Arc<AtomicBool>>,
+    ) -> Result<PathBuf, DownloadError> {
+        let dest_path = dest_path.as_ref();
+        if let Some(parent) = dest_path.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+
+        let part_file_path = dest_path.with_extension(format!("part.{}", std::process::id()));
+
+        self.download_file_internal(
+            url,
+            &part_file_path,
+            expected_blake3,
+            expected_size,
+            progress,
+            cancel_token,
+        )
+        .await?;
+
+        tokio::fs::rename(&part_file_path, dest_path).await?;
+        Ok(dest_path.to_path_buf())
     }
 
     /// Internal streaming download implementation with on-the-fly Blake3 calculation.

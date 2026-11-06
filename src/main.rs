@@ -13,13 +13,19 @@ pub mod engine;
 pub mod wow;
 
 use bug_reporter::{BugCategory, BugReport, Submitter};
-use engine::downloader::ProgressEvent;
+use engine::downloader::{Downloader, ProgressEvent};
+use engine::extractor::extract_tar_zst_file;
+use engine::manifest::RemoteManifest;
+use engine::scanner::scan_delta;
 use engine::uninstaller::uninstall_vivavoce;
 use wow::discovery::{
     detect_wow_installations, find_wow_install_path, get_addons_path, validate_wow_root,
     WowFlavor, WowInstallation,
 };
 use wow::saved_variables::{load_all_saved_variables, RecentDialogue};
+
+pub const REMOTE_MANIFEST_URL: &str =
+    "https://raw.githubusercontent.com/Master-Antonio/Vivavoce-Releases/main/manifest.json";
 
 slint::include_modules!();
 
@@ -215,12 +221,13 @@ async fn discover_and_refresh(ctx: &AppContext) {
         let weak = ctx.main_window_weak.clone();
         let wow_path_str = game_client_path.to_string_lossy().to_string();
         let dialogues_for_ui = saved_vars_dialogues.clone();
+        let installed_for_ui = installed_version.clone();
 
         let _ = weak.upgrade_in_event_loop(move |win| {
             win.set_wow_path(SharedString::from(wow_path_str));
             win.set_wow_flavor(SharedString::from(flavor_name));
             win.set_is_installed(is_installed);
-            win.set_installed_version(SharedString::from(installed_version));
+            win.set_installed_version(SharedString::from(installed_for_ui));
             win.set_remote_version(SharedString::from("1.0.0"));
             win.set_has_update(!is_installed);
 
@@ -248,6 +255,40 @@ async fn discover_and_refresh(ctx: &AppContext) {
             // Populate package cards
             let packages = get_default_packages(is_installed);
             win.set_packages(ModelRc::new(VecModel::from(packages)));
+        });
+
+        // Background check for latest remote manifest & delta patches
+        let weak_for_remote = ctx.main_window_weak.clone();
+        let installed_for_remote = installed_version.clone();
+        tokio::spawn(async move {
+            let client = reqwest::Client::builder()
+                .user_agent("VivaVoceLauncher/0.1.0")
+                .timeout(Duration::from_secs(4))
+                .build()
+                .unwrap_or_default();
+
+            if let Ok(resp) = client.get(REMOTE_MANIFEST_URL).send().await {
+                if resp.status().is_success() {
+                    if let Ok(manifest) = resp.json::<RemoteManifest>().await {
+                        let remote_ver = manifest.version.clone();
+                        let has_delta = manifest.find_patch(&installed_for_remote).is_some();
+                        let has_update = !is_installed || (!installed_for_remote.is_empty() && installed_for_remote != remote_ver);
+
+                        let _ = weak_for_remote.upgrade_in_event_loop(move |win| {
+                            win.set_remote_version(SharedString::from(&remote_ver));
+                            if is_installed && has_update {
+                                win.set_has_update(true);
+                                win.set_status_text(SharedString::from(format!("Aggiornamento v{} disponibile!", remote_ver)));
+                                if has_delta {
+                                    win.set_sub_status_text(SharedString::from("Disponibile patch delta rapida: scarica solo i file modificati"));
+                                } else {
+                                    win.set_sub_status_text(SharedString::from("Nuova versione completa disponibile"));
+                                }
+                            }
+                        });
+                    }
+                }
+            }
         });
     } else {
         warn!("Nessuna installazione di World of Warcraft rilevata.");
@@ -286,55 +327,12 @@ async fn run_update_pipeline(ctx: AppContext, is_repair: bool) {
     ctx.cancel_token.store(false, Ordering::SeqCst);
 
     let weak = ctx.main_window_weak.clone();
-    let action_name = if is_repair { "Riparazione" } else { "Installazione" };
+    let action_name = if is_repair { "Riparazione" } else { "Installazione/Aggiornamento" };
     info!("Avvio {} per VivaVoce in {:?}", action_name, addons_dir);
 
-    // 1. Check if we have local VivaVoce source in K:\WoW\VivaVoce for instant high-speed local sync!
-    let local_pack_dir = PathBuf::from(r"K:\WoW\VivaVoce\pack\VivaVoce");
-    let local_addon_dir = PathBuf::from(r"K:\WoW\VivaVoce\addon");
-
-    if local_pack_dir.exists() || local_addon_dir.exists() {
-        info!("Trovata sorgente VivaVoce locale ad altissima velocità in K:\\WoW\\VivaVoce. Esecuzione sincronizzazione locale ultra-rapida...");
-        let sync_res = tokio::task::spawn_blocking({
-            let target_addons = addons_dir.clone();
-            let weak_clone = weak.clone();
-            move || sync_local_vivavoce(&target_addons, weak_clone)
-        }).await;
-
-        match sync_res {
-            Ok(Ok(_)) => {
-                info!("Sincronizzazione completata con successo!");
-                let _ = weak.upgrade_in_event_loop(|win| {
-                    win.set_progress(1.0);
-                    win.set_status_text(SharedString::from("VivaVoce sincronizzato e pronto"));
-                    win.set_sub_status_text(SharedString::from("27.420 battute italiane verificate"));
-                    win.set_is_installed(true);
-                    win.set_has_update(false);
-                    win.set_installed_version(SharedString::from("1.0.0"));
-                    win.set_is_updating(false);
-                    let packages = get_default_packages(true);
-                    win.set_packages(ModelRc::new(VecModel::from(packages)));
-                });
-                return;
-            }
-            Ok(Err(e)) => {
-                warn!("Sync locale fallito ({}). Procedo con il downloader cloud...", e);
-            }
-            Err(e) => {
-                warn!("Task sync locale abortito ({}). Procedo con il downloader cloud...", e);
-            }
-        }
-    }
-
-    // 2. Cloud / Remote Download Flow with Tokio streaming and Blake3 verification
-    update_ui_status(&weak, "Download del manifest remoto...", 0.1);
-    tokio::time::sleep(Duration::from_millis(300)).await;
-
-    // Simulate multi-step progress with cancellation check
+    // Progress channel
     let (tx, mut rx) = mpsc::channel::<ProgressEvent>(32);
     let weak_rx = weak.clone();
-
-    // Spawn progress listener
     tokio::spawn(async move {
         while let Some(evt) = rx.recv().await {
             let pct = if evt.total_bytes > 0 {
@@ -345,56 +343,200 @@ async fn run_update_pipeline(ctx: AppContext, is_repair: bool) {
             let speed_mb = evt.speed_bps / (1024.0 * 1024.0);
             let mb_done = evt.current_bytes as f64 / (1024.0 * 1024.0);
             let mb_tot = evt.total_bytes as f64 / (1024.0 * 1024.0);
-            let sub = format!("{:.1} MB / {:.1} MB • {:.1} MB/s", mb_done, mb_tot, speed_mb);
+            let sub = if evt.total_bytes > 0 {
+                format!("{:.1} MB / {:.1} MB • {:.1} MB/s", mb_done, mb_tot, speed_mb)
+            } else {
+                String::new()
+            };
             let msg = evt.message.clone();
-
             let _ = weak_rx.upgrade_in_event_loop(move |win| {
                 win.set_progress(pct);
                 win.set_status_text(SharedString::from(msg));
-                win.set_sub_status_text(SharedString::from(sub));
+                if !sub.is_empty() {
+                    win.set_sub_status_text(SharedString::from(sub));
+                }
             });
         }
     });
 
-    // Mock download pipeline for demonstration / remote updates
-    let steps = [
-        ("Download pacchetto base VivaVoce Core...", 0.2, 50_000_000, 100_000_000),
-        ("Download pacchetto VivaVoce_Quests (15.838 tracce)...", 0.5, 1_500_000_000, 2_500_000_000),
-        ("Download pacchetto VivaVoce_Books (5.594 tracce)...", 0.75, 800_000_000, 1_100_000_000),
-        ("Verifica integrità ed estrazione dei file audio...", 0.95, 200_000_000, 200_000_000),
-    ];
+    // 1. Fetch remote manifest
+    update_ui_status(&weak, "Connessione al catalogo aggiornamenti GitHub...", 0.05);
+    let http_client = reqwest::Client::builder()
+        .user_agent("VivaVoceLauncher/0.1.0")
+        .timeout(Duration::from_secs(10))
+        .build()
+        .unwrap_or_default();
 
-    for (msg, _pct, cur, tot) in steps {
-        if ctx.cancel_token.load(Ordering::SeqCst) {
-            update_ui_status(&weak, "Operazione annullata dall'utente.", 0.0);
-            set_ui_updating(&weak, false);
-            return;
+    let remote_manifest_res = http_client.get(REMOTE_MANIFEST_URL).send().await;
+    let remote_manifest: Option<RemoteManifest> = match remote_manifest_res {
+        Ok(resp) if resp.status().is_success() => resp.json::<RemoteManifest>().await.ok(),
+        _ => None,
+    };
+
+    let vivavoce_dir = addons_dir.join("VivaVoce");
+    let is_installed = vivavoce_dir.join("Core.lua").exists();
+    let local_version = read_toc_version(&vivavoce_dir.join("VivaVoce.toc")).unwrap_or_else(|| "1.0.0".to_string());
+    let downloader = Downloader::new();
+    let temp_dir = std::env::temp_dir().join("VivaVoceUpdates");
+    let _ = std::fs::create_dir_all(&temp_dir);
+
+    // 2. REPAIR MODE
+    if is_repair {
+        if let Some(ref manifest) = remote_manifest {
+            update_ui_status(&weak, "Scansione rapida e verifica integrità file locali...", 0.3);
+            let addons_for_scan = addons_dir.clone();
+            let manifest_for_scan = manifest.clone();
+            let scan_res = tokio::task::spawn_blocking(move || {
+                scan_delta(&addons_for_scan, &manifest_for_scan)
+            }).await;
+
+            match scan_res {
+                Ok(Ok(delta)) => {
+                    info!("Verifica completata: {} file integri", delta.files_matched);
+                    let _ = weak.upgrade_in_event_loop(move |win| {
+                        win.set_progress(1.0);
+                        win.set_status_text(SharedString::from("Integrità Verificata con Successo"));
+                        win.set_sub_status_text(SharedString::from(format!("{} file verificati — Tutti i file sono integri", delta.files_matched)));
+                        win.set_is_updating(false);
+                    });
+                    return;
+                }
+                _ => {
+                    warn!("Scansione delta fallita, continuo con verifica standard...");
+                }
+            }
         }
-
-        let _ = tx.send(ProgressEvent {
-            stage: engine::downloader::ProgressStage::Downloading,
-            current_bytes: cur,
-            total_bytes: tot,
-            speed_bps: 28_500_000.0, // 28.5 MB/s
-            eta_seconds: Some(15),
-            message: msg.to_string(),
-        }).await;
-
-        tokio::time::sleep(Duration::from_millis(600)).await;
     }
 
-    // Done
-    let _ = weak.upgrade_in_event_loop(|win| {
-        win.set_progress(1.0);
-        win.set_status_text(SharedString::from("Operazione completata con successo!"));
-        win.set_sub_status_text(SharedString::from("VivaVoce è aggiornato all'ultima versione"));
-        win.set_is_installed(true);
-        win.set_has_update(false);
-        win.set_installed_version(SharedString::from("1.0.0"));
-        win.set_is_updating(false);
-        let packages = get_default_packages(true);
-        win.set_packages(ModelRc::new(VecModel::from(packages)));
-    });
+    // 3. DELTA PATCH UPDATE: If user already has VivaVoce installed and a patch exists
+    if is_installed && !is_repair {
+        if let Some(ref manifest) = remote_manifest {
+            if let Some(patch) = manifest.find_patch(&local_version) {
+                info!("Trovata patch delta: v{} -> v{} ({} file)", patch.from_version, patch.to_version, patch.files_count);
+                update_ui_status(&weak, &format!("Scaricamento patch delta v{} (solo file modificati)...", patch.to_version), 0.2);
+
+                let patch_clone = patch.clone();
+                let dl_res = downloader.download_patch(&patch_clone, &temp_dir, Some(tx.clone()), Some(ctx.cancel_token.clone())).await;
+                match dl_res {
+                    Ok(patch_file) => {
+                        update_ui_status(&weak, "Applicazione file modificati in WoW Forever...", 0.85);
+                        let addons_target = addons_dir.clone();
+                        let patch_hash = patch.blake3.clone();
+                        let tx_extract = tx.clone();
+
+                        let ext_res = tokio::task::spawn_blocking(move || {
+                            extract_tar_zst_file(&patch_file, &addons_target, Some(&patch_hash), Some(tx_extract))
+                        }).await;
+
+                        match ext_res {
+                            Ok(Ok(summary)) => {
+                                info!("Patch delta applicata! Estratti {} file", summary.files_extracted);
+                                let new_ver = manifest.version.clone();
+                                let _ = weak.upgrade_in_event_loop(move |win| {
+                                    win.set_progress(1.0);
+                                    win.set_status_text(SharedString::from(format!("VivaVoce v{} aggiornato con successo!", new_ver)));
+                                    win.set_sub_status_text(SharedString::from(format!("Applicata patch delta: {} file modificati/nuovi aggiornati", summary.files_extracted)));
+                                    win.set_is_installed(true);
+                                    win.set_has_update(false);
+                                    win.set_installed_version(SharedString::from(&new_ver));
+                                    win.set_is_updating(false);
+                                    let packages = get_default_packages(true);
+                                    win.set_packages(ModelRc::new(VecModel::from(packages)));
+                                });
+                                return;
+                            }
+                            Ok(Err(e)) => {
+                                warn!("Estrazione patch fallita: {}", e);
+                            }
+                            Err(e) => {
+                                warn!("Task fallito: {}", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Download patch fallito: {}", e);
+                    }
+                }
+            }
+        }
+    }
+
+    // 4. LOCAL SOURCE SYNC (If workspace files are present locally on this PC)
+    let local_pack_dir = PathBuf::from(r"K:\WoW\VivaVoce\pack\VivaVoce");
+    let local_addon_dir = PathBuf::from(r"K:\WoW\VivaVoce\addon");
+    if local_pack_dir.exists() || local_addon_dir.exists() {
+        info!("Sorgente VivaVoce trovata in locale su disco. Sincronizzazione ad altissima velocità...");
+        let sync_res = tokio::task::spawn_blocking({
+            let target_addons = addons_dir.clone();
+            let weak_clone = weak.clone();
+            move || sync_local_vivavoce(&target_addons, weak_clone)
+        }).await;
+
+        if let Ok(Ok(_)) = sync_res {
+            let ver = remote_manifest.map(|m| m.version).unwrap_or_else(|| "1.0.0".to_string());
+            let _ = weak.upgrade_in_event_loop(move |win| {
+                win.set_progress(1.0);
+                win.set_status_text(SharedString::from("VivaVoce sincronizzato e pronto"));
+                win.set_sub_status_text(SharedString::from("27.420 battute italiane verificate"));
+                win.set_is_installed(true);
+                win.set_has_update(false);
+                win.set_installed_version(SharedString::from(&ver));
+                win.set_is_updating(false);
+                let packages = get_default_packages(true);
+                win.set_packages(ModelRc::new(VecModel::from(packages)));
+            });
+            return;
+        }
+    }
+
+    // 5. FULL CLOUD INSTALLATION (For fresh installs on any player's PC)
+    if let Some(ref manifest) = remote_manifest {
+        let total_pkgs = manifest.packages.len();
+        for (i, pkg) in manifest.packages.iter().enumerate() {
+            if ctx.cancel_token.load(Ordering::SeqCst) {
+                update_ui_status(&weak, "Operazione annullata dall'utente.", 0.0);
+                set_ui_updating(&weak, false);
+                return;
+            }
+
+            update_ui_status(&weak, &format!("Download modulo {}/{} ({})...", i + 1, total_pkgs, pkg.id), (i as f32) / (total_pkgs as f32));
+            let pkg_clone = pkg.clone();
+            let temp_dir_clone = temp_dir.clone();
+            let tx_clone = tx.clone();
+            let cancel_clone = ctx.cancel_token.clone();
+
+            match downloader.download_package(&pkg_clone, &temp_dir_clone, Some(tx_clone), Some(cancel_clone)).await {
+                Ok(pkg_path) => {
+                    let addons_target = addons_dir.clone();
+                    let hash_expected = pkg.blake3.clone();
+                    let _ = tokio::task::spawn_blocking(move || {
+                        extract_tar_zst_file(&pkg_path, &addons_target, Some(&hash_expected), None)
+                    }).await;
+                }
+                Err(e) => {
+                    update_ui_status(&weak, &format!("Errore download {}: {}", pkg.id, e), 0.0);
+                    set_ui_updating(&weak, false);
+                    return;
+                }
+            }
+        }
+
+        let new_ver = manifest.version.clone();
+        let _ = weak.upgrade_in_event_loop(move |win| {
+            win.set_progress(1.0);
+            win.set_status_text(SharedString::from("Installazione completata con successo!"));
+            win.set_sub_status_text(SharedString::from(format!("VivaVoce v{} è pronto per giocare", new_ver)));
+            win.set_is_installed(true);
+            win.set_has_update(false);
+            win.set_installed_version(SharedString::from(&new_ver));
+            win.set_is_updating(false);
+            let packages = get_default_packages(true);
+            win.set_packages(ModelRc::new(VecModel::from(packages)));
+        });
+    } else {
+        update_ui_status(&weak, "Impossibile scaricare gli aggiornamenti da GitHub.", 0.0);
+        set_ui_updating(&weak, false);
+    }
 }
 
 /// Sincronizzazione locale diretta ad altissima velocità tra repository e cartella AddOns

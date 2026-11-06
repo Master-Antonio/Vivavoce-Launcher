@@ -1,0 +1,174 @@
+import { Theme } from "../theme.slint";
+
+export component TitleBar inherits Rectangle {
+    in-out property <string> title: "VivaVoce";
+    in-out property <string> subtitle: "WoW Voiceover Launcher";
+    in-out property <string> version-tag: "v1.0.0 Classic";
+
+    callback minimize-clicked();
+    callback close-clicked();
+    callback drag-window();
+
+    height: 44px;
+    background: transparent;
+
+    // Outer subtle border at bottom to delineate titlebar
+    Rectangle {
+        y: parent.height - 1px;
+        height: 1px;
+        background: Theme.border-subtle;
+    }
+
+    // Draggable window area covering the non-button space
+    TouchArea {
+        width: parent.width - 90px;
+        height: parent.height;
+        x: 0;
+        y: 0;
+        mouse-cursor: default;
+
+        pointer-event(event) => {
+            if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                root.drag-window();
+            }
+        }
+    }
+
+    HorizontalLayout {
+        padding-left: 18px;
+        padding-right: 14px;
+        alignment: space-between;
+
+        // Left Branding Block
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: start;
+
+            // Stylized VivaVoce WoW Crest
+            Rectangle {
+                width: 28px;
+                height: 28px;
+                border-radius: Theme.radius-sm;
+                background: @linear-gradient(135deg, #2a2012 0%, #17141b 100%);
+                border-width: 1px;
+                border-color: Theme.border-gold-normal;
+
+                // Inner runic / sound-crest glow
+                Text {
+                    text: "🛡️";
+                    font-size: 14px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            // Title Text Block
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: center;
+
+                Text {
+                    text: root.title;
+                    color: Theme.gold-light;
+                    font-size: 14px;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: "—";
+                    color: Theme.gold-dark;
+                    font-size: 13px;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: root.subtitle;
+                    color: Theme.text-primary;
+                    font-size: 13px;
+                    font-weight: 500;
+                    vertical-alignment: center;
+                }
+
+                // Small Tag Pill
+                Rectangle {
+                    height: 18px;
+                    border-radius: Theme.radius-pill;
+                    background: #c89b3c1a;
+                    border-width: 1px;
+                    border-color: #c89b3c40;
+
+                    HorizontalLayout {
+                        padding-left: 6px;
+                        padding-right: 6px;
+                        Text {
+                            text: root.version-tag;
+                            color: Theme.gold-bright;
+                            font-size: 10px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Window Controls (Right side)
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: end;
+
+            // Minimize Button
+            min-btn := Rectangle {
+                width: 32px;
+                height: 28px;
+                border-radius: Theme.radius-xs;
+                background: min-touch.has-hover ? (min-touch.pressed ? #2d364a : #1c2333) : transparent;
+                border-width: min-touch.has-hover ? 1px : 0px;
+                border-color: Theme.border-bright;
+                animate background { duration: Theme.transition-fast; }
+
+                // Minimize bar icon
+                Rectangle {
+                    width: 10px;
+                    height: 2px;
+                    background: min-touch.has-hover ? Theme.text-primary : Theme.text-secondary;
+                    border-radius: 1px;
+                    y: parent.height / 2 + 1px;
+                    x: (parent.width - self.width) / 2;
+                }
+
+                min-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.minimize-clicked(); }
+                }
+            }
+
+            // Close Button
+            close-btn := Rectangle {
+                width: 32px;
+                height: 28px;
+                border-radius: Theme.radius-xs;
+                background: close-touch.has-hover ? (close-touch.pressed ? #b91c1c : #ef444433) : transparent;
+                border-width: close-touch.has-hover ? 1px : 0px;
+                border-color: close-touch.has-hover ? #ef444488 : transparent;
+                animate background { duration: Theme.transition-fast; }
+
+                Text {
+                    text: "✕";
+                    color: close-touch.has-hover ? (close-touch.pressed ? #ffffff : #ef4444) : Theme.text-secondary;
+                    font-size: 13px;
+                    font-weight: 600;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    animate color { duration: Theme.transition-fast; }
+                }
+
+                close-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.close-clicked(); }
+                }
+            }
+        }
+    }
+}

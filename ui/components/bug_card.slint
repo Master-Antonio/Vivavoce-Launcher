@@ -1,0 +1,438 @@
+import { Theme } from "../theme.slint";
+import { ScrollView } from "std-widgets.slint";
+
+export struct DialogueEntry {
+    sound-file: string,
+    quest-id: int,
+    npc-name: string,
+    timestamp: string,
+    text: string,
+}
+
+export component BugCard inherits Rectangle {
+    in-out property <[DialogueEntry]> recent-dialogues: [];
+    in-out property <int> selected-index: -1;
+    in-out property <int> selected-category: 0;
+    in-out property <string> user-description: "";
+    in-out property <string> manual-sound-file: "";
+
+    callback submit-report(string /* category */, string /* description */, string /* sound_file */);
+    callback open-github(string /* category */, string /* description */, string /* sound_file */);
+
+    // Selected sound file helper
+    private property <string> current-sound-file:
+        (root.selected-index >= 0 && root.selected-index < root.recent-dialogues.length) ?
+            root.recent-dialogues[root.selected-index].sound-file :
+            root.manual-sound-file;
+
+    // Category names
+    private property <[string]> categories: [
+        "Pronuncia / Accento",
+        "Volume / Qualità",
+        "Audio tagliato / Glitch",
+        "Testo non corrispondente",
+        "Altro / Suggerimento"
+    ];
+
+    private property <string> current-category-name: root.categories[root.selected-category];
+
+    background: Theme.bg-panel;
+    border-radius: Theme.radius-lg;
+    border-width: 1px;
+    border-color: Theme.border-normal;
+    clip: true;
+
+    VerticalLayout {
+        padding: 20px;
+        spacing: 16px;
+
+        // Card Header
+        HorizontalLayout {
+            alignment: space-between;
+
+            VerticalLayout {
+                spacing: 3px;
+                HorizontalLayout {
+                    spacing: 8px;
+                    Text {
+                        text: "🐛";
+                        font-size: 16px;
+                        vertical-alignment: center;
+                    }
+                    Text {
+                        text: "Segnala un Problema Audio In-Game";
+                        color: Theme.text-primary;
+                        font-size: 16px;
+                        font-weight: 700;
+                        vertical-alignment: center;
+                    }
+                }
+                Text {
+                    text: "Seleziona uno degli ultimi dialoghi riprodotti in gioco o descrivi il problema riscontrato.";
+                    color: Theme.text-secondary;
+                    font-size: 12px;
+                }
+            }
+
+            // Status tag
+            Rectangle {
+                height: 24px;
+                border-radius: Theme.radius-pill;
+                background: #c89b3c1a;
+                border-width: 1px;
+                border-color: #c89b3c40;
+
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    Text {
+                        text: root.recent-dialogues.length > 0 ? (root.recent-dialogues.length + " dialoghi in cronologia") : "Cronologia vuota";
+                        color: Theme.gold-light;
+                        font-size: 11px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // Section 1: Recent Dialogues List (or Empty Note)
+        VerticalLayout {
+            spacing: 8px;
+
+            Text {
+                text: "1. SELEZIONA DIALOGO DALLA CRONOLOGIA";
+                color: Theme.gold-light;
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 0.8px;
+            }
+
+            // Container for Dialogue List
+            Rectangle {
+                height: 140px;
+                background: Theme.bg-inset;
+                border-radius: Theme.radius-md;
+                border-width: 1px;
+                border-color: Theme.border-subtle;
+                clip: true;
+
+                if (root.recent-dialogues.length == 0) : CenterContainer := Rectangle {
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 6px;
+                        Text {
+                            text: "Nessun dialogo recente trovato in SavedVariables.";
+                            color: Theme.text-secondary;
+                            font-size: 12px;
+                            horizontal-alignment: center;
+                        }
+                        Text {
+                            text: "Puoi comunque inviare una segnalazione inserendo le note e il file audio qui sotto.";
+                            color: Theme.text-muted;
+                            font-size: 11px;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+
+                if (root.recent-dialogues.length > 0) : ScrollView {
+                    VerticalLayout {
+                        spacing: 4px;
+                        padding-right: 4px;
+                        for item[idx] in root.recent-dialogues : item-row := Rectangle {
+                        height: 64px;
+                        background: root.selected-index == idx ? Theme.bg-card-selected : (row-touch.has-hover ? Theme.bg-card-hover : Theme.bg-card);
+                        border-width: 1px;
+                        border-color: root.selected-index == idx ? Theme.border-gold-normal : Theme.border-subtle;
+                        border-radius: Theme.radius-sm;
+
+                        animate background { duration: Theme.transition-fast; }
+                        animate border-color { duration: Theme.transition-fast; }
+
+                        row-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.selected-index = idx;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            padding-top: 8px;
+                            padding-bottom: 8px;
+                            alignment: space-between;
+
+                            VerticalLayout {
+                                spacing: 4px;
+                                alignment: center;
+
+                                HorizontalLayout {
+                                    spacing: 8px;
+
+                                    // NPC Name Badge
+                                    Rectangle {
+                                        height: 20px;
+                                        background: #c89b3c20;
+                                        border-radius: Theme.radius-xs;
+                                        border-width: 1px;
+                                        border-color: #c89b3c44;
+
+                                        HorizontalLayout {
+                                            padding-left: 6px;
+                                            padding-right: 6px;
+                                            Text {
+                                                text: item.npc-name != "" ? item.npc-name : "NPC Sconosciuto";
+                                                color: Theme.gold-bright;
+                                                font-size: 11px;
+                                                font-weight: 700;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+                                    }
+
+                                    // Quest ID Badge
+                                    if (item.quest-id > 0) : Rectangle {
+                                        height: 20px;
+                                        background: #38bdf818;
+                                        border-radius: Theme.radius-xs;
+                                        border-width: 1px;
+                                        border-color: #38bdf844;
+
+                                        HorizontalLayout {
+                                            padding-left: 6px;
+                                            padding-right: 6px;
+                                            Text {
+                                                text: "Quest #" + item.quest-id;
+                                                color: Theme.status-info;
+                                                font-size: 11px;
+                                                font-weight: 600;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+                                    }
+
+                                    // Sound File
+                                    Text {
+                                        text: item.sound-file;
+                                        color: Theme.text-secondary;
+                                        font-size: 11px;
+                                        vertical-alignment: center;
+                                    }
+                                }
+
+                                // Dialogue text snippet
+                                Text {
+                                    text: "\"" + item.text + "\"";
+                                    color: Theme.text-primary;
+                                    font-size: 11px;
+                                    overflow: elide;
+                                }
+                            }
+
+                            // Selection indicator or time
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 4px;
+
+                                Text {
+                                    text: item.timestamp;
+                                    color: Theme.text-muted;
+                                    font-size: 10px;
+                                    horizontal-alignment: right;
+                                }
+
+                                Rectangle {
+                                    width: 72px;
+                                    height: 22px;
+                                    border-radius: Theme.radius-xs;
+                                    background: root.selected-index == idx ? Theme.gold-gradient : transparent;
+                                    border-width: 1px;
+                                    border-color: root.selected-index == idx ? Theme.border-gold-bright : Theme.border-normal;
+
+                                    Text {
+                                        text: root.selected-index == idx ? "Selezionato" : "Seleziona";
+                                        color: root.selected-index == idx ? Theme.text-dark : Theme.text-secondary;
+                                        font-size: 10px;
+                                        font-weight: 700;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        }
+
+        // Section 2: Category Selection Pills
+        VerticalLayout {
+            spacing: 8px;
+
+            Text {
+                text: "2. CATEGORIA DEL PROBLEMA";
+                color: Theme.gold-light;
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 0.8px;
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+
+                for cat-name[c-idx] in root.categories : cat-pill := Rectangle {
+                    height: 28px;
+                    border-radius: Theme.radius-pill;
+                    background: root.selected-category == c-idx ? #c89b3c33 : (pill-touch.has-hover ? #252e42 : Theme.bg-card);
+                    border-width: 1px;
+                    border-color: root.selected-category == c-idx ? Theme.border-gold-bright : Theme.border-normal;
+
+                    animate background { duration: Theme.transition-fast; }
+                    animate border-color { duration: Theme.transition-fast; }
+
+                    pill-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.selected-category = c-idx;
+                        }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        Text {
+                            text: cat-name;
+                            color: root.selected-category == c-idx ? Theme.gold-bright : Theme.text-secondary;
+                            font-size: 11px;
+                            font-weight: root.selected-category == c-idx ? 700 : 500;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Section 3: Description Field & Manual Sound File
+        VerticalLayout {
+            spacing: 8px;
+
+            Text {
+                text: "3. DESCRIZIONE DETTAGLIATA & NOTE";
+                color: Theme.gold-light;
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 0.8px;
+            }
+
+            Rectangle {
+                height: 70px;
+                background: Theme.bg-input;
+                border-radius: Theme.radius-md;
+                border-width: 1px;
+                border-color: desc-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
+
+                animate border-color { duration: Theme.transition-fast; }
+
+                VerticalLayout {
+                    padding: 8px;
+                    desc-input := TextInput {
+                        text <=> root.user-description;
+                        color: Theme.text-primary;
+                        font-size: 12px;
+                        single-line: false;
+                        wrap: word-wrap;
+                    }
+                }
+
+                if (root.user-description == "") : Text {
+                    x: 10px;
+                    y: 8px;
+                    text: "Descrivi il problema (es: 'L'accento sulla parola X è errato', 'Audio interrotto a metà')...";
+                    color: Theme.text-muted;
+                    font-size: 12px;
+                }
+            }
+        }
+
+        // Action Buttons Row (Esporta / GitHub)
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: end;
+
+            // GitHub Issue Button
+            Rectangle {
+                width: 160px;
+                height: 36px;
+                border-radius: Theme.radius-md;
+                background: gh-touch.has-hover ? (gh-touch.pressed ? #2d384e : #1c2333) : #141a26;
+                border-width: 1px;
+                border-color: gh-touch.has-hover ? Theme.border-bright : Theme.border-normal;
+
+                animate background { duration: Theme.transition-fast; }
+
+                gh-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.open-github(root.current-category-name, root.user-description, root.current-sound-file);
+                    }
+                }
+
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 6px;
+                    Text {
+                        text: "🌐";
+                        font-size: 12px;
+                        vertical-alignment: center;
+                    }
+                    Text {
+                        text: "Apri Issue GitHub";
+                        color: Theme.text-primary;
+                        font-size: 12px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Export / Submit Report Button
+            Rectangle {
+                width: 190px;
+                height: 36px;
+                border-radius: Theme.radius-md;
+                background: sub-touch.has-hover ? (sub-touch.pressed ? Theme.gold-gradient-pressed : Theme.gold-gradient-hover) : Theme.gold-gradient;
+                border-width: 1px;
+                border-color: Theme.border-gold-glow;
+
+                animate background { duration: Theme.transition-fast; }
+
+                sub-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.submit-report(root.current-category-name, root.user-description, root.current-sound-file);
+                    }
+                }
+
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 6px;
+                    Text {
+                        text: "💾";
+                        font-size: 12px;
+                        vertical-alignment: center;
+                    }
+                    Text {
+                        text: "Esporta Segnalazione (.md)";
+                        color: Theme.text-dark;
+                        font-size: 12px;
+                        font-weight: 700;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}

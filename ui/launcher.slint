@@ -1,0 +1,1049 @@
+import { Theme } from "theme.slint";
+import { TitleBar } from "components/titlebar.slint";
+import { ProgressBar } from "components/progress_bar.slint";
+import { StatusBadge } from "components/status_badge.slint";
+import { BugCard, DialogueEntry } from "components/bug_card.slint";
+import { PackageCard, PackageInfo } from "components/package_card.slint";
+import { PrimaryButton, SecondaryButton, DangerButton } from "components/buttons.slint";
+import { ScrollView } from "std-widgets.slint";
+
+export { DialogueEntry, PackageInfo }
+
+export component MainWindow inherits Window {
+    title: "VivaVoce — WoW Voiceover Launcher";
+    width: 960px;
+    height: 640px;
+    no-frame: true;
+    background: transparent;
+
+    // === REACTIVE PROPERTIES EXPOSED TO RUST ===
+    in-out property <float> progress: 0.0;
+    in-out property <string> status-text: "Pronto";
+    in-out property <string> sub_status_text: "";
+    in-out property <bool> is-updating: false;
+    in-out property <string> wow-path: "";
+    in-out property <string> wow-flavor: "_forever_";
+    in-out property <bool> is-installed: false;
+    in-out property <bool> has-update: false;
+    in-out property <string> installed-version: "";
+    in-out property <string> remote-version: "1.0.0";
+    in-out property <int> active-tab: 0; // 0: Dashboard, 1: Pacchetti, 2: Bug Report, 3: Impostazioni
+
+    // Data models
+    in-out property <[DialogueEntry]> recent-dialogues: [];
+    in-out property <[PackageInfo]> packages: [];
+
+    // === CALLBACKS EXPOSED TO RUST ===
+    callback start-update();
+    callback start-repair();
+    callback start-uninstall();
+    callback submit-bug-report(string /* type */, string /* details */, string /* sound_file */);
+    callback select-wow-folder();
+    callback launch-game();
+    callback close-window();
+    callback minimize-window();
+    callback open-url(string);
+    callback open-addons-folder();
+    callback drag-window();
+
+    // Main App Shell (Doppelrand with Outer Glowing Frame)
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        border-radius: Theme.radius-lg;
+        background: Theme.main-window-gradient;
+        border-width: 1px;
+        border-color: Theme.border-normal;
+        clip: true;
+
+        VerticalLayout {
+            // Top Frameless TitleBar
+            TitleBar {
+                minimize-clicked => { root.minimize-window(); }
+                close-clicked => { root.close-window(); }
+                drag-window => { root.drag-window(); }
+            }
+
+            // Main Application Body: Left Sidebar + Right Content Area
+            HorizontalLayout {
+                // === LEFT SIDEBAR NAVIGATION ===
+                sidebar := Rectangle {
+                    width: 220px;
+                    background: Theme.bg-sidebar;
+
+                    // Subtle right separator line
+                    Rectangle {
+                        x: parent.width - 1px;
+                        width: 1px;
+                        height: parent.height;
+                        background: Theme.border-subtle;
+                    }
+
+                    VerticalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        padding-top: 16px;
+                        padding-bottom: 16px;
+                        alignment: space-between;
+
+                        // Top Sidebar Brand Card
+                        VerticalLayout {
+                            spacing: 16px;
+
+                            Rectangle {
+                                height: 60px;
+                                border-radius: Theme.radius-md;
+                                background: Theme.bg-panel;
+                                border-width: 1px;
+                                border-color: Theme.border-subtle;
+
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    alignment: start;
+                                    spacing: 10px;
+
+                                    Rectangle {
+                                        width: 36px;
+                                        height: 36px;
+                                        border-radius: Theme.radius-sm;
+                                        background: @linear-gradient(135deg, #2b2210 0%, #17151e 100%);
+                                        border-width: 1px;
+                                        border-color: Theme.border-gold-normal;
+
+                                        Text {
+                                            text: "🎙️";
+                                            font-size: 18px;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+
+                                    VerticalLayout {
+                                        alignment: center;
+                                        spacing: 2px;
+
+                                        Text {
+                                            text: "VIVAVOCE";
+                                            color: Theme.gold-bright;
+                                            font-size: 13px;
+                                            font-weight: 800;
+                                            letter-spacing: 1px;
+                                        }
+
+                                        Text {
+                                            text: "Voiceover Italiano";
+                                            color: Theme.text-secondary;
+                                            font-size: 10px;
+                                            font-weight: 500;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Navigation Items
+                            VerticalLayout {
+                                spacing: 6px;
+
+                                // Tab 0: Dashboard
+                                tab0 := Rectangle {
+                                    height: 42px;
+                                    border-radius: Theme.radius-sm;
+                                    background: root.active-tab == 0 ? #1f2738 : (t0-touch.has-hover ? #151c2a : transparent);
+                                    border-width: 1px;
+                                    border-color: root.active-tab == 0 ? Theme.border-gold-subtle : transparent;
+
+                                    animate background { duration: Theme.transition-fast; }
+
+                                    // Active gold bar marker
+                                    if (root.active-tab == 0) : Rectangle {
+                                        x: 0;
+                                        y: 6px;
+                                        width: 3px;
+                                        height: parent.height - 12px;
+                                        border-radius: 2px;
+                                        background: Theme.gold-bright;
+                                    }
+
+                                    t0-touch := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => { root.active-tab = 0; }
+                                    }
+
+                                    HorizontalLayout {
+                                        padding-left: 14px;
+                                        padding-right: 12px;
+                                        spacing: 10px;
+
+                                        Text {
+                                            text: "🛡️";
+                                            font-size: 14px;
+                                            vertical-alignment: center;
+                                        }
+                                        Text {
+                                            text: "Dashboard";
+                                            color: root.active-tab == 0 ? Theme.gold-bright : (t0-touch.has-hover ? Theme.text-primary : Theme.text-secondary);
+                                            font-size: 13px;
+                                            font-weight: root.active-tab == 0 ? 700 : 500;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+
+                                // Tab 1: Pacchetti & Dettagli
+                                tab1 := Rectangle {
+                                    height: 42px;
+                                    border-radius: Theme.radius-sm;
+                                    background: root.active-tab == 1 ? #1f2738 : (t1-touch.has-hover ? #151c2a : transparent);
+                                    border-width: 1px;
+                                    border-color: root.active-tab == 1 ? Theme.border-gold-subtle : transparent;
+
+                                    animate background { duration: Theme.transition-fast; }
+
+                                    if (root.active-tab == 1) : Rectangle {
+                                        x: 0;
+                                        y: 6px;
+                                        width: 3px;
+                                        height: parent.height - 12px;
+                                        border-radius: 2px;
+                                        background: Theme.gold-bright;
+                                    }
+
+                                    t1-touch := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => { root.active-tab = 1; }
+                                    }
+
+                                    HorizontalLayout {
+                                        padding-left: 14px;
+                                        padding-right: 12px;
+                                        spacing: 10px;
+
+                                        Text {
+                                            text: "📦";
+                                            font-size: 14px;
+                                            vertical-alignment: center;
+                                        }
+                                        Text {
+                                            text: "Pacchetti & Dettagli";
+                                            color: root.active-tab == 1 ? Theme.gold-bright : (t1-touch.has-hover ? Theme.text-primary : Theme.text-secondary);
+                                            font-size: 13px;
+                                            font-weight: root.active-tab == 1 ? 700 : 500;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+
+                                // Tab 2: Segnala Bug
+                                tab2 := Rectangle {
+                                    height: 42px;
+                                    border-radius: Theme.radius-sm;
+                                    background: root.active-tab == 2 ? #1f2738 : (t2-touch.has-hover ? #151c2a : transparent);
+                                    border-width: 1px;
+                                    border-color: root.active-tab == 2 ? Theme.border-gold-subtle : transparent;
+
+                                    animate background { duration: Theme.transition-fast; }
+
+                                    if (root.active-tab == 2) : Rectangle {
+                                        x: 0;
+                                        y: 6px;
+                                        width: 3px;
+                                        height: parent.height - 12px;
+                                        border-radius: 2px;
+                                        background: Theme.gold-bright;
+                                    }
+
+                                    t2-touch := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => { root.active-tab = 2; }
+                                    }
+
+                                    HorizontalLayout {
+                                        padding-left: 14px;
+                                        padding-right: 12px;
+                                        spacing: 10px;
+
+                                        Text {
+                                            text: "🐛";
+                                            font-size: 14px;
+                                            vertical-alignment: center;
+                                        }
+                                        Text {
+                                            text: "Segnala Bug";
+                                            color: root.active-tab == 2 ? Theme.gold-bright : (t2-touch.has-hover ? Theme.text-primary : Theme.text-secondary);
+                                            font-size: 13px;
+                                            font-weight: root.active-tab == 2 ? 700 : 500;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+
+                                // Tab 3: Impostazioni
+                                tab3 := Rectangle {
+                                    height: 42px;
+                                    border-radius: Theme.radius-sm;
+                                    background: root.active-tab == 3 ? #1f2738 : (t3-touch.has-hover ? #151c2a : transparent);
+                                    border-width: 1px;
+                                    border-color: root.active-tab == 3 ? Theme.border-gold-subtle : transparent;
+
+                                    animate background { duration: Theme.transition-fast; }
+
+                                    if (root.active-tab == 3) : Rectangle {
+                                        x: 0;
+                                        y: 6px;
+                                        width: 3px;
+                                        height: parent.height - 12px;
+                                        border-radius: 2px;
+                                        background: Theme.gold-bright;
+                                    }
+
+                                    t3-touch := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => { root.active-tab = 3; }
+                                    }
+
+                                    HorizontalLayout {
+                                        padding-left: 14px;
+                                        padding-right: 12px;
+                                        spacing: 10px;
+
+                                        Text {
+                                            text: "⚙️";
+                                            font-size: 14px;
+                                            vertical-alignment: center;
+                                        }
+                                        Text {
+                                            text: "Impostazioni";
+                                            color: root.active-tab == 3 ? Theme.gold-bright : (t3-touch.has-hover ? Theme.text-primary : Theme.text-secondary);
+                                            font-size: 13px;
+                                            font-weight: root.active-tab == 3 ? 700 : 500;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Bottom Sidebar Info & Community Links
+                        VerticalLayout {
+                            spacing: 10px;
+
+                            // WoW Flavor Badge
+                            Rectangle {
+                                height: 32px;
+                                border-radius: Theme.radius-sm;
+                                background: #121620;
+                                border-width: 1px;
+                                border-color: Theme.border-subtle;
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    alignment: space-between;
+
+                                    Text {
+                                        text: "Client:";
+                                        color: Theme.text-muted;
+                                        font-size: 11px;
+                                        vertical-alignment: center;
+                                    }
+
+                                    Text {
+                                        text: root.wow-flavor == "_forever_" ? "1.12.1 Forever" : root.wow-flavor;
+                                        color: Theme.gold-light;
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+
+                            // Community Buttons Row
+                            HorizontalLayout {
+                                spacing: 6px;
+
+                                // Discord Link
+                                Rectangle {
+                                    height: 30px;
+                                    border-radius: Theme.radius-xs;
+                                    background: d-touch.has-hover ? #222a3d : #141924;
+                                    border-width: 1px;
+                                    border-color: Theme.border-subtle;
+
+                                    d-touch := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => { root.open-url("https://discord.gg/vivavoce"); }
+                                    }
+
+                                    HorizontalLayout {
+                                        alignment: center;
+                                        spacing: 4px;
+                                        Text {
+                                            text: "💬 Discord";
+                                            color: d-touch.has-hover ? Theme.text-primary : Theme.text-secondary;
+                                            font-size: 11px;
+                                            font-weight: 600;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+
+                                // GitHub Link
+                                Rectangle {
+                                    height: 30px;
+                                    border-radius: Theme.radius-xs;
+                                    background: g-touch.has-hover ? #222a3d : #141924;
+                                    border-width: 1px;
+                                    border-color: Theme.border-subtle;
+
+                                    g-touch := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => { root.open-url("https://github.com/VivaVoceProject/VivaVoce"); }
+                                    }
+
+                                    HorizontalLayout {
+                                        alignment: center;
+                                        spacing: 4px;
+                                        Text {
+                                            text: "⭐ GitHub";
+                                            color: g-touch.has-hover ? Theme.text-primary : Theme.text-secondary;
+                                            font-size: 11px;
+                                            font-weight: 600;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // === RIGHT MAIN CONTENT VIEW ===
+                content-view := Rectangle {
+                    background: transparent;
+
+                    VerticalLayout {
+                        padding-left: 24px;
+                        padding-right: 24px;
+                        padding-top: 18px;
+                        padding-bottom: 20px;
+
+                        // ==========================================
+                        // TAB 0: DASHBOARD
+                        // ==========================================
+                        if (root.active-tab == 0) : VerticalLayout {
+                            spacing: 16px;
+
+                            // Top Header Block with Status Badge
+                            HorizontalLayout {
+                                alignment: space-between;
+
+                                VerticalLayout {
+                                    spacing: 4px;
+                                    Text {
+                                        text: "World of Warcraft — Voiceover Italiano";
+                                        color: Theme.text-primary;
+                                        font-size: 20px;
+                                        font-weight: 800;
+                                    }
+                                    Text {
+                                        text: "Rivivi l'epica di Azeroth con dialoghi e missioni interamente recitati in italiano.";
+                                        color: Theme.text-secondary;
+                                        font-size: 12px;
+                                    }
+                                }
+
+                                // Live Status Badge
+                                StatusBadge {
+                                    is-installed: root.is-installed;
+                                    has-update: root.has-update;
+                                    is-verifying: root.is-updating;
+                                    installed-version: root.installed-version;
+                                }
+                            }
+
+                            // Hero Stats Card (Double-Bezel WoW Slate Architecture)
+                            Rectangle {
+                                height: 110px;
+                                border-radius: Theme.radius-md;
+                                background: Theme.panel-gradient;
+                                border-width: 1px;
+                                border-color: Theme.border-normal;
+
+                                HorizontalLayout {
+                                    padding: 16px;
+                                    alignment: space-around;
+
+                                    // Stat 1: 27.420 battute
+                                    VerticalLayout {
+                                        alignment: center;
+                                        spacing: 4px;
+                                        HorizontalLayout {
+                                            alignment: center;
+                                            spacing: 6px;
+                                            Text { text: "⚔️"; font-size: 14px; vertical-alignment: center; }
+                                            Text {
+                                                text: "27.420";
+                                                color: Theme.gold-bright;
+                                                font-size: 22px;
+                                                font-weight: 800;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+                                        Text {
+                                            text: "Battute Vocali Recitate";
+                                            color: Theme.text-secondary;
+                                            font-size: 11px;
+                                            font-weight: 500;
+                                            horizontal-alignment: center;
+                                        }
+                                    }
+
+                                    // Divider Line
+                                    Rectangle { width: 1px; height: 60px; background: Theme.border-subtle; }
+
+                                    // Stat 2: Missioni & Libri
+                                    VerticalLayout {
+                                        alignment: center;
+                                        spacing: 4px;
+                                        HorizontalLayout {
+                                            alignment: center;
+                                            spacing: 6px;
+                                            Text { text: "📜"; font-size: 14px; vertical-alignment: center; }
+                                            Text {
+                                                text: "2.500+";
+                                                color: Theme.gold-bright;
+                                                font-size: 22px;
+                                                font-weight: 800;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+                                        Text {
+                                            text: "Missioni & Libri Doppiati";
+                                            color: Theme.text-secondary;
+                                            font-size: 11px;
+                                            font-weight: 500;
+                                            horizontal-alignment: center;
+                                        }
+                                    }
+
+                                    // Divider Line
+                                    Rectangle { width: 1px; height: 60px; background: Theme.border-subtle; }
+
+                                    // Stat 3: Integrità Blake3
+                                    VerticalLayout {
+                                        alignment: center;
+                                        spacing: 4px;
+                                        HorizontalLayout {
+                                            alignment: center;
+                                            spacing: 6px;
+                                            Text { text: "🛡️"; font-size: 14px; vertical-alignment: center; }
+                                            Text {
+                                                text: "Blake3";
+                                                color: Theme.gold-bright;
+                                                font-size: 22px;
+                                                font-weight: 800;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+                                        Text {
+                                            text: "Integrità File Garantita";
+                                            color: Theme.text-secondary;
+                                            font-size: 11px;
+                                            font-weight: 500;
+                                            horizontal-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // WoW Directory Card
+                            Rectangle {
+                                height: 74px;
+                                border-radius: Theme.radius-md;
+                                background: Theme.bg-card;
+                                border-width: 1px;
+                                border-color: Theme.border-subtle;
+
+                                HorizontalLayout {
+                                    padding-left: 16px;
+                                    padding-right: 16px;
+                                    alignment: space-between;
+
+                                    VerticalLayout {
+                                        alignment: center;
+                                        spacing: 4px;
+
+                                        HorizontalLayout {
+                                            spacing: 6px;
+                                            Text {
+                                                text: "📁 Percorso World of Warcraft:";
+                                                color: Theme.gold-light;
+                                                font-size: 11px;
+                                                font-weight: 700;
+                                            }
+                                        }
+
+                                        Text {
+                                            text: root.wow-path != "" ? root.wow-path : "Nessun percorso rilevato automaticamente. Clicca su Sfoglia per impostarlo.";
+                                            color: root.wow-path != "" ? Theme.text-primary : Theme.text-muted;
+                                            font-size: 12px;
+                                            overflow: elide;
+                                        }
+                                    }
+
+                                    HorizontalLayout {
+                                        alignment: center;
+                                        spacing: 8px;
+
+                                        SecondaryButton {
+                                            text: "Sfoglia...";
+                                            icon: "🔍";
+                                            custom-height: 36px;
+                                            clicked => { root.select-wow-folder(); }
+                                        }
+
+                                        SecondaryButton {
+                                            text: "AddOns";
+                                            icon: "📂";
+                                            custom-height: 36px;
+                                            clicked => { root.open-addons-folder(); }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Giant Main CTA Area / Updating Section
+                            Rectangle {
+                                border-radius: Theme.radius-md;
+                                background: Theme.bg-panel;
+                                border-width: 1px;
+                                border-color: Theme.border-normal;
+
+                                VerticalLayout {
+                                    padding: 20px;
+                                    spacing: 16px;
+
+                                    // If actively updating: Show Progress Bar
+                                    if (root.is-updating) : VerticalLayout {
+                                        spacing: 12px;
+
+                                        ProgressBar {
+                                            progress: root.progress;
+                                            title: root.status-text;
+                                            details: root.sub_status_text;
+                                            is-active: true;
+                                        }
+                                    }
+
+                                    // If not updating: Action Buttons Row
+                                    if (!root.is-updating) : HorizontalLayout {
+                                        spacing: 14px;
+                                        alignment: center;
+
+                                        // Giant Primary CTA Button
+                                        PrimaryButton {
+                                            text: !root.is-installed ? "INSTALLA VIVAVOCE" : (root.has-update ? ("AGGIORNA A v" + root.remote-version) : "AVVIA WORLD OF WARCRAFT");
+                                            icon: !root.is-installed ? "⬇️" : (root.has-update ? "✨" : "⚔️");
+                                            custom-height: 52px;
+                                            enabled: true;
+
+                                            clicked => {
+                                                if (!root.is-installed || root.has-update) {
+                                                    root.start-update();
+                                                } else {
+                                                    root.launch-game();
+                                                }
+                                            }
+                                        }
+
+                                        // Secondary Repair Button (if installed)
+                                        if (root.is-installed) : SecondaryButton {
+                                            text: "Verifica e Ripara";
+                                            icon: "🔧";
+                                            custom-height: 52px;
+                                            clicked => { root.start-repair(); }
+                                        }
+                                    }
+
+                                    // Bottom note
+                                    Text {
+                                        text: "VivaVoce integra l'audio OGG compresso con gli AddOn VoiceOver ufficiali senza alterare i file di gioco Blizzard.";
+                                        color: Theme.text-muted;
+                                        font-size: 11px;
+                                        horizontal-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+
+                        // ==========================================
+                        // TAB 1: PACCHETTI & DETTAGLI (6 Moduli)
+                        // ==========================================
+                        if (root.active-tab == 1) : VerticalLayout {
+                            spacing: 14px;
+
+                            // Tab Header
+                            HorizontalLayout {
+                                alignment: space-between;
+
+                                VerticalLayout {
+                                    spacing: 3px;
+                                    Text {
+                                        text: "📦 Moduli VivaVoce & Verifica Blake3";
+                                        color: Theme.text-primary;
+                                        font-size: 18px;
+                                        font-weight: 700;
+                                    }
+                                    Text {
+                                        text: "Stato dei 6 componenti modulari della localizzazione audio italiana.";
+                                        color: Theme.text-secondary;
+                                        font-size: 12px;
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    alignment: center;
+
+                                    SecondaryButton {
+                                        text: "Verifica Tutti";
+                                        icon: "🛡️";
+                                        custom-height: 34px;
+                                        clicked => { root.start-repair(); }
+                                    }
+
+                                    SecondaryButton {
+                                        text: "Cartella AddOns";
+                                        icon: "📂";
+                                        custom-height: 34px;
+                                        clicked => { root.open-addons-folder(); }
+                                    }
+                                }
+                            }
+
+                            // Scrollable list of modules
+                            ScrollView {
+                                VerticalLayout {
+                                    spacing: 8px;
+                                    padding-right: 6px;
+
+                                    // If dynamic packages provided
+                                    for pkg in root.packages : PackageCard {
+                                        package-data: pkg;
+                                    }
+
+                                    // Default 6 VivaVoce Modules when packages list is empty
+                                    if (root.packages.length == 0) : VerticalLayout {
+                                        spacing: 8px;
+
+                                        PackageCard {
+                                            icon: "⚙️";
+                                            package-data: {
+                                                id: "vivavoce_core",
+                                                name: "VivaVoce_Core (Motore Principale)",
+                                                description: "Interfaccia audio Lua, sync frame dei dialoghi, controller volume e configurazione in-game.",
+                                                filename: "VivaVoce_Core.tar.zst",
+                                                size-str: "~15 MB",
+                                                installed: root.is-installed,
+                                                verified: root.is-installed,
+                                                blake3-hash: "7f4a8b...12c9"
+                                            };
+                                        }
+
+                                        PackageCard {
+                                            icon: "📜";
+                                            package-data: {
+                                                id: "vivavoce_quests",
+                                                name: "VivaVoce_Quests (Missioni & Testi)",
+                                                description: "27.420 battute audio parlate in italiano per oltre 2.500 quest classiche di Kalimdor e Eastern Kingdoms.",
+                                                filename: "VivaVoce_Quests.tar.zst",
+                                                size-str: "~2.8 GB",
+                                                installed: root.is-installed,
+                                                verified: root.is-installed,
+                                                blake3-hash: "e391b0...d482"
+                                            };
+                                        }
+
+                                        PackageCard {
+                                            icon: "📖";
+                                            package-data: {
+                                                id: "vivavoce_books",
+                                                name: "VivaVoce_Books (Libri & Tomi Antichi)",
+                                                description: "Lettura integrale e immersiva di tutti i tomi storici, lettere e pergamene sparsi nel mondo.",
+                                                filename: "VivaVoce_Books.tar.zst",
+                                                size-str: "~340 MB",
+                                                installed: root.is-installed,
+                                                verified: root.is-installed,
+                                                blake3-hash: "28fc71...aa04"
+                                            };
+                                        }
+
+                                        PackageCard {
+                                            icon: "🗣️";
+                                            package-data: {
+                                                id: "vivavoce_codex",
+                                                name: "VivaVoce_Codex (NPC & Creature)",
+                                                description: "Frasi d'interazione, saluti di fazione e reazioni vocali dei personaggi non giocanti.",
+                                                filename: "VivaVoce_Codex.tar.zst",
+                                                size-str: "~420 MB",
+                                                installed: root.is-installed,
+                                                verified: root.is-installed,
+                                                blake3-hash: "82a901...33d1"
+                                            };
+                                        }
+
+                                        PackageCard {
+                                            icon: "🗺️";
+                                            package-data: {
+                                                id: "vivavoce_zones",
+                                                name: "VivaVoce_Zones (Atmosfere & Regioni)",
+                                                description: "Narrazioni geografiche e punti d'interesse per un'esplorazione ricca di lore.",
+                                                filename: "VivaVoce_Zones.tar.zst",
+                                                size-str: "~280 MB",
+                                                installed: root.is-installed,
+                                                verified: root.is-installed,
+                                                blake3-hash: "11e409...90cf"
+                                            };
+                                        }
+
+                                        PackageCard {
+                                            icon: "🐛";
+                                            package-data: {
+                                                id: "vivavoce_collector",
+                                                name: "VivaVoce_Collector (Registratore In-Game)",
+                                                description: "Modulo ausiliario per salvare la cronologia audio in SavedVariables e facilitare segnalazioni di pronuncia.",
+                                                filename: "VivaVoce_Collector.tar.zst",
+                                                size-str: "~5 MB",
+                                                installed: root.is-installed,
+                                                verified: root.is-installed,
+                                                blake3-hash: "6c9d22...ff51"
+                                            };
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // ==========================================
+                        // TAB 2: SEGNALA BUG
+                        // ==========================================
+                        if (root.active-tab == 2) : VerticalLayout {
+                            spacing: 12px;
+
+                            BugCard {
+                                recent-dialogues: root.recent-dialogues;
+
+                                submit-report(cat, desc, sound) => {
+                                    root.submit-bug-report(cat, desc, sound);
+                                }
+
+                                open-github(cat, desc, sound) => {
+                                    root.open-url("https://github.com/VivaVoceProject/VivaVoce/issues/new");
+                                }
+                            }
+                        }
+
+                        // ==========================================
+                        // TAB 3: IMPOSTAZIONI
+                        // ==========================================
+                        if (root.active-tab == 3) : VerticalLayout {
+                            spacing: 16px;
+
+                            // Settings Header
+                            VerticalLayout {
+                                spacing: 3px;
+                                Text {
+                                    text: "⚙️ Impostazioni del Launcher";
+                                    color: Theme.text-primary;
+                                    font-size: 18px;
+                                    font-weight: 700;
+                                }
+                                Text {
+                                    text: "Configurazione cartella di gioco, manutenzione e disinstallazione pulita.";
+                                    color: Theme.text-secondary;
+                                    font-size: 12px;
+                                }
+                            }
+
+                            // Card 1: Percorso World of Warcraft
+                            Rectangle {
+                                border-radius: Theme.radius-md;
+                                background: Theme.bg-panel;
+                                border-width: 1px;
+                                border-color: Theme.border-normal;
+
+                                VerticalLayout {
+                                    padding: 18px;
+                                    spacing: 12px;
+
+                                    Text {
+                                        text: "CARTELLA WORLD OF WARCRAFT";
+                                        color: Theme.gold-light;
+                                        font-size: 11px;
+                                        font-weight: 700;
+                                        letter-spacing: 0.8px;
+                                    }
+
+                                    HorizontalLayout {
+                                        spacing: 10px;
+
+                                        Rectangle {
+                                            height: 40px;
+                                            background: Theme.bg-input;
+                                            border-radius: Theme.radius-sm;
+                                            border-width: 1px;
+                                            border-color: Theme.border-normal;
+
+                                            HorizontalLayout {
+                                                padding-left: 12px;
+                                                padding-right: 12px;
+                                                Text {
+                                                    text: root.wow-path != "" ? root.wow-path : "Nessun percorso selezionato";
+                                                    color: root.wow-path != "" ? Theme.text-primary : Theme.text-muted;
+                                                    font-size: 12px;
+                                                    vertical-alignment: center;
+                                                    overflow: elide;
+                                                }
+                                            }
+                                        }
+
+                                        SecondaryButton {
+                                            text: "Cambia...";
+                                            icon: "📁";
+                                            custom-height: 40px;
+                                            clicked => { root.select-wow-folder(); }
+                                        }
+                                    }
+
+                                    Text {
+                                        text: "Il launcher verifica automaticamente la presenza della cartella Interface/AddOns/ e dei file manifest.";
+                                        color: Theme.text-muted;
+                                        font-size: 11px;
+                                    }
+                                }
+                            }
+
+                            // Card 2: Manutenzione & Disinstallazione
+                            Rectangle {
+                                border-radius: Theme.radius-md;
+                                background: Theme.bg-panel;
+                                border-width: 1px;
+                                border-color: Theme.border-normal;
+
+                                VerticalLayout {
+                                    padding: 18px;
+                                    spacing: 14px;
+
+                                    Text {
+                                        text: "MANUTENZIONE & RIMOZIONE ADDON";
+                                        color: Theme.gold-light;
+                                        font-size: 11px;
+                                        font-weight: 700;
+                                        letter-spacing: 0.8px;
+                                    }
+
+                                    HorizontalLayout {
+                                        alignment: space-between;
+
+                                        VerticalLayout {
+                                            spacing: 3px;
+                                            alignment: center;
+
+                                            Text {
+                                                text: "Ripara File AddOn";
+                                                color: Theme.text-primary;
+                                                font-size: 13px;
+                                                font-weight: 600;
+                                            }
+                                            Text {
+                                                text: "Ricalcola gli hash Blake3 e riscarica solo i file mancanti o corrotti.";
+                                                color: Theme.text-secondary;
+                                                font-size: 11px;
+                                            }
+                                        }
+
+                                        SecondaryButton {
+                                            text: "Esegui Riparazione";
+                                            icon: "🔧";
+                                            custom-height: 38px;
+                                            clicked => { root.start-repair(); }
+                                        }
+                                    }
+
+                                    Rectangle { height: 1px; background: Theme.border-subtle; }
+
+                                    HorizontalLayout {
+                                        alignment: space-between;
+
+                                        VerticalLayout {
+                                            spacing: 3px;
+                                            alignment: center;
+
+                                            Text {
+                                                text: "Disinstalla VivaVoce";
+                                                color: #fca5a5;
+                                                font-size: 13px;
+                                                font-weight: 600;
+                                            }
+                                            Text {
+                                                text: "Rimuove in modo pulito tutti i 6 pacchetti audio dalla cartella AddOns di WoW.";
+                                                color: Theme.text-secondary;
+                                                font-size: 11px;
+                                            }
+                                        }
+
+                                        DangerButton {
+                                            text: "Disinstalla AddOn";
+                                            icon: "🗑️";
+                                            custom-height: 38px;
+                                            clicked => { root.start-uninstall(); }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Card 3: Crediti e Info Progetto
+                            Rectangle {
+                                border-radius: Theme.radius-md;
+                                background: Theme.bg-panel;
+                                border-width: 1px;
+                                border-color: Theme.border-subtle;
+
+                                HorizontalLayout {
+                                    padding: 16px;
+                                    alignment: space-between;
+
+                                    VerticalLayout {
+                                        spacing: 4px;
+                                        alignment: center;
+
+                                        Text {
+                                            text: "VivaVoce Voiceover Project — Progetto No-Profit della Community";
+                                            color: Theme.gold-light;
+                                            font-size: 12px;
+                                            font-weight: 700;
+                                        }
+
+                                        Text {
+                                            text: "Launcher nativo Rust sviluppato con Slint GUI. Licenza MIT / Open Source.";
+                                            color: Theme.text-muted;
+                                            font-size: 11px;
+                                        }
+                                    }
+
+                                    SecondaryButton {
+                                        text: "GitHub Repository";
+                                        icon: "⭐";
+                                        custom-height: 34px;
+                                        clicked => { root.open-url("https://github.com/VivaVoceProject/VivaVoce"); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

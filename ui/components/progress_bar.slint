@@ -1,0 +1,93 @@
+import { Theme } from "../theme.slint";
+
+export component ProgressBar inherits VerticalLayout {
+    in-out property <float> progress: 0.0; // 0.0 to 1.0
+    in-out property <string> title: "Avanzamento";
+    in-out property <string> details: "";
+    in-out property <bool> is-active: false;
+
+    spacing: 7px;
+
+    // Header: Operation Title and Percentage
+    HorizontalLayout {
+        alignment: space-between;
+
+        Text {
+            text: root.title;
+            color: Theme.text-primary;
+            font-size: 13px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: Math.round(Math.max(0.0, Math.min(1.0, root.progress)) * 100) + "%";
+            color: root.is-active ? Theme.gold-bright : Theme.text-secondary;
+            font-size: 13px;
+            font-weight: 700;
+            vertical-alignment: center;
+        }
+    }
+
+    // Outer Doppelrand Track Shell
+    Rectangle {
+        height: 14px;
+        border-radius: Theme.radius-sm;
+        background: Theme.bg-inset;
+        border-width: 1px;
+        border-color: root.is-active ? Theme.border-gold-subtle : Theme.border-normal;
+        clip: true;
+
+        animate border-color { duration: Theme.transition-normal; }
+
+        // Subtle sunken track shadow line
+        Rectangle {
+            height: 1px;
+            background: #00000088;
+            y: 0;
+        }
+
+        // Progress Fill Bar
+        fill-bar := Rectangle {
+            x: 0;
+            y: 0;
+            height: parent.height;
+            width: Math.max(0px, Math.min(parent.width, parent.width * root.progress));
+            border-radius: Theme.radius-sm;
+            background: root.is-active ? Theme.progress-fill-gradient : #3a4254;
+
+            animate width { duration: 180ms; easing: ease-out; }
+            animate background { duration: Theme.transition-normal; }
+
+            // Top metallic sheen highlight line
+            Rectangle {
+                x: 0;
+                y: 0;
+                height: 1px;
+                background: #ffffff50;
+            }
+
+            // Glow flare on the right edge of progress fill
+            if (root.progress > 0.02 && root.progress < 0.99) : Rectangle {
+                x: parent.width - 4px;
+                y: 0;
+                width: 4px;
+                height: parent.height;
+                background: #ffffffaa;
+            }
+        }
+    }
+
+    // Footer: Detailed transfer statistics (e.g., speed, bytes, ETA)
+    if (root.details != "") : HorizontalLayout {
+        alignment: space-between;
+
+        Text {
+            text: root.details;
+            color: Theme.text-secondary;
+            font-size: 11px;
+            font-weight: 500;
+            vertical-alignment: center;
+        }
+    }
+}

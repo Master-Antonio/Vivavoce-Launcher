@@ -1,0 +1,38 @@
+[package]
+name = "vivavoce-launcher"
+version = "0.1.0"
+edition = "2021"
+authors = ["VivaVoce Team <vivavoce.project@gmail.com>"]
+description = "High-performance native launcher and updater for World of Warcraft VivaVoce Italian voiceover"
+
+[dependencies]
+slint = { version = "1.18", features = ["backend-winit", "renderer-skia"] }
+i-slint-backend-winit = "1.18"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", default-features = false, features = ["stream", "cookies", "json", "rustls-tls"] }
+blake3 = { version = "1.6", features = ["rayon", "mmap"] }
+rayon = "1.10"
+tar = "0.4"
+zstd = "0.13"
+winreg = "0.52"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+walkdir = "2.5"
+anyhow = "1.0"
+thiserror = "2.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+rfd = "0.15"
+
+[dev-dependencies]
+tempfile = "3"
+
+[build-dependencies]
+slint-build = "1.18"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = true

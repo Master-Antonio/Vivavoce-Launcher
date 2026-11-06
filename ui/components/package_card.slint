@@ -1,0 +1,189 @@
+import { Theme } from "../theme.slint";
+
+export struct PackageInfo {
+    id: string,
+    name: string,
+    description: string,
+    filename: string,
+    size-str: string,
+    installed: bool,
+    verified: bool,
+    blake3-hash: string,
+}
+
+export component PackageCard inherits Rectangle {
+    in-out property <PackageInfo> package-data;
+    in-out property <string> icon: "📦";
+
+    background: Theme.bg-card;
+    border-radius: Theme.radius-md;
+    border-width: 1px;
+    border-color: root.package-data.verified ? #2a4534 : Theme.border-normal;
+
+    VerticalLayout {
+        padding: 14px;
+        spacing: 10px;
+
+        // Top Row: Icon + Name + Status Badges
+        HorizontalLayout {
+            alignment: space-between;
+
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: start;
+
+                // Module Icon Box
+                Rectangle {
+                    width: 34px;
+                    height: 34px;
+                    border-radius: Theme.radius-sm;
+                    background: #19202e;
+                    border-width: 1px;
+                    border-color: Theme.border-subtle;
+
+                    Text {
+                        text: root.icon;
+                        font-size: 16px;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                VerticalLayout {
+                    spacing: 2px;
+                    alignment: center;
+
+                    Text {
+                        text: root.package-data.name;
+                        color: Theme.gold-light;
+                        font-size: 13px;
+                        font-weight: 700;
+                    }
+
+                    Text {
+                        text: root.package-data.filename;
+                        color: Theme.text-secondary;
+                        font-size: 11px;
+                    }
+                }
+            }
+
+            // Status Badge on the right
+            HorizontalLayout {
+                alignment: center;
+                spacing: 6px;
+
+                if (root.package-data.verified) : Rectangle {
+                    height: 22px;
+                    border-radius: Theme.radius-pill;
+                    background: Theme.status-success-bg;
+                    border-width: 1px;
+                    border-color: Theme.status-success-border;
+
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        Text {
+                            text: "✓ Blake3 OK";
+                            color: Theme.status-success;
+                            font-size: 10px;
+                            font-weight: 700;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                if (!root.package-data.verified && root.package-data.installed) : Rectangle {
+                    height: 22px;
+                    border-radius: Theme.radius-pill;
+                    background: Theme.status-info-bg;
+                    border-width: 1px;
+                    border-color: Theme.status-info-border;
+
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        Text {
+                            text: "Installato";
+                            color: Theme.status-info;
+                            font-size: 10px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                if (!root.package-data.installed) : Rectangle {
+                    height: 22px;
+                    border-radius: Theme.radius-pill;
+                    background: #23293880;
+                    border-width: 1px;
+                    border-color: Theme.border-normal;
+
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        Text {
+                            text: "Mancante";
+                            color: Theme.text-muted;
+                            font-size: 10px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Description
+        Text {
+            text: root.package-data.description;
+            color: Theme.text-primary;
+            font-size: 11px;
+            wrap: word-wrap;
+        }
+
+        // Bottom Row: Blake3 preview & File Size
+        HorizontalLayout {
+            alignment: space-between;
+
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: center;
+
+                Text {
+                    text: "BLAKE3:";
+                    color: Theme.text-muted;
+                    font-size: 10px;
+                    font-weight: 700;
+                }
+
+                Text {
+                    text: root.package-data.blake3-hash != "" ? root.package-data.blake3-hash : "Non verificato";
+                    color: root.package-data.verified ? Theme.status-success : Theme.text-secondary;
+                    font-size: 10px;
+                }
+            }
+
+            Rectangle {
+                height: 20px;
+                background: #0d1017;
+                border-radius: Theme.radius-xs;
+                border-width: 1px;
+                border-color: Theme.border-subtle;
+
+                HorizontalLayout {
+                    padding-left: 6px;
+                    padding-right: 6px;
+                    Text {
+                        text: root.package-data.size-str;
+                        color: Theme.gold-bright;
+                        font-size: 10px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}

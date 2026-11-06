@@ -1,0 +1,137 @@
+import { Theme } from "../theme.slint";
+
+export component PrimaryButton inherits Rectangle {
+    in-out property <string> text: "Pulsante";
+    in-out property <string> icon: "";
+    in-out property <bool> enabled: true;
+    in-out property <length> custom-height: 44px;
+
+    callback clicked();
+
+    height: root.custom-height;
+    border-radius: Theme.radius-md;
+    background: !root.enabled ? #2a3142 : (touch.has-hover ? (touch.pressed ? Theme.gold-gradient-pressed : Theme.gold-gradient-hover) : Theme.gold-gradient);
+    border-width: 1px;
+    border-color: !root.enabled ? #1a202c : (touch.has-hover ? Theme.border-gold-glow : Theme.border-gold-bright);
+
+    animate background { duration: Theme.transition-fast; }
+    animate border-color { duration: Theme.transition-fast; }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        alignment: center;
+        spacing: 10px;
+
+        if (root.icon != "") : Text {
+            text: root.icon;
+            font-size: 15px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.text;
+            color: !root.enabled ? Theme.text-muted : Theme.text-dark;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component SecondaryButton inherits Rectangle {
+    in-out property <string> text: "Pulsante";
+    in-out property <string> icon: "";
+    in-out property <bool> enabled: true;
+    in-out property <length> custom-height: 40px;
+
+    callback clicked();
+
+    height: root.custom-height;
+    border-radius: Theme.radius-md;
+    background: !root.enabled ? #12162055 : (touch.has-hover ? (touch.pressed ? #252e42 : #1a2233) : #141a26);
+    border-width: 1px;
+    border-color: !root.enabled ? Theme.border-subtle : (touch.has-hover ? Theme.border-gold-bright : Theme.border-normal);
+
+    animate background { duration: Theme.transition-fast; }
+    animate border-color { duration: Theme.transition-fast; }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        alignment: center;
+        spacing: 8px;
+
+        if (root.icon != "") : Text {
+            text: root.icon;
+            font-size: 14px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.text;
+            color: !root.enabled ? Theme.text-muted : (touch.has-hover ? Theme.gold-light : Theme.text-primary);
+            font-size: 12px;
+            font-weight: 600;
+            vertical-alignment: center;
+
+            animate color { duration: Theme.transition-fast; }
+        }
+    }
+}
+
+export component DangerButton inherits Rectangle {
+    in-out property <string> text: "Elimina";
+    in-out property <string> icon: "🗑️";
+    in-out property <bool> enabled: true;
+    in-out property <length> custom-height: 40px;
+
+    callback clicked();
+
+    height: root.custom-height;
+    border-radius: Theme.radius-md;
+    background: touch.has-hover ? (touch.pressed ? #7f1d1d : #ef444433) : #2a1515;
+    border-width: 1px;
+    border-color: touch.has-hover ? #ef4444 : #ef444466;
+
+    animate background { duration: Theme.transition-fast; }
+    animate border-color { duration: Theme.transition-fast; }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        alignment: center;
+        spacing: 8px;
+
+        if (root.icon != "") : Text {
+            text: root.icon;
+            font-size: 13px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.text;
+            color: touch.has-hover ? #ffffff : #fca5a5;
+            font-size: 12px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}

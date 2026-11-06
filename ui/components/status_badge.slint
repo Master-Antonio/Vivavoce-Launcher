@@ -1,0 +1,85 @@
+import { Theme } from "../theme.slint";
+
+export component StatusBadge inherits Rectangle {
+    in-out property <bool> is-installed: false;
+    in-out property <bool> has-update: false;
+    in-out property <bool> is-verifying: false;
+    in-out property <string> installed-version: "";
+    in-out property <string> custom-text: "";
+
+    // Internal computed state: 0 = not installed, 1 = installed & updated, 2 = update available, 3 = verifying
+    private property <int> effective-state:
+        root.is-verifying ? 3 :
+        (root.has-update ? 2 :
+        (root.is-installed ? 1 : 0));
+
+    // Dynamic color assignment
+    private property <color> badge-color:
+        effective-state == 3 ? Theme.status-info :
+        (effective-state == 2 ? Theme.gold-bright :
+        (effective-state == 1 ? Theme.status-success : #9ba1b0));
+
+    private property <color> badge-bg:
+        effective-state == 3 ? Theme.status-info-bg :
+        (effective-state == 2 ? #c89b3c20 :
+        (effective-state == 1 ? Theme.status-success-bg : #1a202c80));
+
+    private property <color> badge-border:
+        effective-state == 3 ? Theme.status-info-border :
+        (effective-state == 2 ? Theme.border-gold-normal :
+        (effective-state == 1 ? Theme.status-success-border : Theme.border-normal));
+
+    private property <string> display-text:
+        root.custom-text != "" ? root.custom-text :
+        (effective-state == 3 ? "VERIFICA IN CORSO..." :
+        (effective-state == 2 ? "AGGIORNAMENTO DISPONIBILE" :
+        (effective-state == 1 ? ("INSTALLATO E AGGIORNATO " + (root.installed-version != "" ? "(v" + root.installed-version + ")" : "(v1.0.0)")) :
+        "NON INSTALLATO")));
+
+    height: 30px;
+    border-radius: Theme.radius-pill;
+    background: badge-bg;
+    border-width: 1px;
+    border-color: badge-border;
+
+    animate background { duration: Theme.transition-normal; }
+    animate border-color { duration: Theme.transition-normal; }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 14px;
+        spacing: 8px;
+        alignment: center;
+
+        // Glowing jewel / status orb
+        Rectangle {
+            width: 8px;
+            height: 8px;
+            border-radius: 4px;
+            background: root.badge-color;
+
+            // Outer subtle glow halo
+            Rectangle {
+                width: 14px;
+                height: 14px;
+                x: -3px;
+                y: -3px;
+                border-radius: 7px;
+                background: root.badge-color;
+                opacity: 0.35;
+            }
+        }
+
+        // Status Label Text
+        Text {
+            text: root.display-text;
+            color: root.badge-color;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            vertical-alignment: center;
+
+            animate color { duration: Theme.transition-normal; }
+        }
+    }
+}

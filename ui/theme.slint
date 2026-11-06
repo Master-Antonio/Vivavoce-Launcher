@@ -1,0 +1,83 @@
+// VivaVoce Launcher - World of Warcraft Theme & Design Tokens
+// Handcrafted with high-end dark slate, chiseled gold and runic accents.
+
+export global Theme {
+    // === BACKGROUND PALETTE ===
+    out property <color> bg-main: #0e1117;
+    out property <color> bg-main-gradient-bottom: #080a0e;
+    out property <color> bg-sidebar: #0a0d13;
+    out property <color> bg-panel: #151922;
+    out property <color> bg-panel-translucent: #151922ee;
+    out property <color> bg-panel-hover: #1b212f;
+    out property <color> bg-card: #121620;
+    out property <color> bg-card-hover: #181e2b;
+    out property <color> bg-card-selected: #21293a;
+    out property <color> bg-inset: #090c12;
+    out property <color> bg-input: #0c0f16;
+    out property <color> bg-overlay: #05070ae6;
+
+    // === WOW RUNIC & GOLD ACCENTS ===
+    out property <color> gold-primary: #c89b3c;
+    out property <color> gold-light: #e5c07b;
+    out property <color> gold-bright: #ffd875;
+    out property <color> gold-glow: #ffe699;
+    out property <color> gold-dark: #785a28;
+    out property <color> gold-deep: #996515;
+    out property <color> gold-amber: #d4af37;
+
+    // === GRADIENTS (BRUSHES) ===
+    out property <brush> gold-gradient: @linear-gradient(135deg, #f5d77f 0%, #d4af37 40%, #996515 100%);
+    out property <brush> gold-gradient-hover: @linear-gradient(135deg, #fff0a0 0%, #e2be4a 40%, #b27a1e 100%);
+    out property <brush> gold-gradient-pressed: @linear-gradient(135deg, #b8860b 0%, #8b5a00 100%);
+    out property <brush> gold-subtle-glow: @linear-gradient(180deg, #c89b3c25 0%, #c89b3c05 100%);
+    out property <brush> panel-gradient: @linear-gradient(180deg, #181d28 0%, #131720 100%);
+    out property <brush> card-gradient: @linear-gradient(180deg, #161b25 0%, #10141d 100%);
+    out property <brush> main-window-gradient: @linear-gradient(180deg, #11151e 0%, #080a0f 100%);
+    out property <brush> progress-fill-gradient: @linear-gradient(90deg, #996515 0%, #d4af37 60%, #ffd875 100%);
+
+    // === BORDERS & HIGHLIGHTS ===
+    out property <color> border-subtle: #1e2434;
+    out property <color> border-normal: #2a3142;
+    out property <color> border-bright: #384259;
+    out property <color> border-gold-subtle: #c89b3c38;
+    out property <color> border-gold-normal: #c89b3c;
+    out property <color> border-gold-bright: #e5c07b;
+    out property <color> border-gold-glow: #ffd875;
+
+    // === TYPOGRAPHY (WoW Parchment & Metals) ===
+    out property <color> text-primary: #f3ebd8;      // Warm parchment white
+    out property <color> text-secondary: #9ba1b0;    // Cool slate gray
+    out property <color> text-muted: #5e6677;        // Subdued placeholder
+    out property <color> text-gold: #e5c07b;         // WoW quest text gold
+    out property <color> text-gold-bright: #fff2d1;  // Highlighted gold
+    out property <color> text-dark: #111111;         // Solid contrast on gold
+
+    // === STATUS INDICATORS ===
+    out property <color> status-success: #4ade80;
+    out property <color> status-success-bg: #4ade8018;
+    out property <color> status-success-border: #4ade8050;
+
+    out property <color> status-warning: #f59e0b;
+    out property <color> status-warning-bg: #f59e0b18;
+    out property <color> status-warning-border: #f59e0b50;
+
+    out property <color> status-danger: #ef4444;
+    out property <color> status-danger-bg: #ef444418;
+    out property <color> status-danger-border: #ef444450;
+
+    out property <color> status-info: #38bdf8;
+    out property <color> status-info-bg: #38bdf818;
+    out property <color> status-info-border: #38bdf850;
+
+    // === RADII ===
+    out property <length> radius-xs: 4px;
+    out property <length> radius-sm: 8px;
+    out property <length> radius-md: 10px;
+    out property <length> radius-lg: 14px;
+    out property <length> radius-xl: 18px;
+    out property <length> radius-pill: 999px;
+
+    // === ANIMATION TIMINGS ===
+    out property <duration> transition-fast: 150ms;
+    out property <duration> transition-normal: 200ms;
+}

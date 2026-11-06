@@ -12,7 +12,7 @@ pub mod bug_reporter;
 pub mod engine;
 pub mod wow;
 
-use bug_reporter::{BugCategory, BugReport, Submitter};
+use bug_reporter::{BugReport, IssueType, Submitter};
 use engine::downloader::{Downloader, ProgressEvent};
 use engine::extractor::extract_tar_zst_file;
 use engine::manifest::RemoteManifest;
@@ -134,12 +134,37 @@ fn setup_action_callbacks(main_window: &MainWindow, ctx: AppContext) {
         });
     });
 
-    // SUBMIT BUG REPORT
+    // SUBMIT / EXPORT BUG REPORT TO DISK
     let bug_ctx = ctx.clone();
-    main_window.on_submit_bug_report(move |category_str, user_notes, sound_file| {
+    main_window.on_submit_bug_report(move |rtype, cat, title, desc, extra| {
         let ctx_clone = bug_ctx.clone();
         tokio::spawn(async move {
-            run_submit_bug_report(ctx_clone, category_str.to_string(), user_notes.to_string(), sound_file.to_string()).await;
+            run_submit_bug_report(
+                ctx_clone,
+                rtype,
+                cat.to_string(),
+                title.to_string(),
+                desc.to_string(),
+                extra.to_string(),
+            )
+            .await;
+        });
+    });
+
+    // CREATE GITHUB ISSUE (DIRECT API OR AUTOMATED 1-CLICK)
+    let issue_ctx = ctx.clone();
+    main_window.on_create_github_issue(move |rtype, cat, title, desc, extra| {
+        let ctx_clone = issue_ctx.clone();
+        tokio::spawn(async move {
+            run_create_github_issue(
+                ctx_clone,
+                rtype,
+                cat.to_string(),
+                title.to_string(),
+                desc.to_string(),
+                extra.to_string(),
+            )
+            .await;
         });
     });
 
@@ -640,77 +665,203 @@ async fn run_uninstall(ctx: AppContext) {
     }
 }
 
-/// Submits or exports bug report based on game context and user input
-async fn run_submit_bug_report(
-    ctx: AppContext,
+/// Helper to construct a BugReport for either Audio or AddOn issues
+async fn create_bug_report_from_params(
+    ctx: &AppContext,
+    report_type_idx: i32,
     category_str: String,
+    title_str: String,
     user_notes: String,
-    sound_file: String,
-) {
+    extra_str: String,
+) -> Option<BugReport> {
     let installation = {
         let lock = ctx.wow_installation.read().await;
         lock.clone()
     };
 
     let Some(inst) = installation else {
+        return None;
+    };
+
+    let epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+    let flavor = inst.primary_flavor.unwrap_or(WowFlavor::Forever);
+
+    if report_type_idx == 0 {
+        // AUDIO REPORT
+        let dialogues = ctx.recent_dialogues_cache.read().await.clone();
+        let matched = dialogues.iter().find(|d| d.sound_file == extra_str || (extra_str.is_empty() && !d.sound_file.is_empty()));
+
+        let (quest_id, npc_id, dialogue_title, dialogue_text) = if let Some(d) = matched {
+            (d.quest_id, d.npc_id, Some(d.title.clone()), Some(d.text.clone()))
+        } else {
+            (None, None, if title_str.is_empty() { None } else { Some(title_str.clone()) }, None)
+        };
+
+        Some(BugReport {
+            issue_type: IssueType::Audio,
+            category: category_str,
+            title: if title_str.is_empty() { "Segnalazione Audio".to_string() } else { title_str },
+            user_description: user_notes,
+            repro_steps: None,
+            addon_version: "1.0.0".to_string(),
+            client_flavor: format!("{:?}", flavor),
+            wow_path: inst.root_path.to_string_lossy().to_string(),
+            os_info: "Windows (x86_64)".to_string(),
+            sound_file: if extra_str.is_empty() { None } else { Some(extra_str) },
+            quest_id,
+            npc_id,
+            dialogue_title,
+            dialogue_text,
+            timestamp_epoch: epoch,
+        })
+    } else {
+        // ADDON REPORT
+        Some(BugReport {
+            issue_type: IssueType::Addon,
+            category: category_str,
+            title: if title_str.is_empty() { "Problema AddOn".to_string() } else { title_str },
+            user_description: user_notes,
+            repro_steps: if extra_str.trim().is_empty() { None } else { Some(extra_str) },
+            addon_version: "1.0.0".to_string(),
+            client_flavor: format!("{:?}", flavor),
+            wow_path: inst.root_path.to_string_lossy().to_string(),
+            os_info: "Windows (x86_64)".to_string(),
+            sound_file: None,
+            quest_id: None,
+            npc_id: None,
+            dialogue_title: None,
+            dialogue_text: None,
+            timestamp_epoch: epoch,
+        })
+    }
+}
+
+/// Exports bug report to local Markdown file and copies text to clipboard
+async fn run_submit_bug_report(
+    ctx: AppContext,
+    report_type_idx: i32,
+    category_str: String,
+    title_str: String,
+    user_notes: String,
+    extra_str: String,
+) {
+    let report_opt = create_bug_report_from_params(
+        &ctx,
+        report_type_idx,
+        category_str,
+        title_str,
+        user_notes,
+        extra_str,
+    )
+    .await;
+
+    let Some(report) = report_opt else {
         update_ui_status(&ctx.main_window_weak, "Impossibile creare report: WoW non configurato", 0.0);
         return;
     };
 
-    let dialogues = ctx.recent_dialogues_cache.read().await.clone();
-    let matched_dialogue = dialogues.iter().find(|d| d.sound_file == sound_file || sound_file.is_empty());
-
-    let (quest_id, npc_id, title, text) = if let Some(d) = matched_dialogue {
-        (d.quest_id, d.npc_id, Some(d.title.clone()), Some(d.text.clone()))
-    } else {
-        (None, None, None, None)
-    };
-
-    let category = BugCategory::from_str_lenient(&category_str);
-    let epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
-    let flavor = inst.primary_flavor.unwrap_or(WowFlavor::Forever);
-
-    let report = BugReport {
-        category,
-        addon_version: "1.0.0".to_string(),
-        client_flavor: format!("{:?}", flavor),
-        wow_path: inst.root_path.to_string_lossy().to_string(),
-        sound_file: if sound_file.is_empty() { None } else { Some(sound_file) },
-        quest_id,
-        npc_id,
-        dialogue_title: title,
-        dialogue_text: text,
-        user_description: user_notes,
-        timestamp_epoch: epoch,
-    };
-
-    // Save report in WTF SavedVariables folder
-    let target_dir = inst.root_path.join(flavor.as_dir_name()).join("WTF");
-    let save_dir = if target_dir.exists() {
-        target_dir
-    } else {
-        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-    };
-
-    match Submitter::save_to_disk(&report, &save_dir) {
+    let target_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    match Submitter::save_to_disk(&report, &target_dir) {
         Ok(path) => {
-            info!("Bug report salvato su disco in {:?}", path);
-            let weak = ctx.main_window_weak.clone();
             let path_str = path.to_string_lossy().to_string();
-            let mailto = Submitter::create_mailto_url(&report);
-
+            info!("Bug report salvato su disco in {:?}", path);
+            Submitter::copy_to_clipboard(&report.to_markdown());
+            let weak = ctx.main_window_weak.clone();
             let _ = weak.upgrade_in_event_loop(move |win| {
-                win.set_sub_status_text(SharedString::from(format!("Report salvato: {}", path_str)));
-                win.set_status_text(SharedString::from("Segnalazione esportata con successo!"));
+                win.set_bug_submit_status(SharedString::from("Report esportato e copiato negli appunti!"));
+                win.set_status_text(SharedString::from("Segnalazione esportata"));
+                win.set_sub_status_text(SharedString::from(format!("Salvato in: {}", path_str)));
             });
-
-            // Open report file or mailto client
-            open_system_url(&mailto);
         }
         Err(e) => {
             error!("Errore salvataggio bug report: {}", e);
-            update_ui_status(&ctx.main_window_weak, &format!("Errore salvataggio report: {}", e), 0.0);
+            let weak = ctx.main_window_weak.clone();
+            let _ = weak.upgrade_in_event_loop(move |win| {
+                win.set_bug_submit_status(SharedString::from(format!("Errore salvataggio: {}", e)));
+            });
         }
+    }
+}
+
+/// Automated GitHub issue submission (via GitHub REST API or pre-filled web fallback)
+async fn run_create_github_issue(
+    ctx: AppContext,
+    report_type_idx: i32,
+    category_str: String,
+    title_str: String,
+    user_notes: String,
+    extra_str: String,
+) {
+    let report_opt = create_bug_report_from_params(
+        &ctx,
+        report_type_idx,
+        category_str,
+        title_str,
+        user_notes,
+        extra_str,
+    )
+    .await;
+
+    let Some(report) = report_opt else {
+        update_ui_status(&ctx.main_window_weak, "Impossibile creare report: WoW non configurato", 0.0);
+        return;
+    };
+
+    let token = {
+        let mut t = String::new();
+        if let Some(win) = ctx.main_window_weak.upgrade() {
+            t = win.get_github_token().to_string();
+        }
+        if t.trim().is_empty() {
+            if let Ok(env_t) = std::env::var("GITHUB_TOKEN") {
+                t = env_t;
+            }
+        }
+        t
+    };
+
+    let weak = ctx.main_window_weak.clone();
+
+    if !token.trim().is_empty() {
+        let _ = weak.upgrade_in_event_loop(|win| {
+            win.set_bug_submit_status(SharedString::from("Invio issue a GitHub via API..."));
+        });
+
+        match Submitter::submit_to_github_api(&report, &token).await {
+            Ok(issue_url) => {
+                info!("Issue creata con successo via API GitHub: {}", issue_url);
+                Submitter::copy_to_clipboard(&report.to_markdown());
+                let issue_url_clone = issue_url.clone();
+                let _ = weak.upgrade_in_event_loop(move |win| {
+                    win.set_bug_submit_status(SharedString::from("Issue creata su GitHub con successo!"));
+                    win.set_last_created_issue_url(SharedString::from(&issue_url_clone));
+                    win.set_status_text(SharedString::from("Issue GitHub creata con successo"));
+                    win.set_sub_status_text(SharedString::from(issue_url_clone));
+                });
+            }
+            Err(e) => {
+                warn!("API GitHub fallita: {}. Fallback 1-click su browser...", e);
+                let url = Submitter::build_github_issue_url(&report);
+                Submitter::copy_to_clipboard(&report.to_markdown());
+                open_system_url(&url);
+
+                let err_msg = format!("Errore API: {}. Aperta pagina web GitHub con campi già pronti.", e);
+                let _ = weak.upgrade_in_event_loop(move |win| {
+                    win.set_bug_submit_status(SharedString::from(err_msg));
+                });
+            }
+        }
+    } else {
+        // Automated 1-click fallback: opens browser with prefilled markdown body, title and labels
+        let url = Submitter::build_github_issue_url(&report);
+        Submitter::copy_to_clipboard(&report.to_markdown());
+        open_system_url(&url);
+
+        let _ = weak.upgrade_in_event_loop(move |win| {
+            win.set_bug_submit_status(SharedString::from("Pagina GitHub aperta con tutti i dati precompilati!"));
+            win.set_status_text(SharedString::from("Aperta pagina GitHub con segnalazione precompilata"));
+            win.set_sub_status_text(SharedString::from("Report copiato anche negli appunti"));
+        });
     }
 }
 

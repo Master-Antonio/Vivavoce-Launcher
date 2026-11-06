@@ -11,31 +11,63 @@ export struct DialogueEntry {
 }
 
 export component BugCard inherits Rectangle {
+    // Shared properties
     in-out property <[DialogueEntry]> recent-dialogues: [];
-    in-out property <int> selected-index: -1;
-    in-out property <int> selected-category: 0;
-    in-out property <string> user-description: "";
+    in-out property <int> report-type: 0; // 0 = Audio / Doppiaggio, 1 = AddOn / Tecnico
+    in-out property <string> submit-status-text: "";
+    in-out property <string> last-created-issue-url: "";
+    in-out property <bool> has-github-token: false;
+
+    // Audio properties
+    in-out property <int> selected-dialogue-index: -1;
+    in-out property <int> selected-audio-category: 0;
+    in-out property <string> audio-description: "";
     in-out property <string> manual-sound-file: "";
 
-    callback submit-report(string /* category */, string /* description */, string /* sound_file */);
-    callback open-github(string /* category */, string /* description */, string /* sound_file */);
+    // AddOn properties
+    in-out property <int> selected-addon-category: 0;
+    in-out property <string> addon-title: "";
+    in-out property <string> addon-description: "";
+    in-out property <string> addon-repro-steps: "";
 
-    // Selected sound file helper
-    private property <string> current-sound-file:
-        (root.selected-index >= 0 && root.selected-index < root.recent-dialogues.length) ?
-            root.recent-dialogues[root.selected-index].sound-file :
-            root.manual-sound-file;
+    // Callbacks
+    callback create-github-issue(int /* type: 0=audio, 1=addon */, string /* category */, string /* title */, string /* description */, string /* extra_data */);
+    callback export-report-md(int /* type */, string /* category */, string /* title */, string /* description */, string /* extra_data */);
+    callback open-issue-url(string /* url */);
 
-    // Category names
-    private property <[string]> categories: [
+    // Categories
+    private property <[string]> audio-categories: [
         "Pronuncia ed enfasi",
         "Volume o qualità",
         "Audio tagliato o glitch",
         "Testo non corrispondente",
-        "Altro o suggerimento"
+        "Altro su audio"
     ];
 
-    private property <string> current-category-name: root.categories[root.selected-category];
+    private property <[string]> addon-categories: [
+        "Errore Lua in gioco",
+        "Installazione / Moduli",
+        "Rilevamento Client WoW",
+        "Interfaccia / Opzioni AddOn",
+        "Crash o blocco del gioco",
+        "Altro problema tecnico"
+    ];
+
+    // Current category labels
+    private property <string> current-audio-category: root.audio-categories[root.selected-audio-category];
+    private property <string> current-addon-category: root.addon-categories[root.selected-addon-category];
+
+    // Selected sound file
+    private property <string> current-sound-file:
+        (root.selected-dialogue-index >= 0 && root.selected-dialogue-index < root.recent-dialogues.length) ?
+            root.recent-dialogues[root.selected-dialogue-index].sound-file :
+            root.manual-sound-file;
+
+    // Selected dialogue title
+    private property <string> current-dialogue-title:
+        (root.selected-dialogue-index >= 0 && root.selected-dialogue-index < root.recent-dialogues.length) ?
+            root.recent-dialogues[root.selected-dialogue-index].npc-name :
+            "Segnalazione Audio";
 
     background: Theme.bg-panel;
     border-radius: Theme.radius-lg;
@@ -47,54 +79,131 @@ export component BugCard inherits Rectangle {
         padding: 16px;
         spacing: 12px;
 
-        // Card Header
+        // =====================================================================
+        // HEADER: MODE SELECTOR (Emil Kowalski Segmented Control)
+        // =====================================================================
         HorizontalLayout {
             alignment: space-between;
 
-            VerticalLayout {
-                spacing: 3px;
+            // Segmented Pill Control for Audio vs AddOn
+            Rectangle {
+                height: 36px;
+                border-radius: Theme.radius-md;
+                background: #0d111a;
+                border-width: 1px;
+                border-color: Theme.border-subtle;
+
                 HorizontalLayout {
-                    spacing: 8px;
-                    alignment: start;
+                    padding: 3px;
+                    spacing: 4px;
 
-                    Image {
-                        width: 16px;
-                        height: 16px;
-                        source: @image-url("../assets/icons/bug.svg");
-                        colorize: Theme.gold-light;
-                        image-fit: contain;
-                        vertical-alignment: center;
+                    // Button: Audio
+                    Rectangle {
+                        width: 190px;
+                        height: 30px;
+                        border-radius: Theme.radius-sm;
+                        background: root.report-type == 0 ? #1c2638 : (audio-tab-touch.has-hover ? #141b28 : transparent);
+                        border-width: 1px;
+                        border-color: root.report-type == 0 ? Theme.border-gold-normal : transparent;
+
+                        animate background { duration: Theme.transition-fast; easing: ease-out; }
+                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                        audio-tab-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.report-type = 0; }
+                        }
+
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: 7px;
+
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    width: 14px;
+                                    height: 14px;
+                                    source: @image-url("../assets/icons/headphones.svg");
+                                    colorize: root.report-type == 0 ? Theme.gold-light : Theme.text-secondary;
+                                    image-fit: contain;
+                                }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: "Problema Audio / Voci";
+                                    color: root.report-type == 0 ? Theme.text-primary : Theme.text-secondary;
+                                    font-size: 12px;
+                                    font-weight: root.report-type == 0 ? 600 : 400;
+                                }
+                            }
+                        }
                     }
 
-                    Text {
-                        text: "Segnala un problema audio";
-                        color: Theme.text-primary;
-                        font-size: 15px;
-                        font-weight: 600;
-                        vertical-alignment: center;
+                    // Button: AddOn / Tecnico
+                    Rectangle {
+                        width: 190px;
+                        height: 30px;
+                        border-radius: Theme.radius-sm;
+                        background: root.report-type == 1 ? #1c2638 : (addon-tab-touch.has-hover ? #141b28 : transparent);
+                        border-width: 1px;
+                        border-color: root.report-type == 1 ? Theme.border-gold-normal : transparent;
+
+                        animate background { duration: Theme.transition-fast; easing: ease-out; }
+                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                        addon-tab-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.report-type = 1; }
+                        }
+
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: 7px;
+
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    width: 14px;
+                                    height: 14px;
+                                    source: @image-url("../assets/icons/wrench.svg");
+                                    colorize: root.report-type == 1 ? Theme.gold-light : Theme.text-secondary;
+                                    image-fit: contain;
+                                }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: "Problema AddOn / Tecnico";
+                                    color: root.report-type == 1 ? Theme.text-primary : Theme.text-secondary;
+                                    font-size: 12px;
+                                    font-weight: root.report-type == 1 ? 600 : 400;
+                                }
+                            }
+                        }
                     }
-                }
-                Text {
-                    text: "Seleziona uno degli ultimi dialoghi riprodotti in gioco o descrivi il problema riscontrato.";
-                    color: Theme.text-secondary;
-                    font-size: 12px;
                 }
             }
 
-            // Status tag
+            // Right Info Badge
             Rectangle {
-                height: 22px;
+                height: 24px;
                 y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-pill;
-                background: #c89b3c15;
+                background: #c89b3c14;
                 border-width: 1px;
                 border-color: #c89b3c33;
 
                 HorizontalLayout {
-                    padding-left: 8px;
-                    padding-right: 8px;
+                    padding-left: 9px;
+                    padding-right: 9px;
+                    alignment: center;
                     Text {
-                        text: root.recent-dialogues.length > 0 ? (root.recent-dialogues.length + " dialoghi in memoria") : "Cronologia vuota";
+                        text: root.report-type == 0 ?
+                            (root.recent-dialogues.length > 0 ? (root.recent-dialogues.length + " dialoghi in memoria") : "Cronologia vuota") :
+                            "GitHub Automated Issue";
                         color: Theme.gold-light;
                         font-size: 10px;
                         font-weight: 500;
@@ -104,344 +213,624 @@ export component BugCard inherits Rectangle {
             }
         }
 
-        // Section 1: Recent Dialogues List (or Quiet Empty State)
-        VerticalLayout {
-            spacing: 6px;
+        // Subtitle Description
+        Text {
+            text: root.report-type == 0 ?
+                "Segnala errori di pronuncia, battute tagliate, volume non bilanciato o discrepanze tra audio recitato e sottotitoli." :
+                "Segnala errori Lua di gioco, anomalie nei menu o impostazioni, problemi nel download dei pacchetti o crash.";
+            color: Theme.text-secondary;
+            font-size: 12px;
+        }
 
-            Text {
-                text: "Dialoghi recenti";
-                color: Theme.text-primary;
-                font-size: 12px;
-                font-weight: 600;
+        // =====================================================================
+        // MODE 0: SEGNALAZIONE AUDIO
+        // =====================================================================
+        if (root.report-type == 0) : VerticalLayout {
+            spacing: 10px;
+
+            // Section 1: Dialoghi Recenti
+            VerticalLayout {
+                spacing: 5px;
+
+                Text {
+                    text: "Dialoghi recenti registrati in WoW Forever";
+                    color: Theme.text-primary;
+                    font-size: 12px;
+                    font-weight: 600;
+                }
+
+                Rectangle {
+                    height: root.recent-dialogues.length == 0 ? 74px : 116px;
+                    background: Theme.bg-inset;
+                    border-radius: Theme.radius-md;
+                    border-width: 1px;
+                    border-color: Theme.border-subtle;
+                    clip: true;
+
+                    // Empty state
+                    if (root.recent-dialogues.length == 0) : Rectangle {
+                        HorizontalLayout {
+                            padding-left: 16px;
+                            padding-right: 16px;
+                            alignment: center;
+                            spacing: 12px;
+
+                            Rectangle {
+                                width: 32px;
+                                height: 32px;
+                                border-radius: Theme.radius-sm;
+                                background: #121622;
+                                border-width: 1px;
+                                border-color: Theme.border-subtle;
+
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image {
+                                        width: 16px;
+                                        height: 16px;
+                                        source: @image-url("../assets/icons/headphones.svg");
+                                        colorize: Theme.gold-primary;
+                                        image-fit: contain;
+                                    }
+                                }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 2px;
+
+                                Text {
+                                    text: "Nessun dialogo recente in memoria";
+                                    color: Theme.text-primary;
+                                    font-size: 12px;
+                                    font-weight: 500;
+                                }
+                                Text {
+                                    text: "Avvia WoW Forever con VivaVoce per registrare i dialoghi ascoltati, oppure descrivi l'anomalia sotto.";
+                                    color: Theme.text-muted;
+                                    font-size: 11px;
+                                }
+                            }
+                        }
+                    }
+
+                    // Populated dialogues
+                    if (root.recent-dialogues.length > 0) : ScrollView {
+                        VerticalLayout {
+                            spacing: 4px;
+                            padding: 6px;
+
+                            for item[idx] in root.recent-dialogues : Rectangle {
+                                height: 50px;
+                                background: root.selected-dialogue-index == idx ? Theme.bg-card-selected : (row-touch.has-hover ? Theme.bg-card-hover : Theme.bg-card);
+                                border-width: 1px;
+                                border-color: root.selected-dialogue-index == idx ? Theme.border-gold-normal : Theme.border-subtle;
+                                border-radius: Theme.radius-sm;
+
+                                animate background { duration: Theme.transition-fast; easing: ease-out; }
+                                animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                                row-touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.selected-dialogue-index = idx; }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    alignment: space-between;
+
+                                    VerticalLayout {
+                                        spacing: 2px;
+                                        alignment: center;
+
+                                        HorizontalLayout {
+                                            spacing: 6px;
+
+                                            Rectangle {
+                                                height: 18px;
+                                                background: #c89b3c18;
+                                                border-radius: Theme.radius-xs;
+                                                border-width: 1px;
+                                                border-color: #c89b3c33;
+
+                                                HorizontalLayout {
+                                                    padding-left: 6px;
+                                                    padding-right: 6px;
+                                                    Text {
+                                                        text: item.npc-name != "" ? item.npc-name : "NPC sconosciuto";
+                                                        color: Theme.gold-light;
+                                                        font-size: 10px;
+                                                        font-weight: 500;
+                                                        vertical-alignment: center;
+                                                    }
+                                                }
+                                            }
+
+                                            if (item.quest-id > 0) : Rectangle {
+                                                height: 18px;
+                                                background: #38bdf814;
+                                                border-radius: Theme.radius-xs;
+                                                border-width: 1px;
+                                                border-color: #38bdf833;
+
+                                                HorizontalLayout {
+                                                    padding-left: 6px;
+                                                    padding-right: 6px;
+                                                    Text {
+                                                        text: "Quest #" + item.quest-id;
+                                                        color: Theme.status-info;
+                                                        font-size: 10px;
+                                                        font-weight: 500;
+                                                        vertical-alignment: center;
+                                                    }
+                                                }
+                                            }
+
+                                            Text {
+                                                text: item.sound-file;
+                                                color: Theme.text-secondary;
+                                                font-size: 10px;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+
+                                        Text {
+                                            text: "\"" + item.text + "\"";
+                                            color: Theme.text-primary;
+                                            font-size: 11px;
+                                            overflow: elide;
+                                            max-width: 520px;
+                                        }
+                                    }
+
+                                    VerticalLayout {
+                                        alignment: center;
+                                        spacing: 3px;
+
+                                        Text {
+                                            text: item.timestamp;
+                                            color: Theme.text-muted;
+                                            font-size: 10px;
+                                            horizontal-alignment: right;
+                                        }
+
+                                        Rectangle {
+                                            width: 76px;
+                                            height: 20px;
+                                            border-radius: Theme.radius-xs;
+                                            background: root.selected-dialogue-index == idx ? Theme.btn-primary-bg : transparent;
+                                            border-width: 1px;
+                                            border-color: root.selected-dialogue-index == idx ? Theme.btn-primary-bg : Theme.border-normal;
+
+                                            Text {
+                                                text: root.selected-dialogue-index == idx ? "Selezionato" : "Seleziona";
+                                                color: root.selected-dialogue-index == idx ? Theme.btn-primary-text : Theme.text-secondary;
+                                                font-size: 10px;
+                                                font-weight: 500;
+                                                horizontal-alignment: center;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
-            // Container for Dialogue List or Empty State
-            Rectangle {
-                height: root.recent-dialogues.length == 0 ? 80px : 124px;
-                background: Theme.bg-inset;
-                border-radius: Theme.radius-md;
-                border-width: 1px;
-                border-color: Theme.border-subtle;
-                clip: true;
+            // Section 2: Audio Category Pills
+            VerticalLayout {
+                spacing: 5px;
 
-                // Quiet empty state
-                if (root.recent-dialogues.length == 0) : Rectangle {
+                Text {
+                    text: "Categoria problema audio";
+                    color: Theme.text-primary;
+                    font-size: 12px;
+                    font-weight: 600;
+                }
+
+                HorizontalLayout {
+                    spacing: 8px;
+
+                    for cat-name[c-idx] in root.audio-categories : Rectangle {
+                        height: 28px;
+                        border-radius: Theme.radius-pill;
+                        background: root.selected-audio-category == c-idx ? #c89b3c22 : (pill-touch.has-hover ? #182030 : Theme.bg-card);
+                        border-width: 1px;
+                        border-color: root.selected-audio-category == c-idx ? Theme.border-gold-normal : Theme.border-normal;
+
+                        animate background { duration: Theme.transition-fast; easing: ease-out; }
+                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                        pill-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.selected-audio-category = c-idx; }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            alignment: center;
+                            Text {
+                                text: cat-name;
+                                color: root.selected-audio-category == c-idx ? Theme.gold-light : (pill-touch.has-hover ? Theme.text-primary : Theme.text-secondary);
+                                font-size: 11px;
+                                font-weight: root.selected-audio-category == c-idx ? 600 : 400;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Section 3: Audio Description
+            VerticalLayout {
+                spacing: 5px;
+
+                Text {
+                    text: "Dettagli anomalia o suggerimento";
+                    color: Theme.text-primary;
+                    font-size: 12px;
+                    font-weight: 600;
+                }
+
+                Rectangle {
+                    height: 64px;
+                    background: Theme.bg-input;
+                    border-radius: Theme.radius-md;
+                    border-width: 1px;
+                    border-color: audio-desc-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
+
+                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                    VerticalLayout {
+                        padding: 8px;
+                        audio-desc-input := TextInput {
+                            text <=> root.audio-description;
+                            color: Theme.text-primary;
+                            font-size: 12px;
+                            single-line: false;
+                            wrap: word-wrap;
+                        }
+                    }
+
+                    if (root.audio-description == "") : Text {
+                        x: 10px;
+                        y: 9px;
+                        text: "Descrivi l'anomalia (es: accento errato sulla parola 'Ironforge', audio interrotto a metà frase...)";
+                        color: Theme.text-muted;
+                        font-size: 11px;
+                    }
+                }
+            }
+        }
+
+        // =====================================================================
+        // MODE 1: SEGNALAZIONE ADDON / TECNICO
+        // =====================================================================
+        if (root.report-type == 1) : VerticalLayout {
+            spacing: 10px;
+
+            // Section 1: AddOn Category Pills
+            VerticalLayout {
+                spacing: 5px;
+
+                Text {
+                    text: "Categoria del problema tecnico";
+                    color: Theme.text-primary;
+                    font-size: 12px;
+                    font-weight: 600;
+                }
+
+                HorizontalLayout {
+                    spacing: 7px;
+
+                    for cat-name[c-idx] in root.addon-categories : Rectangle {
+                        height: 28px;
+                        border-radius: Theme.radius-pill;
+                        background: root.selected-addon-category == c-idx ? #c89b3c22 : (addon-pill-touch.has-hover ? #182030 : Theme.bg-card);
+                        border-width: 1px;
+                        border-color: root.selected-addon-category == c-idx ? Theme.border-gold-normal : Theme.border-normal;
+
+                        animate background { duration: Theme.transition-fast; easing: ease-out; }
+                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                        addon-pill-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.selected-addon-category = c-idx; }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            alignment: center;
+                            Text {
+                                text: cat-name;
+                                color: root.selected-addon-category == c-idx ? Theme.gold-light : (addon-pill-touch.has-hover ? Theme.text-primary : Theme.text-secondary);
+                                font-size: 11px;
+                                font-weight: root.selected-addon-category == c-idx ? 600 : 400;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Section 2: Titolo o Sintesi AddOn
+            VerticalLayout {
+                spacing: 5px;
+
+                Text {
+                    text: "Sintesi o titolo del problema";
+                    color: Theme.text-primary;
+                    font-size: 12px;
+                    font-weight: 600;
+                }
+
+                Rectangle {
+                    height: 34px;
+                    background: Theme.bg-input;
+                    border-radius: Theme.radius-sm;
+                    border-width: 1px;
+                    border-color: addon-title-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
+
+                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
                     HorizontalLayout {
-                        padding-left: 16px;
-                        padding-right: 16px;
+                        padding-left: 10px;
+                        padding-right: 10px;
                         alignment: center;
-                        spacing: 12px;
 
-                        Rectangle {
-                            width: 32px;
-                            height: 32px;
-                            border-radius: Theme.radius-sm;
-                            background: #121622;
-                            border-width: 1px;
-                            border-color: Theme.border-subtle;
+                        addon-title-input := TextInput {
+                            text <=> root.addon-title;
+                            color: Theme.text-primary;
+                            font-size: 12px;
+                            single-line: true;
+                            vertical-alignment: center;
+                        }
+                    }
 
+                    if (root.addon-title == "") : Text {
+                        x: 10px;
+                        y: 9px;
+                        text: "es: Errore Lua all'apertura del quest log di Ironforge";
+                        color: Theme.text-muted;
+                        font-size: 11px;
+                    }
+                }
+            }
+
+            // Section 3: Errore Lua / Descrizione
+            VerticalLayout {
+                spacing: 5px;
+
+                Text {
+                    text: "Messaggio di errore Lua o comportamento anomalo";
+                    color: Theme.text-primary;
+                    font-size: 12px;
+                    font-weight: 600;
+                }
+
+                Rectangle {
+                    height: 70px;
+                    background: Theme.bg-input;
+                    border-radius: Theme.radius-md;
+                    border-width: 1px;
+                    border-color: addon-desc-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
+
+                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                    VerticalLayout {
+                        padding: 8px;
+                        addon-desc-input := TextInput {
+                            text <=> root.addon-description;
+                            color: Theme.text-primary;
+                            font-size: 11px;
+                            single-line: false;
+                            wrap: word-wrap;
+                        }
+                    }
+
+                    if (root.addon-description == "") : Text {
+                        x: 10px;
+                        y: 9px;
+                        text: "Incolla qui l'errore Lua (Interface/AddOns/VivaVoce...) oppure descrivi il malfunzionamento";
+                        color: Theme.text-muted;
+                        font-size: 11px;
+                    }
+                }
+            }
+
+            // Section 4: Passaggi per riprodurre (opzionale)
+            VerticalLayout {
+                spacing: 5px;
+
+                Text {
+                    text: "Passaggi per riprodurre (opzionale)";
+                    color: Theme.text-primary;
+                    font-size: 12px;
+                    font-weight: 600;
+                }
+
+                Rectangle {
+                    height: 34px;
+                    background: Theme.bg-input;
+                    border-radius: Theme.radius-sm;
+                    border-width: 1px;
+                    border-color: repro-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
+
+                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        alignment: center;
+
+                        repro-input := TextInput {
+                            text <=> root.addon-repro-steps;
+                            color: Theme.text-primary;
+                            font-size: 12px;
+                            single-line: true;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    if (root.addon-repro-steps == "") : Text {
+                        x: 10px;
+                        y: 9px;
+                        text: "es: 1. Parlo con il gossip NPC, 2. Si chiude la finestra, 3. Compare l'errore";
+                        color: Theme.text-muted;
+                        font-size: 11px;
+                    }
+                }
+            }
+        }
+
+        // =====================================================================
+        // BOTTOM ACTION ROW (Badge, Feedback & GitHub Automated Creation)
+        // =====================================================================
+        HorizontalLayout {
+            alignment: space-between;
+
+            // Left Meta Badge / Status feedback
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+
+                // Target badge
+                Rectangle {
+                    height: 26px;
+                    y: (parent.height - self.height) / 2;
+                    border-radius: Theme.radius-xs;
+                    background: #11151f;
+                    border-width: 1px;
+                    border-color: Theme.border-subtle;
+
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        spacing: 5px;
+                        alignment: center;
+
+                        Text {
+                            text: root.report-type == 0 ? "Target:" : "Ambiente:";
+                            color: Theme.text-muted;
+                            font-size: 10px;
+                            font-weight: 500;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: root.report-type == 0 ?
+                                (root.current-sound-file != "" ? root.current-sound-file : "Segnalazione generale") :
+                                "WoW Forever (1.12.1) · Windows · AddOn v1.0.0";
+                            color: Theme.gold-light;
+                            font-size: 10px;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Status Toast / Created Link
+                if (root.submit-status-text != "") : Rectangle {
+                    height: 26px;
+                    y: (parent.height - self.height) / 2;
+                    border-radius: Theme.radius-xs;
+                    background: #22c55e18;
+                    border-width: 1px;
+                    border-color: #22c55e33;
+
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        spacing: 6px;
+                        alignment: center;
+
+                        VerticalLayout {
+                            alignment: center;
                             Image {
-                                width: 16px;
-                                height: 16px;
-                                source: @image-url("../assets/icons/headphones.svg");
-                                colorize: Theme.gold-primary;
+                                width: 12px;
+                                height: 12px;
+                                source: @image-url("../assets/icons/check.svg");
+                                colorize: Theme.status-success;
                                 image-fit: contain;
-                                x: (parent.width - self.width) / 2;
-                                y: (parent.height - self.height) / 2;
                             }
                         }
 
                         VerticalLayout {
                             alignment: center;
-                            spacing: 2px;
-
                             Text {
-                                text: "Nessun dialogo recente in memoria";
-                                color: Theme.text-primary;
-                                font-size: 12px;
+                                text: root.submit-status-text;
+                                color: Theme.status-success;
+                                font-size: 10px;
                                 font-weight: 500;
                             }
-                            Text {
-                                text: "Avvia WoW Forever con VivaVoce per catturare l'audio in-game, oppure scrivi le note sotto.";
-                                color: Theme.text-muted;
-                                font-size: 11px;
-                            }
                         }
                     }
                 }
 
-                // Populated Dialogues List
-                if (root.recent-dialogues.length > 0) : ScrollView {
-                    VerticalLayout {
-                        spacing: 4px;
-                        padding: 6px;
-
-                        for item[idx] in root.recent-dialogues : Rectangle {
-                            height: 52px;
-                            background: root.selected-index == idx ? Theme.bg-card-selected : (row-touch.has-hover ? Theme.bg-card-hover : Theme.bg-card);
-                            border-width: 1px;
-                            border-color: root.selected-index == idx ? Theme.border-gold-normal : Theme.border-subtle;
-                            border-radius: Theme.radius-sm;
-
-                            animate background { duration: Theme.transition-fast; easing: ease-out; }
-                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                            row-touch := TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => {
-                                    root.selected-index = idx;
-                                }
-                            }
-
-                            HorizontalLayout {
-                                padding-left: 10px;
-                                padding-right: 10px;
-                                alignment: space-between;
-
-                                VerticalLayout {
-                                    spacing: 2px;
-                                    alignment: center;
-
-                                    HorizontalLayout {
-                                        spacing: 6px;
-
-                                        // NPC Name Badge
-                                        Rectangle {
-                                            height: 18px;
-                                            background: #c89b3c18;
-                                            border-radius: Theme.radius-xs;
-                                            border-width: 1px;
-                                            border-color: #c89b3c33;
-
-                                            HorizontalLayout {
-                                                padding-left: 6px;
-                                                padding-right: 6px;
-                                                Text {
-                                                    text: item.npc-name != "" ? item.npc-name : "NPC sconosciuto";
-                                                    color: Theme.gold-light;
-                                                    font-size: 10px;
-                                                    font-weight: 500;
-                                                    vertical-alignment: center;
-                                                }
-                                            }
-                                        }
-
-                                        // Quest ID Badge
-                                        if (item.quest-id > 0) : Rectangle {
-                                            height: 18px;
-                                            background: #38bdf814;
-                                            border-radius: Theme.radius-xs;
-                                            border-width: 1px;
-                                            border-color: #38bdf833;
-
-                                            HorizontalLayout {
-                                                padding-left: 6px;
-                                                padding-right: 6px;
-                                                Text {
-                                                    text: "Quest #" + item.quest-id;
-                                                    color: Theme.status-info;
-                                                    font-size: 10px;
-                                                    font-weight: 500;
-                                                    vertical-alignment: center;
-                                                }
-                                            }
-                                        }
-
-                                        Text {
-                                            text: item.sound-file;
-                                            color: Theme.text-secondary;
-                                            font-size: 10px;
-                                            vertical-alignment: center;
-                                        }
-                                    }
-
-                                    // Dialogue text snippet
-                                    Text {
-                                        text: "\"" + item.text + "\"";
-                                        color: Theme.text-primary;
-                                        font-size: 11px;
-                                        overflow: elide;
-                                        max-width: 480px;
-                                    }
-                                }
-
-                                // Selection indicator & timestamp
-                                VerticalLayout {
-                                    alignment: center;
-                                    spacing: 3px;
-
-                                    Text {
-                                        text: item.timestamp;
-                                        color: Theme.text-muted;
-                                        font-size: 10px;
-                                        horizontal-alignment: right;
-                                    }
-
-                                    Rectangle {
-                                        width: 72px;
-                                        height: 20px;
-                                        border-radius: Theme.radius-xs;
-                                        background: root.selected-index == idx ? Theme.btn-primary-bg : transparent;
-                                        border-width: 1px;
-                                        border-color: root.selected-index == idx ? Theme.btn-primary-bg : Theme.border-normal;
-
-                                        Text {
-                                            text: root.selected-index == idx ? "Selezionato" : "Seleziona";
-                                            color: root.selected-index == idx ? Theme.btn-primary-text : Theme.text-secondary;
-                                            font-size: 10px;
-                                            font-weight: 500;
-                                            horizontal-alignment: center;
-                                            vertical-alignment: center;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Section 2: Category Selection Pills
-        VerticalLayout {
-            spacing: 6px;
-
-            Text {
-                text: "Categoria del problema";
-                color: Theme.text-primary;
-                font-size: 12px;
-                font-weight: 600;
-            }
-
-            HorizontalLayout {
-                spacing: 8px;
-
-                for cat-name[c-idx] in root.categories : Rectangle {
-                    height: 28px;
-                    border-radius: Theme.radius-pill;
-                    background: root.selected-category == c-idx ? #c89b3c22 : (pill-touch.has-hover ? #182030 : Theme.bg-card);
-                    border-width: 1px;
-                    border-color: root.selected-category == c-idx ? Theme.border-gold-normal : Theme.border-normal;
-
-                    animate background { duration: Theme.transition-fast; easing: ease-out; }
-                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                    pill-touch := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.selected-category = c-idx;
-                        }
-                    }
-
-                    HorizontalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
-                        Text {
-                            text: cat-name;
-                            color: root.selected-category == c-idx ? Theme.gold-light : (pill-touch.has-hover ? Theme.text-primary : Theme.text-secondary);
-                            font-size: 11px;
-                            font-weight: root.selected-category == c-idx ? 600 : 400;
-                            vertical-alignment: center;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Section 3: Description Field & Manual Sound File
-        VerticalLayout {
-            spacing: 6px;
-
-            Text {
-                text: "Dettagli della segnalazione";
-                color: Theme.text-primary;
-                font-size: 12px;
-                font-weight: 600;
-            }
-
-            Rectangle {
-                height: 70px;
-                background: Theme.bg-input;
-                border-radius: Theme.radius-md;
-                border-width: 1px;
-                border-color: desc-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
-
-                animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                VerticalLayout {
-                    padding: 8px;
-                    desc-input := TextInput {
-                        text <=> root.user-description;
-                        color: Theme.text-primary;
-                        font-size: 12px;
-                        single-line: false;
-                        wrap: word-wrap;
-                    }
-                }
-
-                if (root.user-description == "") : Text {
-                    x: 10px;
-                    y: 9px;
-                    text: "Descrivi l'anomalia (es. accento errato o battuta interrotta)";
-                    color: Theme.text-muted;
-                    font-size: 11px;
-                }
-            }
-        }
-
-        // Action Buttons Row (Using shared SecondaryButton & PrimaryButton)
-        HorizontalLayout {
-            alignment: space-between;
-
-            // Target audio file badge
-            Rectangle {
-                height: 24px;
-                y: (parent.height - self.height) / 2;
-                border-radius: Theme.radius-xs;
-                background: #11151f;
-                border-width: 1px;
-                border-color: Theme.border-subtle;
-
-                HorizontalLayout {
-                    padding-left: 8px;
-                    padding-right: 8px;
-                    spacing: 5px;
-                    Text {
-                        text: "File target:";
-                        color: Theme.text-muted;
-                        font-size: 10px;
-                        font-weight: 500;
-                        vertical-alignment: center;
-                    }
-                    Text {
-                        text: root.current-sound-file != "" ? root.current-sound-file : "Segnalazione generale";
-                        color: root.current-sound-file != "" ? Theme.gold-light : Theme.text-secondary;
-                        font-size: 10px;
-                        vertical-alignment: center;
+                if (root.last-created-issue-url != "") : SecondaryButton {
+                    text: "Apri Issue creata ↗";
+                    custom-height: 26px;
+                    clicked => {
+                        root.open-issue-url(root.last-created-issue-url);
                     }
                 }
             }
 
-            // Right Button Pair
+            // Right Action Buttons Pair
             HorizontalLayout {
                 spacing: 8px;
                 alignment: end;
 
                 SecondaryButton {
-                    text: "Apri issue su GitHub";
-                    icon: @image-url("../assets/icons/external-link.svg");
+                    text: "Esporta Markdown (.md)";
+                    icon: @image-url("../assets/icons/file-text.svg");
                     custom-height: 36px;
                     clicked => {
-                        root.open-github(root.current-category-name, root.user-description, root.current-sound-file);
+                        if (root.report-type == 0) {
+                            root.export-report-md(
+                                0,
+                                root.current-audio-category,
+                                root.current-dialogue-title,
+                                root.audio-description,
+                                root.current-sound-file
+                            );
+                        } else {
+                            root.export-report-md(
+                                1,
+                                root.current-addon-category,
+                                root.addon-title != "" ? root.addon-title : "Problema AddOn",
+                                root.addon-description,
+                                root.addon-repro-steps
+                            );
+                        }
                     }
                 }
 
                 PrimaryButton {
-                    text: "Esporta segnalazione";
-                    icon: @image-url("../assets/icons/file-text.svg");
+                    text: root.has-github-token ? "Crea Issue su GitHub (API)" : "Crea Issue su GitHub";
+                    icon: @image-url("../assets/icons/github.svg");
                     custom-height: 36px;
                     clicked => {
-                        root.submit-report(root.current-category-name, root.user-description, root.current-sound-file);
+                        if (root.report-type == 0) {
+                            root.create-github-issue(
+                                0,
+                                root.current-audio-category,
+                                root.current-dialogue-title,
+                                root.audio-description,
+                                root.current-sound-file
+                            );
+                        } else {
+                            root.create-github-issue(
+                                1,
+                                root.current-addon-category,
+                                root.addon-title != "" ? root.addon-title : "Problema AddOn",
+                                root.addon-description,
+                                root.addon-repro-steps
+                            );
+                        }
                     }
                 }
             }

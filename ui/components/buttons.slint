@@ -30,23 +30,27 @@ export component PrimaryButton inherits Rectangle {
 
     HorizontalLayout {
         alignment: center;
-        spacing: 8px;
+        spacing: (root.icon.width > 0) ? 8px : 0px;
 
-        if (root.icon.width > 0) : Image {
-            source: root.icon;
-            width: 16px;
-            height: 16px;
-            colorize: !root.enabled ? Theme.text-muted : Theme.btn-primary-text;
-            image-fit: contain;
-            vertical-alignment: center;
+        if (root.icon.width > 0) : VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                width: 16px;
+                height: 16px;
+                colorize: !root.enabled ? Theme.text-muted : Theme.btn-primary-text;
+                image-fit: contain;
+            }
         }
 
-        Text {
-            text: root.text;
-            color: !root.enabled ? Theme.text-muted : Theme.btn-primary-text;
-            font-size: 14px;
-            font-weight: 600;
-            vertical-alignment: center;
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: root.text;
+                color: !root.enabled ? Theme.text-muted : Theme.btn-primary-text;
+                font-size: 14px;
+                font-weight: 600;
+            }
         }
     }
 }
@@ -83,25 +87,29 @@ export component SecondaryButton inherits Rectangle {
         padding-left: 12px;
         padding-right: 12px;
         alignment: center;
-        spacing: 7px;
+        spacing: (root.icon.width > 0) ? 7px : 0px;
 
-        if (root.icon.width > 0) : Image {
-            source: root.icon;
-            width: 14px;
-            height: 14px;
-            colorize: !root.enabled ? Theme.text-muted : (touch.has-hover ? Theme.text-primary : Theme.text-secondary);
-            image-fit: contain;
-            vertical-alignment: center;
-            animate colorize { duration: Theme.transition-fast; }
+        if (root.icon.width > 0) : VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                width: 14px;
+                height: 14px;
+                colorize: !root.enabled ? Theme.text-muted : (touch.has-hover ? Theme.text-primary : Theme.text-secondary);
+                image-fit: contain;
+                animate colorize { duration: Theme.transition-fast; }
+            }
         }
 
-        Text {
-            text: root.text;
-            color: !root.enabled ? Theme.text-muted : (touch.has-hover ? Theme.text-primary : Theme.text-secondary);
-            font-size: 12px;
-            font-weight: 500;
-            vertical-alignment: center;
-            animate color { duration: Theme.transition-fast; }
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: root.text;
+                color: !root.enabled ? Theme.text-muted : (touch.has-hover ? Theme.text-primary : Theme.text-secondary);
+                font-size: 12px;
+                font-weight: 500;
+                animate color { duration: Theme.transition-fast; }
+            }
         }
     }
 }
@@ -138,24 +146,28 @@ export component DangerButton inherits Rectangle {
         padding-left: 12px;
         padding-right: 12px;
         alignment: center;
-        spacing: 7px;
+        spacing: (root.icon.width > 0) ? 7px : 0px;
 
-        if (root.icon.width > 0) : Image {
-            source: root.icon;
-            width: 14px;
-            height: 14px;
-            colorize: !root.enabled ? Theme.text-muted : Theme.btn-danger-text;
-            image-fit: contain;
-            vertical-alignment: center;
+        if (root.icon.width > 0) : VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                width: 14px;
+                height: 14px;
+                colorize: !root.enabled ? Theme.text-muted : Theme.btn-danger-text;
+                image-fit: contain;
+            }
         }
 
-        Text {
-            text: root.text;
-            color: !root.enabled ? Theme.text-muted : (touch.has-hover ? #fca5a5 : Theme.btn-danger-text);
-            font-size: 12px;
-            font-weight: 500;
-            vertical-alignment: center;
-            animate color { duration: Theme.transition-fast; }
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: root.text;
+                color: !root.enabled ? Theme.text-muted : (touch.has-hover ? #fca5a5 : Theme.btn-danger-text);
+                font-size: 12px;
+                font-weight: 500;
+                animate color { duration: Theme.transition-fast; }
+            }
         }
     }
 }

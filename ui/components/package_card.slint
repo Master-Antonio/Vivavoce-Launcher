@@ -125,25 +125,29 @@ export component PackageCard inherits Rectangle {
                     spacing: 5px;
                     alignment: center;
 
-                    Image {
-                        width: 11px;
-                        height: 11px;
-                        source: root.package-data.verified ? @image-url("../assets/icons/check.svg") :
-                                (root.package-data.installed ? @image-url("../assets/icons/clock.svg") : @image-url("../assets/icons/alert-circle.svg"));
-                        colorize: root.package-data.verified ? Theme.status-success :
-                                  (root.package-data.installed ? Theme.status-info : Theme.text-muted);
-                        image-fit: contain;
-                        vertical-alignment: center;
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            width: 11px;
+                            height: 11px;
+                            source: root.package-data.verified ? @image-url("../assets/icons/check.svg") :
+                                    (root.package-data.installed ? @image-url("../assets/icons/clock.svg") : @image-url("../assets/icons/alert-circle.svg"));
+                            colorize: root.package-data.verified ? Theme.status-success :
+                                      (root.package-data.installed ? Theme.status-info : Theme.text-muted);
+                            image-fit: contain;
+                        }
                     }
 
-                    Text {
-                        text: root.package-data.verified ? "File integro" :
-                              (root.package-data.installed ? "Installato" : "Mancante");
-                        color: root.package-data.verified ? Theme.status-success :
-                               (root.package-data.installed ? Theme.status-info : Theme.text-muted);
-                        font-size: 10px;
-                        font-weight: 500;
-                        vertical-alignment: center;
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: root.package-data.verified ? "File integro" :
+                                  (root.package-data.installed ? "Installato" : "Mancante");
+                            color: root.package-data.verified ? Theme.status-success :
+                                   (root.package-data.installed ? Theme.status-info : Theme.text-muted);
+                            font-size: 10px;
+                            font-weight: 500;
+                        }
                     }
                 }
             }

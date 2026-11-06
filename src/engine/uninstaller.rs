@@ -40,6 +40,25 @@ pub fn calculate_dir_size<P: AsRef<Path>>(dir: P) -> u64 {
         .sum()
 }
 
+/// Recursively unsets readonly attributes and removes a directory tree cleanly.
+fn safe_remove_dir_all<P: AsRef<Path>>(path: P) -> std::io::Result<()> {
+    let path = path.as_ref();
+    if !path.exists() {
+        return Ok(());
+    }
+    for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
+        if let Ok(metadata) = entry.metadata() {
+            let mut permissions = metadata.permissions();
+            if permissions.readonly() {
+                #[allow(clippy::permissions_set_readonly_false)]
+                permissions.set_readonly(false);
+                let _ = std::fs::set_permissions(entry.path(), permissions);
+            }
+        }
+    }
+    std::fs::remove_dir_all(path)
+}
+
 /// Uninstalls VivaVoce addon folders from the given `Interface/AddOns` directory.
 ///
 /// SAFETY GUARANTEE:
@@ -68,7 +87,7 @@ pub fn uninstall_addons_only<P: AsRef<Path>>(addons_dir: P) -> std::io::Result<U
 
         if target_dir.is_dir() {
             let size = calculate_dir_size(&target_dir);
-            std::fs::remove_dir_all(&target_dir)?;
+            safe_remove_dir_all(&target_dir)?;
             result.removed_addon_dirs.push(target_dir);
             result.freed_bytes += size;
         }
@@ -77,16 +96,26 @@ pub fn uninstall_addons_only<P: AsRef<Path>>(addons_dir: P) -> std::io::Result<U
     Ok(result)
 }
 
-/// Performs a full uninstallation of VivaVoce given the root World of Warcraft directory
-/// (e.g. `C:\World of Warcraft\_retail_` or `_classic_era_`).
+/// Performs a full uninstallation of VivaVoce given either:
+/// 1. The root World of Warcraft directory (e.g. `C:\World of Warcraft\_retail_` or `_classic_era_`)
+/// 2. Or directly the `Interface/AddOns` directory.
 ///
 /// Removes managed VivaVoce addon folders and optionally removes SavedVariables.
 pub fn uninstall_vivavoce<P: AsRef<Path>>(
-    wow_dir: P,
+    path: P,
     remove_saved_variables: bool,
 ) -> std::io::Result<UninstallResult> {
-    let wow_dir = wow_dir.as_ref();
-    let addons_dir = wow_dir.join("Interface").join("AddOns");
+    let p = path.as_ref();
+    let (wow_dir, addons_dir) = if p
+        .file_name()
+        .map_or(false, |n| n.to_string_lossy().eq_ignore_ascii_case("AddOns"))
+    {
+        // p is already Interface/AddOns
+        let wow = p.parent().and_then(|p| p.parent()).unwrap_or(p);
+        (wow.to_path_buf(), p.to_path_buf())
+    } else {
+        (p.to_path_buf(), p.join("Interface").join("AddOns"))
+    };
 
     let mut result = uninstall_addons_only(&addons_dir)?;
 
@@ -184,5 +213,26 @@ mod tests {
         assert!(elvui.exists());
         assert!(details.exists());
         assert!(other_saved.exists());
+    }
+
+    #[test]
+    fn test_uninstall_directly_with_addons_dir() {
+        let temp_dir = tempfile::tempdir().expect("tempdir");
+        let wow_dir = temp_dir.path();
+        let addons_dir = wow_dir.join("Interface").join("AddOns");
+        std::fs::create_dir_all(&addons_dir).unwrap();
+
+        let vv_core = addons_dir.join("VivaVoce");
+        let other_addon = addons_dir.join("QuestIT");
+        std::fs::create_dir_all(&vv_core).unwrap();
+        std::fs::create_dir_all(&other_addon).unwrap();
+        std::fs::write(vv_core.join("Core.lua"), b"print(1)").unwrap();
+        std::fs::write(other_addon.join("QuestIT.toc"), b"QuestIT").unwrap();
+
+        // Pass addons_dir directly
+        let res = uninstall_vivavoce(&addons_dir, false).expect("Uninstall directly with addons_dir");
+        assert_eq!(res.removed_addon_dirs.len(), 1);
+        assert!(!vv_core.exists());
+        assert!(other_addon.exists());
     }
 }

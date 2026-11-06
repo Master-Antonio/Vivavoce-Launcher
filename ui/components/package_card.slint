@@ -15,16 +15,17 @@ export component PackageCard inherits Rectangle {
     in-out property <PackageInfo> package-data;
     in-out property <string> icon: "📦";
 
-    // Deduce iconic WoW symbol from package id for rich visual identity
-    private property <string> resolved-icon:
-        root.package-data.id == "vivavoce-core" || root.package-data.id == "vivavoce_core" ? "⚙️" :
-        (root.package-data.id == "vivavoce-quests" || root.package-data.id == "vivavoce_quests" ? "📜" :
-        (root.package-data.id == "vivavoce-books" || root.package-data.id == "vivavoce_books" ? "📖" :
-        (root.package-data.id == "vivavoce-codex" || root.package-data.id == "vivavoce_codex" ? "🗣️" :
-        (root.package-data.id == "vivavoce-zones" || root.package-data.id == "vivavoce_zones" ? "🗺️" :
-        (root.package-data.id == "vivavoce-collector" || root.package-data.id == "vivavoce_collector" ? "🐛" : root.icon)))));
+    // Real native PNG AddOn Icon from K:\WoW\VivaVoce\pack\*\Textures\Icon.tga
+    private property <image> package-icon:
+        root.package-data.id == "vivavoce-core" || root.package-data.id == "vivavoce_core" ? @image-url("../assets/core.png") :
+        (root.package-data.id == "vivavoce-quests" || root.package-data.id == "vivavoce_quests" ? @image-url("../assets/quests.png") :
+        (root.package-data.id == "vivavoce-books" || root.package-data.id == "vivavoce_books" ? @image-url("../assets/books.png") :
+        (root.package-data.id == "vivavoce-codex" || root.package-data.id == "vivavoce_codex" ? @image-url("../assets/codex.png") :
+        (root.package-data.id == "vivavoce-zones" || root.package-data.id == "vivavoce_zones" ? @image-url("../assets/zones.png") :
+        (root.package-data.id == "vivavoce-collector" || root.package-data.id == "vivavoce_collector" ? @image-url("../assets/collector.png") :
+        @image-url("../assets/logo.png"))))));
 
-    height: 68px;
+    height: 70px;
     background: p-touch.has-hover ? Theme.bg-card-hover : Theme.bg-card;
     border-radius: Theme.radius-md;
     border-width: 1px;
@@ -54,26 +55,27 @@ export component PackageCard inherits Rectangle {
         padding-right: 12px;
         alignment: space-between;
 
-        // Left Block: Icon + Name / Description
+        // Left Block: Official AddOn Icon + Name / Description
         HorizontalLayout {
             spacing: 12px;
             alignment: start;
 
-            // Module Icon Box
+            // Module Icon Box with Real WoW Texture
             Rectangle {
-                width: 38px;
-                height: 38px;
+                width: 44px;
+                height: 44px;
                 y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-sm;
-                background: #151b27;
+                background: #11151f;
                 border-width: 1px;
                 border-color: Theme.border-subtle;
+                clip: true;
 
-                Text {
-                    text: root.resolved-icon;
-                    font-size: 17px;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
+                Image {
+                    width: 100%;
+                    height: 100%;
+                    source: root.package-icon;
+                    image-fit: contain;
                 }
             }
 
@@ -113,12 +115,12 @@ export component PackageCard inherits Rectangle {
             }
         }
 
-        // Right Block: Status Badge + Blake3 & Size Pills
+        // Right Block: Status Badge + Integrità & Size Pills
         VerticalLayout {
             alignment: center;
             spacing: 5px;
 
-            // Row 1: Status Badge
+            // Row 1: Status Badge (User-Friendly: File Integro)
             HorizontalLayout {
                 alignment: end;
                 spacing: 6px;
@@ -134,7 +136,7 @@ export component PackageCard inherits Rectangle {
                         padding-left: 7px;
                         padding-right: 7px;
                         Text {
-                            text: "✓ Blake3 OK";
+                            text: "✓ File Integro";
                             color: Theme.status-success;
                             font-size: 10px;
                             font-weight: 700;
@@ -184,7 +186,7 @@ export component PackageCard inherits Rectangle {
                 }
             }
 
-            // Row 2: Hash preview & Size Pill
+            // Row 2: Integrità Verificata & Size Pill
             HorizontalLayout {
                 alignment: end;
                 spacing: 8px;
@@ -194,7 +196,7 @@ export component PackageCard inherits Rectangle {
                     alignment: center;
 
                     Text {
-                        text: "BLAKE3:";
+                        text: "Integrità:";
                         color: Theme.text-muted;
                         font-size: 10px;
                         font-weight: 600;
@@ -202,7 +204,7 @@ export component PackageCard inherits Rectangle {
                     }
 
                     Text {
-                        text: root.package-data.blake3-hash != "" ? root.package-data.blake3-hash : "---";
+                        text: root.package-data.verified ? "Verificata" : "Da verificare";
                         color: root.package-data.verified ? Theme.status-success : Theme.text-muted;
                         font-size: 10px;
                         vertical-alignment: center;

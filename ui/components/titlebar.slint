@@ -2,8 +2,8 @@ import { Theme } from "../theme.slint";
 
 export component TitleBar inherits Rectangle {
     in-out property <string> title: "VivaVoce";
-    in-out property <string> subtitle: "WoW Voiceover Launcher";
-    in-out property <string> version-tag: "v1.0.0 Classic";
+    in-out property <string> subtitle: "WoW Forever Voiceover Launcher";
+    in-out property <string> version-tag: "WoW Forever";
 
     callback minimize-clicked();
     callback close-clicked();
@@ -44,30 +44,22 @@ export component TitleBar inherits Rectangle {
             spacing: 12px;
             alignment: start;
 
-            // Stylized VivaVoce WoW Crest
+            // VivaVoce Official Crest Logo
             Rectangle {
                 width: 28px;
                 height: 28px;
                 y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-sm;
-                background: @linear-gradient(135deg, #2e2213 0%, #15131a 100%);
+                background: #141822;
                 border-width: 1px;
                 border-color: Theme.border-gold-normal;
+                clip: true;
 
-                // Top metallic bevel highlight
-                Rectangle {
-                    x: 2px;
-                    y: 1px;
-                    width: parent.width - 4px;
-                    height: 1px;
-                    background: #ffffff35;
-                }
-
-                Text {
-                    text: "🛡️";
-                    font-size: 14px;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
+                Image {
+                    width: 100%;
+                    height: 100%;
+                    source: @image-url("../assets/logo.png");
+                    image-fit: contain;
                 }
             }
 

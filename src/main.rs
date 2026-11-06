@@ -191,7 +191,11 @@ async fn discover_and_refresh(ctx: &AppContext) {
         let flavor = inst.primary_flavor.unwrap_or(WowFlavor::Forever);
         let addons_dir = get_addons_path(&inst.root_path, flavor);
         let is_installed = addons_dir.join("VivaVoce").exists() && addons_dir.join("VivaVoce/Core.lua").exists();
-        let flavor_name = format!("{:?}", flavor);
+        let game_client_path = inst.game_client_path();
+        let flavor_name = match flavor {
+            WowFlavor::Forever => "WoW Forever (1.12.1)".to_string(),
+            other => format!("{:?}", other),
+        };
 
         // Check installed version from TOC if present
         let installed_version = if is_installed {
@@ -203,13 +207,13 @@ async fn discover_and_refresh(ctx: &AppContext) {
         // Cache installation
         *ctx.wow_installation.write().await = Some(inst.clone());
 
-        // Read SavedVariables for recent dialogues
-        let saved_vars_dialogues = load_saved_variables_dialogues(&inst.root_path).await;
+        // Read SavedVariables for recent dialogues (search client path and root)
+        let saved_vars_dialogues = load_saved_variables_dialogues(&game_client_path).await;
         *ctx.recent_dialogues_cache.write().await = saved_vars_dialogues.clone();
 
         // Update UI
         let weak = ctx.main_window_weak.clone();
-        let wow_path_str = inst.root_path.to_string_lossy().to_string();
+        let wow_path_str = game_client_path.to_string_lossy().to_string();
         let dialogues_for_ui = saved_vars_dialogues.clone();
 
         let _ = weak.upgrade_in_event_loop(move |win| {
@@ -357,7 +361,7 @@ async fn run_update_pipeline(ctx: AppContext, is_repair: bool) {
         ("Download pacchetto base VivaVoce Core...", 0.2, 50_000_000, 100_000_000),
         ("Download pacchetto VivaVoce_Quests (15.838 tracce)...", 0.5, 1_500_000_000, 2_500_000_000),
         ("Download pacchetto VivaVoce_Books (5.594 tracce)...", 0.75, 800_000_000, 1_100_000_000),
-        ("Verifica integrità Blake3 ed estrazione streaming...", 0.95, 200_000_000, 200_000_000),
+        ("Verifica integrità ed estrazione dei file audio...", 0.95, 200_000_000, 200_000_000),
     ];
 
     for (msg, _pct, cur, tot) in steps {
@@ -604,35 +608,36 @@ async fn run_launch_game(ctx: AppContext) {
     };
 
     let Some(inst) = inst_opt else {
-        update_ui_status(&ctx.main_window_weak, "Errore: Percorso WoW non impostato", 0.0);
+        update_ui_status(&ctx.main_window_weak, "Errore: Percorso WoW Forever non impostato", 0.0);
         return;
     };
 
+    let client_path = inst.game_client_path();
     let flavor = inst.primary_flavor.unwrap_or(WowFlavor::Forever);
     let candidates = [
+        client_path.join("Wow.exe"),
+        client_path.join("WoWClassic.exe"),
         inst.root_path.join(flavor.as_dir_name()).join("Wow.exe"),
-        inst.root_path.join(flavor.as_dir_name()).join("WoWClassic.exe"),
         inst.root_path.join("Wow.exe"),
-        inst.root_path.join("WoWClassic.exe"),
         inst.root_path.join("World of Warcraft Launcher.exe"),
     ];
 
     let found_exe = candidates.iter().find(|p| p.exists());
 
     if let Some(exe) = found_exe {
-        info!("Avvio eseguibile di gioco: {:?}", exe);
-        match std::process::Command::new(exe).current_dir(exe.parent().unwrap_or(&inst.root_path)).spawn() {
+        info!("Avvio eseguibile di gioco WoW Forever: {:?}", exe);
+        match std::process::Command::new(exe).current_dir(exe.parent().unwrap_or(&client_path)).spawn() {
             Ok(_) => {
-                update_ui_status(&ctx.main_window_weak, "World of Warcraft avviato!", 1.0);
+                update_ui_status(&ctx.main_window_weak, "World of Warcraft: Forever avviato!", 1.0);
             }
             Err(e) => {
                 error!("Errore avvio gioco: {}", e);
-                update_ui_status(&ctx.main_window_weak, &format!("Errore avvio WoW: {}", e), 0.0);
+                update_ui_status(&ctx.main_window_weak, &format!("Errore avvio WoW Forever: {}", e), 0.0);
             }
         }
     } else {
         warn!("Eseguibile Wow.exe non trovato nelle posizioni note.");
-        update_ui_status(&ctx.main_window_weak, "Eseguibile Wow.exe non trovato nella cartella indicata.", 0.0);
+        update_ui_status(&ctx.main_window_weak, "Eseguibile Wow.exe non trovato nella cartella di WoW Forever.", 0.0);
     }
 }
 

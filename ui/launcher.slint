@@ -10,7 +10,7 @@ import { ScrollView } from "std-widgets.slint";
 export { DialogueEntry, PackageInfo }
 
 export component MainWindow inherits Window {
-    title: "VivaVoce — WoW Voiceover Launcher";
+    title: "VivaVoce — WoW Forever Voiceover Launcher";
     width: 960px;
     height: 640px;
     no-frame: true;
@@ -22,7 +22,7 @@ export component MainWindow inherits Window {
     in-out property <string> sub_status_text: "";
     in-out property <bool> is-updating: false;
     in-out property <string> wow-path: "";
-    in-out property <string> wow-flavor: "_forever_";
+    in-out property <string> wow-flavor: "WoW Forever (1.12.1)";
     in-out property <bool> is-installed: false;
     in-out property <bool> has-update: false;
     in-out property <string> installed-version: "";
@@ -86,7 +86,7 @@ export component MainWindow inherits Window {
                         padding-bottom: 14px;
                         alignment: space-between;
 
-                        // Top Sidebar Brand Card
+                        // Top Sidebar Brand Card with Official VivaVoce Logo
                         VerticalLayout {
                             spacing: 14px;
 
@@ -104,19 +104,20 @@ export component MainWindow inherits Window {
                                     spacing: 10px;
 
                                     Rectangle {
-                                        width: 34px;
-                                        height: 34px;
+                                        width: 36px;
+                                        height: 36px;
                                         y: (parent.height - self.height) / 2;
                                         border-radius: Theme.radius-sm;
-                                        background: @linear-gradient(135deg, #2b200e 0%, #17151e 100%);
+                                        background: #141824;
                                         border-width: 1px;
                                         border-color: Theme.border-gold-normal;
+                                        clip: true;
 
-                                        Text {
-                                            text: "🎙️";
-                                            font-size: 16px;
-                                            horizontal-alignment: center;
-                                            vertical-alignment: center;
+                                        Image {
+                                            width: 100%;
+                                            height: 100%;
+                                            source: @image-url("assets/logo.png");
+                                            image-fit: contain;
                                         }
                                     }
 
@@ -133,7 +134,7 @@ export component MainWindow inherits Window {
                                         }
 
                                         Text {
-                                            text: "Voiceover Italiano";
+                                            text: "Voiceover WoW Forever";
                                             color: Theme.text-secondary;
                                             font-size: 10px;
                                             font-weight: 500;
@@ -341,7 +342,7 @@ export component MainWindow inherits Window {
                         VerticalLayout {
                             spacing: 8px;
 
-                            // WoW Flavor Badge
+                            // WoW Forever Client Badge
                             Rectangle {
                                 height: 30px;
                                 border-radius: Theme.radius-sm;
@@ -362,7 +363,7 @@ export component MainWindow inherits Window {
                                     }
 
                                     Text {
-                                        text: root.wow-flavor == "_forever_" ? "1.12.1 Forever" : root.wow-flavor;
+                                        text: "WoW Forever (1.12.1)";
                                         color: Theme.gold-light;
                                         font-size: 11px;
                                         font-weight: 600;
@@ -458,20 +459,20 @@ export component MainWindow inherits Window {
                             spacing: 12px;
                             alignment: start;
 
-                            // Top Header Block with Status Badge
+                            // Top Header Block: World of Warcraft: Forever
                             HorizontalLayout {
                                 alignment: space-between;
 
                                 VerticalLayout {
                                     spacing: 3px;
                                     Text {
-                                        text: "World of Warcraft — Voiceover Italiano";
+                                        text: "World of Warcraft: Forever — Voiceover Italiano";
                                         color: Theme.text-primary;
                                         font-size: 20px;
                                         font-weight: 800;
                                     }
                                     Text {
-                                        text: "Rivivi l'epica di Azeroth con dialoghi e missioni interamente recitati in italiano.";
+                                        text: "Rivivi l'epica di Azeroth su WoW Forever con tutti i dialoghi e le missioni recitati in italiano.";
                                         color: Theme.text-secondary;
                                         font-size: 12px;
                                     }
@@ -554,7 +555,7 @@ export component MainWindow inherits Window {
                                     // Divider Line
                                     Rectangle { width: 1px; height: 50px; background: Theme.border-subtle; y: (parent.height - self.height) / 2; }
 
-                                    // Stat 3: Integrità Blake3
+                                    // Stat 3: 6/6 Moduli Integri (NO Blake3 jargon)
                                     VerticalLayout {
                                         alignment: center;
                                         spacing: 3px;
@@ -571,7 +572,7 @@ export component MainWindow inherits Window {
                                             }
                                         }
                                         Text {
-                                            text: "Integrità Blake3 OK";
+                                            text: "Tutti i File Integri";
                                             color: Theme.text-secondary;
                                             font-size: 11px;
                                             font-weight: 500;
@@ -581,7 +582,7 @@ export component MainWindow inherits Window {
                                 }
                             }
 
-                            // WoW Directory Card: Structured Game Client Bar (Height: 64px)
+                            // WoW Forever Directory Card: Path A:\Blizzard\World of Warcraft\_forever_
                             Rectangle {
                                 height: 64px;
                                 border-radius: Theme.radius-md;
@@ -602,7 +603,7 @@ export component MainWindow inherits Window {
                                             spacing: 6px;
                                             alignment: start;
                                             Text {
-                                                text: "📁 Installazione WoW:";
+                                                text: "📁 Installazione WoW Forever:";
                                                 color: Theme.gold-light;
                                                 font-size: 11px;
                                                 font-weight: 700;
@@ -618,7 +619,7 @@ export component MainWindow inherits Window {
                                                     padding-left: 5px;
                                                     padding-right: 5px;
                                                     Text {
-                                                        text: root.wow-flavor == "_forever_" ? "Forever 1.12.1" : root.wow-flavor;
+                                                        text: "Forever 1.12.1";
                                                         color: Theme.gold-bright;
                                                         font-size: 9px;
                                                         font-weight: 700;
@@ -629,7 +630,7 @@ export component MainWindow inherits Window {
                                         }
 
                                         Text {
-                                            text: root.wow-path != "" ? root.wow-path : "Nessun percorso rilevato automaticamente. Clicca su Sfoglia per impostarlo.";
+                                            text: root.wow-path != "" ? root.wow-path : "Nessun percorso rilevato. Clicca su Sfoglia per selezionare WoW Forever.";
                                             color: root.wow-path != "" ? Theme.text-primary : Theme.text-muted;
                                             font-size: 11px;
                                             overflow: elide;
@@ -686,11 +687,11 @@ export component MainWindow inherits Window {
                                         spacing: 12px;
                                         alignment: center;
 
-                                        // Giant Primary CTA Button
+                                        // Primary CTA Button: AVVIA WOW FOREVER
                                         PrimaryButton {
                                             width: 280px;
                                             custom-height: 50px;
-                                            text: !root.is-installed ? "INSTALLA VIVAVOCE" : (root.has-update ? ("AGGIORNA A v" + root.remote-version) : "AVVIA WORLD OF WARCRAFT");
+                                            text: !root.is-installed ? "INSTALLA VIVAVOCE" : (root.has-update ? ("AGGIORNA A v" + root.remote-version) : "AVVIA WOW FOREVER");
                                             icon: !root.is-installed ? "⬇️" : (root.has-update ? "✨" : "⚔️");
                                             enabled: true;
 
@@ -716,7 +717,7 @@ export component MainWindow inherits Window {
                                     // Subtle horizontal separator
                                     Rectangle { height: 1px; background: Theme.border-subtle; }
 
-                                    // Feature Highlights Grid: Eliminates Dead Empty Space with Craft
+                                    // Feature Highlights Grid: Zero Empty Space
                                     HorizontalLayout {
                                         spacing: 10px;
                                         alignment: space-around;
@@ -735,7 +736,7 @@ export component MainWindow inherits Window {
                                                     alignment: center;
                                                     spacing: 2px;
                                                     Text { text: "100% Italiano"; color: Theme.gold-light; font-size: 11px; font-weight: 700; }
-                                                    Text { text: "Doppiaggio & quest lore"; color: Theme.text-muted; font-size: 10px; }
+                                                    Text { text: "Doppiaggio su WoW Forever"; color: Theme.text-muted; font-size: 10px; }
                                                 }
                                             }
                                         }
@@ -772,8 +773,8 @@ export component MainWindow inherits Window {
                                                 VerticalLayout {
                                                     alignment: center;
                                                     spacing: 2px;
-                                                    Text { text: "Sicuro & Isolato"; color: Theme.gold-light; font-size: 11px; font-weight: 700; }
-                                                    Text { text: "Nessun file client alterato"; color: Theme.text-muted; font-size: 10px; }
+                                                    Text { text: "Client Sicuro"; color: Theme.gold-light; font-size: 11px; font-weight: 700; }
+                                                    Text { text: "Solo cartella Interface/AddOns"; color: Theme.text-muted; font-size: 10px; }
                                                 }
                                             }
                                         }
@@ -781,7 +782,7 @@ export component MainWindow inherits Window {
 
                                     // Disclaimer Footer
                                     Text {
-                                        text: "VivaVoce integra l'audio OGG compresso con gli AddOn VoiceOver ufficiali senza alterare i file di gioco Blizzard.";
+                                        text: "VivaVoce integra l'audio OGG compresso direttamente nella cartella AddOns di World of Warcraft: Forever senza alterare i file Blizzard.";
                                         color: Theme.text-muted;
                                         font-size: 11px;
                                         horizontal-alignment: center;
@@ -791,7 +792,7 @@ export component MainWindow inherits Window {
                         }
 
                         // ==========================================
-                        // TAB 1: PACCHETTI & DETTAGLI (6 Moduli Compact)
+                        // TAB 1: PACCHETTI & DETTAGLI (6 Moduli con Icone Ufficiali)
                         // ==========================================
                         if (root.active-tab == 1) : VerticalLayout {
                             spacing: 10px;
@@ -804,13 +805,13 @@ export component MainWindow inherits Window {
                                 VerticalLayout {
                                     spacing: 3px;
                                     Text {
-                                        text: "📦 Moduli VivaVoce & Verifica Blake3";
+                                        text: "📦 Moduli VivaVoce & Stato Installazione";
                                         color: Theme.text-primary;
                                         font-size: 18px;
                                         font-weight: 700;
                                     }
                                     Text {
-                                        text: "Stato dei 6 componenti modulari della localizzazione audio italiana.";
+                                        text: "Stato dei 6 componenti modulari installati in World of Warcraft: Forever.";
                                         color: Theme.text-secondary;
                                         font-size: 12px;
                                     }
@@ -821,7 +822,7 @@ export component MainWindow inherits Window {
                                     alignment: center;
 
                                     SecondaryButton {
-                                        text: "Verifica Tutti";
+                                        text: "Verifica Integrità";
                                         icon: "🛡️";
                                         custom-height: 34px;
                                         clicked => { root.start-repair(); }
@@ -836,7 +837,7 @@ export component MainWindow inherits Window {
                                 }
                             }
 
-                            // Scrollable list of modules (All 6 fit cleanly!)
+                            // Scrollable list of modules (All 6 fit cleanly with real WoW AddOn icons!)
                             ScrollView {
                                 height: 490px;
                                 VerticalLayout {
@@ -853,11 +854,10 @@ export component MainWindow inherits Window {
                                         spacing: 6px;
 
                                         PackageCard {
-                                            icon: "⚙️";
                                             package-data: {
                                                 id: "vivavoce-core",
                                                 name: "VivaVoce Core",
-                                                description: "Motore audio principale, gestione code, sottotitoli e opzioni",
+                                                description: "Motore audio principale, gestione code, sottotitoli e opzioni in-game",
                                                 filename: "vivavoce-core.tar.zst",
                                                 size-str: "865 KB",
                                                 installed: root.is-installed,
@@ -867,7 +867,6 @@ export component MainWindow inherits Window {
                                         }
 
                                         PackageCard {
-                                            icon: "📜";
                                             package-data: {
                                                 id: "vivavoce-quests",
                                                 name: "VivaVoce Quests",
@@ -881,7 +880,6 @@ export component MainWindow inherits Window {
                                         }
 
                                         PackageCard {
-                                            icon: "📖";
                                             package-data: {
                                                 id: "vivavoce-books",
                                                 name: "VivaVoce Books",
@@ -895,7 +893,6 @@ export component MainWindow inherits Window {
                                         }
 
                                         PackageCard {
-                                            icon: "🗣️";
                                             package-data: {
                                                 id: "vivavoce-codex",
                                                 name: "VivaVoce Codex",
@@ -909,7 +906,6 @@ export component MainWindow inherits Window {
                                         }
 
                                         PackageCard {
-                                            icon: "🗺️";
                                             package-data: {
                                                 id: "vivavoce-zones",
                                                 name: "VivaVoce Zones",
@@ -923,7 +919,6 @@ export component MainWindow inherits Window {
                                         }
 
                                         PackageCard {
-                                            icon: "🐛";
                                             package-data: {
                                                 id: "vivavoce-collector",
                                                 name: "VivaVoce Collector",
@@ -977,13 +972,13 @@ export component MainWindow inherits Window {
                                     font-weight: 700;
                                 }
                                 Text {
-                                    text: "Configurazione cartella di gioco, manutenzione e disinstallazione pulita.";
+                                    text: "Configurazione cartella di gioco, integrità dei file e disinstallazione pulita.";
                                     color: Theme.text-secondary;
                                     font-size: 12px;
                                 }
                             }
 
-                            // Card 1: Percorso World of Warcraft (Height: 110px)
+                            // Card 1: Percorso World of Warcraft: Forever (Height: 110px)
                             Rectangle {
                                 height: 110px;
                                 border-radius: Theme.radius-md;
@@ -997,7 +992,7 @@ export component MainWindow inherits Window {
                                     alignment: center;
 
                                     Text {
-                                        text: "CARTELLA WORLD OF WARCRAFT";
+                                        text: "CARTELLA WORLD OF WARCRAFT FOREVER";
                                         color: Theme.gold-light;
                                         font-size: 11px;
                                         font-weight: 700;
@@ -1037,7 +1032,7 @@ export component MainWindow inherits Window {
                                     }
 
                                     Text {
-                                        text: "Il launcher verifica automaticamente la presenza della cartella Interface/AddOns/ e dei file manifest.";
+                                        text: "Il launcher punta a _forever_ per installare i file nella relativa cartella Interface/AddOns/.";
                                         color: Theme.text-muted;
                                         font-size: 11px;
                                     }
@@ -1074,13 +1069,13 @@ export component MainWindow inherits Window {
                                             alignment: center;
 
                                             Text {
-                                                text: "Ripara File AddOn";
+                                                text: "Verifica e Ripara File";
                                                 color: Theme.text-primary;
                                                 font-size: 13px;
                                                 font-weight: 600;
                                             }
                                             Text {
-                                                text: "Ricalcola gli hash Blake3 e riscarica solo i file mancanti o corrotti.";
+                                                text: "Scansiona tutti i pacchetti audio e riscarica solo i file mancanti o danneggiati.";
                                                 color: Theme.text-secondary;
                                                 font-size: 11px;
                                             }
@@ -1112,7 +1107,7 @@ export component MainWindow inherits Window {
                                                 font-weight: 600;
                                             }
                                             Text {
-                                                text: "Rimuove in modo pulito tutti i 6 pacchetti audio dalla cartella AddOns di WoW.";
+                                                text: "Rimuove in modo pulito tutti i 6 pacchetti audio dalla cartella AddOns di WoW Forever.";
                                                 color: Theme.text-secondary;
                                                 font-size: 11px;
                                             }
@@ -1147,7 +1142,7 @@ export component MainWindow inherits Window {
                                         alignment: center;
 
                                         Text {
-                                            text: "VivaVoce Voiceover Project — Progetto No-Profit della Community";
+                                            text: "VivaVoce Voiceover Project — Community World of Warcraft: Forever";
                                             color: Theme.gold-light;
                                             font-size: 12px;
                                             font-weight: 700;

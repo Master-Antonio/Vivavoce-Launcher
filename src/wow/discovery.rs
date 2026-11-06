@@ -127,6 +127,27 @@ impl WowInstallation {
     pub fn primary_addons_path(&self) -> Option<PathBuf> {
         self.primary_flavor.map(|f| self.addons_path(f))
     }
+
+    /// Returns the exact game client folder for the primary flavor.
+    /// E.g. if root is `A:\Blizzard\World of Warcraft` and flavor is `Forever`,
+    /// this returns `A:\Blizzard\World of Warcraft\_forever_`.
+    #[must_use]
+    pub fn game_client_path(&self) -> PathBuf {
+        let flavor = self.primary_flavor.unwrap_or(WowFlavor::Forever);
+        if let Some(name) = self.root_path.file_name().and_then(|n| n.to_str()) {
+            if let Some(existing_flavor) = WowFlavor::from_dir_name(name) {
+                if existing_flavor == flavor {
+                    return self.root_path.clone();
+                }
+            }
+        }
+        let flavor_dir = self.root_path.join(flavor.as_dir_name());
+        if flavor_dir.exists() {
+            flavor_dir
+        } else {
+            self.root_path.clone()
+        }
+    }
 }
 
 /// Validates that `path` is a valid WoW root or flavor folder, returning available flavors.

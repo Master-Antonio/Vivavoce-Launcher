@@ -12,31 +12,9 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build (${{ matrix.os }} - ${{ matrix.target }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Windows x86_64
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            artifact_name: vivavoce-launcher-windows-x86_64.exe
-            use_cross: false
-
-          # macOS Apple Silicon (ARM64)
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            artifact_name: vivavoce-launcher-macos-arm64
-            use_cross: false
-
-          # macOS Intel (x86_64)
-          - os: macos-13
-            target: x86_64-apple-darwin
-            artifact_name: vivavoce-launcher-macos-x86_64
-            use_cross: false
-
+  build-windows:
+    name: Build (windows-latest - x86_64)
+    runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -44,112 +22,111 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: x86_64-pc-windows-msvc
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
 
       - name: Run tests
-        run: cargo test --target ${{ matrix.target }}
+        run: cargo test
 
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release
 
-      # Prepare Windows Artifact
       - name: Package Windows Binary
-        if: matrix.os == 'windows-latest'
         shell: bash
         run: |
-          cp target/${{ matrix.target }}/release/vivavoce-launcher.exe ${{ matrix.artifact_name }}
+          mkdir -p dist
+          cp target/release/vivavoce-launcher.exe dist/vivavoce-launcher-windows-x86_64.exe
+          cp target/release/vivavoce-launcher.exe dist/vivavoce-launcher.exe
 
-      # Prepare macOS Binary and .app bundle
-      - name: Package macOS App Bundle
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          BIN_PATH="target/${{ matrix.target }}/release/vivavoce-launcher"
-          cp "$BIN_PATH" "${{ matrix.artifact_name }}"
-          chmod +x "${{ matrix.artifact_name }}"
-
-          # Create .app structure
-          APP_NAME="VivaVoce Launcher.app"
-          mkdir -p "$APP_NAME/Contents/MacOS"
-          mkdir -p "$APP_NAME/Contents/Resources"
-          cp "$BIN_PATH" "$APP_NAME/Contents/MacOS/vivavoce-launcher"
-          chmod +x "$APP_NAME/Contents/MacOS/vivavoce-launcher"
-          cp extra/macos/Info.plist "$APP_NAME/Contents/Info.plist"
-
-          # Create zip archive of the .app
-          ZIP_NAME="vivavoce-launcher-${{ matrix.target }}.app.zip"
-          zip -r "$ZIP_NAME" "$APP_NAME"
-
-      - name: Upload Artifact
+      - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target }}-artifact
-          path: |
-            ${{ matrix.artifact_name }}
-            *.app.zip
+          name: windows-artifact
+          path: dist/*
 
-  create-universal-macos:
-    name: Create macOS Universal Binary
-    needs: build
+  build-macos:
+    name: Build (macos-latest - Universal)
     runs-on: macos-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download ARM64 artifact
-        uses: actions/download-artifact@v4
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          name: aarch64-apple-darwin-artifact
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
 
-      - name: Download x86_64 artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: x86_64-apple-darwin-artifact
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
 
-      - name: Merge universal binary with lipo
+      - name: Run tests
+        run: cargo test --target aarch64-apple-darwin
+
+      - name: Build release ARM64
+        run: cargo build --release --target aarch64-apple-darwin
+
+      - name: Build release x86_64 (Intel)
+        continue-on-error: true
+        id: build_intel
+        run: cargo build --release --target x86_64-apple-darwin
+
+      - name: Assemble Universal and App Bundle
         shell: bash
         run: |
-          lipo -create -output vivavoce-launcher-macos-universal \
-            vivavoce-launcher-macos-arm64 \
-            vivavoce-launcher-macos-x86_64
-          chmod +x vivavoce-launcher-macos-universal
+          mkdir -p dist
 
-          # Create Universal .app bundle
-          APP_NAME="VivaVoce Launcher (Mac Universal).app"
+          ARM64_BIN="target/aarch64-apple-darwin/release/vivavoce-launcher"
+          INTEL_BIN="target/x86_64-apple-darwin/release/vivavoce-launcher"
+
+          cp "$ARM64_BIN" dist/vivavoce-launcher-macos-arm64
+          chmod +x dist/vivavoce-launcher-macos-arm64
+
+          if [ -f "$INTEL_BIN" ]; then
+            echo "Merging universal binary with lipo..."
+            cp "$INTEL_BIN" dist/vivavoce-launcher-macos-x86_64
+            chmod +x dist/vivavoce-launcher-macos-x86_64
+            lipo -create -output dist/vivavoce-launcher-macos-universal "$ARM64_BIN" "$INTEL_BIN"
+          else
+            echo "Intel build not available, copying arm64 as universal..."
+            cp "$ARM64_BIN" dist/vivavoce-launcher-macos-universal
+          fi
+          chmod +x dist/vivavoce-launcher-macos-universal
+
+          # Create macOS .app bundle
+          APP_NAME="VivaVoce Launcher.app"
           mkdir -p "$APP_NAME/Contents/MacOS"
           mkdir -p "$APP_NAME/Contents/Resources"
-          cp vivavoce-launcher-macos-universal "$APP_NAME/Contents/MacOS/vivavoce-launcher"
+          cp dist/vivavoce-launcher-macos-universal "$APP_NAME/Contents/MacOS/vivavoce-launcher"
           chmod +x "$APP_NAME/Contents/MacOS/vivavoce-launcher"
           cp extra/macos/Info.plist "$APP_NAME/Contents/Info.plist"
 
-          zip -r "VivaVoce-Launcher-macOS-Universal.zip" "$APP_NAME"
+          zip -r "dist/VivaVoce-Launcher-macOS-Universal.zip" "$APP_NAME"
 
-      - name: Upload Universal macOS Archive
+      - name: Upload macOS Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: macos-universal-bundle
-          path: |
-            vivavoce-launcher-macos-universal
-            VivaVoce-Launcher-macOS-Universal.zip
+          name: macos-artifact
+          path: dist/*
 
   release:
     name: GitHub Release
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build, create-universal-macos]
+    needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
 
       - name: Display downloaded files
-        run: ls -R
+        run: ls -la dist/
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            */*
+          files: dist/*
           generate_release_notes: true

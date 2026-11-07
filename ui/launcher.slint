@@ -27,6 +27,7 @@ export component MainWindow inherits Window {
     in-out property <string> sub_status_text: "";
     in-out property <bool> is-updating: false;
     in-out property <string> wow-path: "";
+    in-out property <string> wow-path-input: "";
     in-out property <string> wow-flavor: "WoW Forever (1.12.1)";
     in-out property <bool> is-installed: false;
     in-out property <bool> has-update: false;
@@ -42,7 +43,7 @@ export component MainWindow inherits Window {
     in-out property <string> bug-attachment-filename: "";
 
     // Launcher self-updater reactive state
-    in-out property <string> launcher-version: "0.2.0";
+    in-out property <string> launcher-version: "0.2.1";
     in-out property <bool> launcher-has-update: false;
     in-out property <string> launcher-new-version: "";
     in-out property <bool> launcher-is-updating: false;
@@ -62,6 +63,8 @@ export component MainWindow inherits Window {
     callback select-bug-attachment();
     callback reveal-bug-attachment();
     callback select-wow-folder();
+    callback select-wow-file();
+    callback set-custom-wow-path(string);
     callback launch-game();
     callback close-window();
     callback minimize-window();
@@ -872,6 +875,13 @@ export component MainWindow inherits Window {
                                             }
 
                                             SecondaryButton {
+                                                text: "File WoW.exe…";
+                                                icon: @image-url("assets/icons/file-text.svg");
+                                                custom-height: 36px;
+                                                clicked => { root.select-wow-file(); }
+                                            }
+
+                                            SecondaryButton {
                                                 text: "Apri AddOns";
                                                 icon: @image-url("assets/icons/folder-open.svg");
                                                 custom-height: 36px;
@@ -1442,7 +1452,7 @@ export component MainWindow inherits Window {
 
                                 // Card 1: Percorso World of Warcraft: Forever
                                 Rectangle {
-                                    height: 112px;
+                                    height: 168px;
                                     border-radius: Theme.radius-md;
                                     background: Theme.bg-panel;
                                     border-width: 1px;
@@ -1453,13 +1463,24 @@ export component MainWindow inherits Window {
                                         spacing: 10px;
                                         alignment: center;
 
-                                        Text {
-                                            text: "Cartella di gioco";
-                                            color: Theme.text-primary;
-                                            font-size: 13px;
-                                            font-weight: 600;
+                                        HorizontalLayout {
+                                            alignment: space-between;
+                                            Text {
+                                                text: "Cartella di gioco (World of Warcraft)";
+                                                color: Theme.text-primary;
+                                                font-size: 13px;
+                                                font-weight: 600;
+                                            }
+
+                                            Text {
+                                                text: root.wow-path != "" ? "Rilevato: " + root.wow-flavor : "Non configurato";
+                                                color: root.wow-path != "" ? Theme.gold-light : Theme.text-muted;
+                                                font-size: 11px;
+                                                font-weight: 500;
+                                            }
                                         }
 
+                                        // Riga di input percorso manuale / incolla + pulsante Applica
                                         HorizontalLayout {
                                             spacing: 10px;
 
@@ -1470,32 +1491,65 @@ export component MainWindow inherits Window {
                                                 border-width: 1px;
                                                 border-color: Theme.border-normal;
 
+                                                if root.wow-path-input == "" : Text {
+                                                    x: 12px;
+                                                    y: 10px;
+                                                    text: "Incolla o digita il percorso (es. Z:\\home\\deck\\Games\\World of Warcraft o C:\\Games\\...)";
+                                                    color: Theme.text-muted;
+                                                    font-size: 12px;
+                                                }
+
                                                 HorizontalLayout {
                                                     padding-left: 12px;
                                                     padding-right: 12px;
-                                                    Text {
-                                                        text: root.wow-path != "" ? root.wow-path : "Nessun percorso selezionato";
-                                                        color: root.wow-path != "" ? Theme.text-primary : Theme.text-muted;
+                                                    alignment: stretch;
+
+                                                    TextInput {
+                                                        text <=> root.wow-path-input;
+                                                        color: Theme.text-primary;
                                                         font-size: 13px;
+                                                        single-line: true;
+                                                        horizontal-alignment: left;
                                                         vertical-alignment: center;
-                                                        overflow: elide;
+                                                        accepted => { root.set-custom-wow-path(self.text); }
                                                     }
                                                 }
                                             }
 
-                                            SecondaryButton {
-                                                width: 120px;
-                                                text: "Cambia…";
-                                                icon: @image-url("assets/icons/folder.svg");
+                                            PrimaryButton {
+                                                width: 110px;
+                                                text: "Applica";
+                                                icon: @image-url("assets/icons/check.svg");
                                                 custom-height: 38px;
-                                                clicked => { root.select-wow-folder(); }
+                                                clicked => { root.set-custom-wow-path(root.wow-path-input); }
                                             }
                                         }
 
-                                        Text {
-                                            text: "Il launcher punta alla cartella di WoW Forever per installare i file in Interface/AddOns/.";
-                                            color: Theme.text-muted;
-                                            font-size: 12px;
+                                        // Riga azioni rapide Sfoglia / Seleziona WoW.exe / Aiuto Steam Deck
+                                        HorizontalLayout {
+                                            spacing: 10px;
+                                            alignment: start;
+
+                                            SecondaryButton {
+                                                text: "Sfoglia Cartella…";
+                                                icon: @image-url("assets/icons/folder.svg");
+                                                custom-height: 34px;
+                                                clicked => { root.select-wow-folder(); }
+                                            }
+
+                                            SecondaryButton {
+                                                text: "Seleziona WoW.exe…";
+                                                icon: @image-url("assets/icons/file-text.svg");
+                                                custom-height: 34px;
+                                                clicked => { root.select-wow-file(); }
+                                            }
+
+                                            Text {
+                                                text: "Su Steam Deck / Linux (Proton) usa 'Seleziona WoW.exe' o incolla il percorso Z:\\...";
+                                                color: Theme.text-muted;
+                                                font-size: 11px;
+                                                vertical-alignment: center;
+                                            }
                                         }
                                     }
                                 }

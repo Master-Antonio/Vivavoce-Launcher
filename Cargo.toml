@@ -1,6 +1,6 @@
 [package]
 name = "vivavoce-launcher"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["VivaVoce Team <vivavoce.project@gmail.com>"]
 description = "High-performance native launcher and updater for World of Warcraft VivaVoce Italian voiceover"

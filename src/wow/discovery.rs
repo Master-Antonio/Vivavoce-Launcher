@@ -142,9 +142,10 @@ impl WowInstallation {
                 }
             }
         }
-        let flavor_dir_underscored = root.join(flavor.as_dir_name());
-        if flavor_dir_underscored.exists() {
-            return flavor_dir_underscored;
+        if let Some(flavor_dir_underscored) = find_child_ignore_case(&root, flavor.as_dir_name()) {
+            if flavor_dir_underscored.is_dir() {
+                return flavor_dir_underscored;
+            }
         }
         let plain_name = match flavor {
             WowFlavor::Forever => "forever",
@@ -152,34 +153,183 @@ impl WowInstallation {
             WowFlavor::Classic => "classic",
             WowFlavor::Retail => "retail",
         };
-        let flavor_dir_plain = root.join(plain_name);
-        if flavor_dir_plain.exists() {
-            return flavor_dir_plain;
+        if let Some(flavor_dir_plain) = find_child_ignore_case(&root, plain_name) {
+            if flavor_dir_plain.is_dir() {
+                return flavor_dir_plain;
+            }
         }
         root
     }
 }
 
-/// Resolves a candidate directory by automatically unwrapping trailing `Interface` or `Interface/AddOns`
-/// if the user selected those directly.
+/// Helper to find an immediate child path ignoring ASCII casing.
+/// Critical on Linux / Steam Deck ext4 file systems accessed via Proton / Wine.
+pub fn find_child_ignore_case(dir: &Path, target_name: &str) -> Option<PathBuf> {
+    let direct = dir.join(target_name);
+    if direct.exists() {
+        return Some(direct);
+    }
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        let target_lower = target_name.to_ascii_lowercase();
+        for entry in entries.flatten() {
+            if let Ok(file_name) = entry.file_name().into_string() {
+                if file_name.to_ascii_lowercase() == target_lower {
+                    return Some(entry.path());
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Helper to scan a directory for WoW game executables or app bundles (case-insensitive).
+pub fn find_wow_executable_in_dir(dir: &Path) -> Option<PathBuf> {
+    if !dir.is_dir() {
+        return None;
+    }
+    let known_names = [
+        "wow.exe",
+        "wowclassic.exe",
+        "world of warcraft.exe",
+        "world of warcraft launcher.exe",
+        "forever.exe",
+        "turtle.exe",
+        "vanilla.exe",
+        "world of warcraft.app",
+        "wow.app",
+        "world of warcraft-64.app",
+        "world of warcraft classic.app",
+    ];
+    for name in &known_names {
+        if let Some(found) = find_child_ignore_case(dir, name) {
+            return Some(found);
+        }
+    }
+    // Also check any .exe containing "wow" or "warcraft"
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    let lower = name.to_ascii_lowercase();
+                    if lower.ends_with(".exe") && (lower.contains("wow") || lower.contains("warcraft")) {
+                        return Some(path);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Checks if a folder directly contains WoW installation markers (flavors, Interface, or binaries).
+pub fn is_direct_wow_folder(dir: &Path) -> bool {
+    if !dir.is_dir() {
+        return false;
+    }
+    for flavor in WowFlavor::ALL {
+        if let Some(flavor_dir) = find_child_ignore_case(dir, flavor.as_dir_name()) {
+            if flavor_dir.is_dir() {
+                return true;
+            }
+        }
+        let plain = match flavor {
+            WowFlavor::Forever => "forever",
+            WowFlavor::ClassicEra => "classic_era",
+            WowFlavor::Classic => "classic",
+            WowFlavor::Retail => "retail",
+        };
+        if let Some(flavor_dir) = find_child_ignore_case(dir, plain) {
+            if flavor_dir.is_dir() {
+                return true;
+            }
+        }
+    }
+    if find_wow_executable_in_dir(dir).is_some() {
+        return true;
+    }
+    let has_interface = find_child_ignore_case(dir, "Interface").map_or(false, |p| p.is_dir());
+    let has_data = find_child_ignore_case(dir, "Data").map_or(false, |p| p.is_dir());
+    has_interface || has_data
+}
+
+/// Finds the runnable game executable or app bundle for an installation (case-insensitive).
+pub fn find_game_executable(root: &Path, flavor: WowFlavor) -> Option<PathBuf> {
+    let resolved = resolve_candidate_root(root);
+
+    // Try flavor folder first (_forever_ or forever), then root
+    let candidates = [
+        resolved.join(flavor.as_dir_name()),
+        resolved.join(match flavor {
+            WowFlavor::Forever => "forever",
+            WowFlavor::ClassicEra => "classic_era",
+            WowFlavor::Classic => "classic",
+            WowFlavor::Retail => "retail",
+        }),
+        resolved.clone(),
+    ];
+
+    for candidate_dir in &candidates {
+        if let Some(exe) = find_wow_executable_in_dir(candidate_dir) {
+            return Some(exe);
+        }
+    }
+
+    None
+}
+
+/// Resolves a candidate directory by:
+/// 1. Unwrapping files (e.g. `WoW.exe`) to their parent directory.
+/// 2. Unwrapping trailing `Interface` or `Interface/AddOns`.
+/// 3. Resolving parent folders (e.g. `Games`) if they directly contain a `World of Warcraft` installation.
 #[must_use]
 pub fn resolve_candidate_root(path: &Path) -> PathBuf {
-    let current = path.to_path_buf();
+    let mut current = path.to_path_buf();
+
+    // 0. If it's a file, take parent directory
+    if current.is_file() {
+        if let Some(parent) = current.parent() {
+            current = parent.to_path_buf();
+        }
+    }
+
+    // 1. Unwrap Interface or Interface/AddOns
     if let Some(name) = current.file_name().and_then(|n| n.to_str()) {
         if name.eq_ignore_ascii_case("AddOns") {
             if let Some(parent) = current.parent() {
                 if parent.file_name().and_then(|n| n.to_str()).map_or(false, |p| p.eq_ignore_ascii_case("Interface")) {
                     if let Some(grandparent) = parent.parent() {
-                        return grandparent.to_path_buf();
+                        current = grandparent.to_path_buf();
                     }
                 }
             }
         } else if name.eq_ignore_ascii_case("Interface") {
             if let Some(parent) = current.parent() {
-                return parent.to_path_buf();
+                current = parent.to_path_buf();
             }
         }
     }
+
+    // 2. Smart auto-resolution: if the selected folder is NOT directly a WoW install (e.g. user selected "Games"),
+    // check if it directly contains a typical WoW subfolder like "World of Warcraft", "WoW", etc.
+    if !is_direct_wow_folder(&current) {
+        let common_subfolders = [
+            "World of Warcraft",
+            "WoW",
+            "WoW Forever",
+            "World of Warcraft Forever",
+            "forever",
+            "_forever_",
+        ];
+        for sub in &common_subfolders {
+            if let Some(child) = find_child_ignore_case(&current, sub) {
+                if child.is_dir() && is_direct_wow_folder(&child) {
+                    return child;
+                }
+            }
+        }
+    }
+
     current
 }
 
@@ -211,16 +361,16 @@ pub fn validate_wow_root(raw_path: &Path) -> Result<Vec<WowFlavor>> {
     // Case 2: Standard root directory, scan subdirectories for flavors (both `_forever_` and plain `forever`)
     let mut found_flavors = Vec::new();
     for flavor in WowFlavor::ALL {
-        let flavor_dir_underscored = path.join(flavor.as_dir_name());
+        let has_underscored = find_child_ignore_case(&path, flavor.as_dir_name()).map_or(false, |p| p.is_dir());
         let plain_name = match flavor {
             WowFlavor::Forever => "forever",
             WowFlavor::ClassicEra => "classic_era",
             WowFlavor::Classic => "classic",
             WowFlavor::Retail => "retail",
         };
-        let flavor_dir_plain = path.join(plain_name);
+        let has_plain = find_child_ignore_case(&path, plain_name).map_or(false, |p| p.is_dir());
 
-        if flavor_dir_underscored.is_dir() || flavor_dir_plain.is_dir() {
+        if has_underscored || has_plain {
             found_flavors.push(flavor);
         }
     }
@@ -231,17 +381,11 @@ pub fn validate_wow_root(raw_path: &Path) -> Result<Vec<WowFlavor>> {
     }
 
     // Case 3: Directory has WoW files (e.g. Wow.exe, World of Warcraft.app, Data, Interface)
-    let has_wow_exe = path.join("Wow.exe").exists()
-        || path.join("WowClassic.exe").exists()
-        || path.join("World of Warcraft Launcher.exe").exists();
-    let has_mac_app = path.join("World of Warcraft.app").exists()
-        || path.join("WoW.app").exists()
-        || path.join("World of Warcraft-64.app").exists()
-        || path.join("World of Warcraft Classic.app").exists();
-    let has_data = path.join("Data").is_dir();
-    let has_interface = path.join("Interface").is_dir();
+    let has_exe = find_wow_executable_in_dir(&path).is_some();
+    let has_interface = find_child_ignore_case(&path, "Interface").map_or(false, |p| p.is_dir());
+    let has_data = find_child_ignore_case(&path, "Data").map_or(false, |p| p.is_dir());
 
-    if has_wow_exe || has_mac_app || (has_data && has_interface) || has_interface {
+    if has_exe || (has_data && has_interface) || has_interface {
         // Assume default Forever client if Interface, Mac app or WoW binaries are in root
         return Ok(vec![WowFlavor::Forever]);
     }
@@ -259,37 +403,47 @@ pub fn get_addons_path(wow_root: &Path, flavor: WowFlavor) -> PathBuf {
     if let Some(name) = root.file_name().and_then(|n| n.to_str()) {
         if let Some(existing_flavor) = WowFlavor::from_dir_name(name) {
             if existing_flavor == flavor {
-                return root.join("Interface").join("AddOns");
+                let interface_dir = find_child_ignore_case(&root, "Interface").unwrap_or_else(|| root.join("Interface"));
+                let addons_dir = find_child_ignore_case(&interface_dir, "AddOns").unwrap_or_else(|| interface_dir.join("AddOns"));
+                return addons_dir;
             }
         }
     }
 
-    // Check if `_forever_` exists
-    let underscored = root.join(flavor.as_dir_name());
-    if underscored.exists() {
-        return underscored.join("Interface").join("AddOns");
+    // Check if `_forever_` exists (case-insensitive)
+    if let Some(underscored) = find_child_ignore_case(&root, flavor.as_dir_name()) {
+        if underscored.is_dir() {
+            let interface_dir = find_child_ignore_case(&underscored, "Interface").unwrap_or_else(|| underscored.join("Interface"));
+            let addons_dir = find_child_ignore_case(&interface_dir, "AddOns").unwrap_or_else(|| interface_dir.join("AddOns"));
+            return addons_dir;
+        }
     }
 
-    // Check if plain folder name (e.g. `forever`) exists
+    // Check if plain folder name (e.g. `forever`) exists (case-insensitive)
     let plain_name = match flavor {
         WowFlavor::Forever => "forever",
         WowFlavor::ClassicEra => "classic_era",
         WowFlavor::Classic => "classic",
         WowFlavor::Retail => "retail",
     };
-    let plain_dir = root.join(plain_name);
-    if plain_dir.exists() {
-        return plain_dir.join("Interface").join("AddOns");
+    if let Some(plain_dir) = find_child_ignore_case(&root, plain_name) {
+        if plain_dir.is_dir() {
+            let interface_dir = find_child_ignore_case(&plain_dir, "Interface").unwrap_or_else(|| plain_dir.join("Interface"));
+            let addons_dir = find_child_ignore_case(&interface_dir, "AddOns").unwrap_or_else(|| interface_dir.join("AddOns"));
+            return addons_dir;
+        }
     }
 
     // If root directly contains `Interface` (typical on classic 1.12.1 Mac & PC clients)
-    let direct_interface = root.join("Interface");
-    if direct_interface.exists() {
-        return direct_interface.join("AddOns");
+    if let Some(direct_interface) = find_child_ignore_case(&root, "Interface") {
+        if direct_interface.is_dir() {
+            let addons_dir = find_child_ignore_case(&direct_interface, "AddOns").unwrap_or_else(|| direct_interface.join("AddOns"));
+            return addons_dir;
+        }
     }
 
     // Fallback default
-    underscored.join("Interface").join("AddOns")
+    root.join(flavor.as_dir_name()).join("Interface").join("AddOns")
 }
 
 /// Validates that an AddOns path exists or can be accessed.
@@ -324,13 +478,24 @@ pub fn ensure_addons_path(wow_root: &Path, flavor: WowFlavor) -> Result<PathBuf>
 /// Detects all World of Warcraft installations present on the system.
 ///
 /// Scans in the following order:
+/// 0. Current working directory & Exe directory (vital for Steam Deck, portable setups, and custom shortcuts)
 /// 1. Windows Registry (`HKLM\SOFTWARE\WOW6432Node\...` and `HKLM\SOFTWARE\...`)
 /// 2. Battle.net Agent `product.db`
-/// 3. Known common file paths across system drives
+/// 3. Known common file paths across system drives (including Wine/Proton Z:\ drive and Steam Deck)
 ///
 /// Returns a list of installations, each having detected flavors sorted by priority.
 pub fn detect_wow_installations() -> Vec<WowInstallation> {
     let mut candidates = Vec::new();
+
+    // 0. Current working directory & Exe directory
+    if let Ok(cwd) = std::env::current_dir() {
+        candidates.push(cwd);
+    }
+    if let Ok(current_exe) = std::env::current_exe() {
+        if let Some(exe_dir) = current_exe.parent() {
+            candidates.push(exe_dir.to_path_buf());
+        }
+    }
 
     // 1. Windows Registry
     candidates.extend(scan_windows_registry());
@@ -347,15 +512,16 @@ pub fn detect_wow_installations() -> Vec<WowInstallation> {
 
     for path in candidates {
         let normalized = normalize_path(&path);
-        let key = normalized.to_string_lossy().to_ascii_lowercase();
+        let resolved = resolve_candidate_root(&normalized);
+        let key = resolved.to_string_lossy().to_ascii_lowercase();
 
         if seen.contains(&key) {
             continue;
         }
         seen.insert(key);
 
-        if let Ok(flavors) = validate_wow_root(&normalized) {
-            installations.push(WowInstallation::new(normalized, flavors));
+        if let Ok(flavors) = validate_wow_root(&resolved) {
+            installations.push(WowInstallation::new(resolved, flavors));
         }
     }
 
@@ -389,12 +555,25 @@ pub fn find_primary_wow_installation() -> Result<WowInstallation> {
 // ---------------------------------------------------------------------------
 
 /// Normalizes path by resolving components, trimming trailing slashes, and removing quotes.
-fn normalize_path(path: &Path) -> PathBuf {
+/// On Windows under Wine / Proton, converts native Linux paths like `/home/deck/...` to `Z:\home\deck\...`.
+pub fn normalize_path(path: &Path) -> PathBuf {
     let s = path.to_string_lossy();
     let cleaned = s.trim().trim_matches('"').trim_matches('\'').trim_end_matches(['\\', '/']);
+
     #[cfg(target_os = "windows")]
-    let cleaned = cleaned.replace('/', "\\");
-    PathBuf::from(cleaned)
+    {
+        if cleaned.starts_with('/') {
+            let win_style = format!("Z:{}", cleaned.replace('/', "\\"));
+            return PathBuf::from(win_style);
+        }
+        let cleaned = cleaned.replace('/', "\\");
+        PathBuf::from(cleaned)
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        PathBuf::from(cleaned)
+    }
 }
 
 /// Scans Windows Registry for WoW InstallPath keys.
@@ -544,6 +723,12 @@ fn scan_common_paths() -> Vec<PathBuf> {
             "F:\\World of Warcraft",
             "F:\\Games\\World of Warcraft",
             "K:\\WoW",
+            // Steam Deck & Proton (Wine drive Z:\ mapping native / filesystem)
+            "Z:\\home\\deck\\Games\\World of Warcraft",
+            "Z:\\home\\deck\\Games\\WoW",
+            "Z:\\home\\deck\\Games\\WoW Forever",
+            "Z:\\home\\deck\\World of Warcraft",
+            "Z:\\home\\deck\\.local\\share\\Steam\\steamapps\\common\\World of Warcraft",
         ];
 
         for path_str in static_paths {
@@ -553,13 +738,16 @@ fn scan_common_paths() -> Vec<PathBuf> {
             }
         }
 
-        // Also scan common drive letters for typical root variations
-        let drives = ['C', 'D', 'E', 'F', 'G', 'A', 'K'];
+        // Also scan common drive letters for typical root variations (including Z: for Wine)
+        let drives = ['C', 'D', 'E', 'F', 'G', 'A', 'K', 'Z'];
         let folders = [
             "World of Warcraft",
             "Games\\World of Warcraft",
             "Blizzard\\World of Warcraft",
             "Battle.net\\World of Warcraft",
+            "home\\deck\\Games\\World of Warcraft",
+            "home\\deck\\Games\\WoW",
+            "home\\deck\\World of Warcraft",
         ];
 
         for drive in drives {
@@ -567,6 +755,53 @@ fn scan_common_paths() -> Vec<PathBuf> {
                 let candidate = PathBuf::from(format!("{}:\\{}", drive, folder));
                 if candidate.exists() && candidate.is_dir() {
                     paths.push(candidate);
+                }
+            }
+        }
+
+        // Scan Linux user home directories under Wine Z:\home\<user>\...
+        let z_home = Path::new("Z:\\home");
+        if z_home.exists() && z_home.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(z_home) {
+                for entry in entries.flatten() {
+                    let user_dir = entry.path();
+                    if user_dir.is_dir() {
+                        let user_targets = [
+                            user_dir.join("Games").join("World of Warcraft"),
+                            user_dir.join("Games").join("WoW"),
+                            user_dir.join("Games").join("WoW Forever"),
+                            user_dir.join("World of Warcraft"),
+                            user_dir.join("WoW"),
+                        ];
+                        for target in user_targets {
+                            if target.exists() && target.is_dir() {
+                                paths.push(target);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Scan Steam Deck removable MicroSD cards: Z:\run\media\deck\<card_id>\...
+        let z_media = Path::new("Z:\\run\\media\\deck");
+        if z_media.exists() && z_media.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(z_media) {
+                for entry in entries.flatten() {
+                    let card_dir = entry.path();
+                    if card_dir.is_dir() {
+                        let card_targets = [
+                            card_dir.join("World of Warcraft"),
+                            card_dir.join("Games").join("World of Warcraft"),
+                            card_dir.join("WoW"),
+                            card_dir.join("Games").join("WoW"),
+                        ];
+                        for target in card_targets {
+                            if target.exists() && target.is_dir() {
+                                paths.push(target);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -781,6 +1016,39 @@ mod tests {
         assert_eq!(flavors_from_interface, vec![WowFlavor::Forever]);
         let addons_from_interface = get_addons_path(&direct_interface, WowFlavor::Forever);
         assert_eq!(addons_from_interface, forever_folder.join("Interface").join("AddOns"));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_normalize_linux_path_under_windows() {
+        let linux_path = Path::new("/home/deck/Games/World of Warcraft");
+        let normalized = normalize_path(linux_path);
+        #[cfg(target_os = "windows")]
+        assert_eq!(normalized, PathBuf::from("Z:\\home\\deck\\Games\\World of Warcraft"));
+        #[cfg(not(target_os = "windows"))]
+        assert_eq!(normalized, PathBuf::from("/home/deck/Games/World of Warcraft"));
+    }
+
+    #[test]
+    fn test_resolve_candidate_root_from_file_and_subfolder() {
+        let temp_dir = std::env::temp_dir().join(format!("vv_test_subfolder_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+
+        let wow_folder = temp_dir.join("World of Warcraft");
+        std::fs::create_dir_all(wow_folder.join("Interface")).unwrap();
+        let exe_file = wow_folder.join("WoW.exe");
+        std::fs::write(&exe_file, b"dummy exe").unwrap();
+
+        // 1. Pass the executable file itself -> unwraps to parent folder
+        assert_eq!(resolve_candidate_root(&exe_file), wow_folder);
+
+        // 2. Pass the parent "temp_dir" -> smart resolution should detect "World of Warcraft" inside it!
+        assert_eq!(resolve_candidate_root(&temp_dir), wow_folder);
+
+        // 3. Validation on parent folder succeeds because it resolves to child WoW install
+        let flavors = validate_wow_root(&temp_dir).expect("Should resolve child WoW installation");
+        assert_eq!(flavors, vec![WowFlavor::Forever]);
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

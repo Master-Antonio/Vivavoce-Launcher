@@ -275,6 +275,25 @@ fn setup_action_callbacks(main_window: &MainWindow, ctx: AppContext) {
         });
     });
 
+    // SELECT WOW FILE (WoW.exe) - Rock solid under Steam Deck / Wine / Proton
+    let file_ctx = ctx.clone();
+    main_window.on_select_wow_file(move || {
+        let ctx_clone = file_ctx.clone();
+        tokio::spawn(async move {
+            run_browse_wow_file(ctx_clone).await;
+        });
+    });
+
+    // SET CUSTOM WOW PATH (Manual text input or paste)
+    let path_ctx = ctx.clone();
+    main_window.on_set_custom_wow_path(move |custom_path| {
+        let ctx_clone = path_ctx.clone();
+        let path_str = custom_path.to_string();
+        tokio::spawn(async move {
+            run_set_custom_wow_path(ctx_clone, path_str).await;
+        });
+    });
+
     // OPEN ADDONS FOLDER
     let addons_ctx = ctx.clone();
     main_window.on_open_addons_folder(move || {
@@ -396,7 +415,8 @@ async fn discover_and_refresh(ctx: &AppContext) {
         let installed_for_ui = installed_version.clone();
 
         let _ = weak.upgrade_in_event_loop(move |win| {
-            win.set_wow_path(SharedString::from(wow_path_str));
+            win.set_wow_path(SharedString::from(wow_path_str.clone()));
+            win.set_wow_path_input(SharedString::from(wow_path_str));
             win.set_wow_flavor(SharedString::from(flavor_name));
             win.set_is_installed(is_installed);
             win.set_installed_version(SharedString::from(installed_for_ui));
@@ -1125,21 +1145,61 @@ async fn run_browse_wow_folder(ctx: AppContext) {
     }).await;
 
     if let Ok(Some(path)) = picked {
-        info!("Cartella selezionata dall'utente: {:?}", path);
-        match validate_wow_root(&path) {
-            Ok(flavors) => {
-                let inst = WowInstallation::new(path.clone(), flavors);
-                *ctx.wow_installation.write().await = Some(inst);
-                discover_and_refresh(&ctx).await;
-            }
-            Err(e) => {
-                warn!("Cartella selezionata non valida: {}", e);
-                update_ui_status(
-                    &ctx.main_window_weak,
-                    "La cartella selezionata non contiene un'installazione valida di World of Warcraft.",
-                    0.0,
-                );
-            }
+        apply_new_wow_path(ctx, path).await;
+    }
+}
+
+/// Browse WoW executable (WoW.exe) via native file dialog (rock-solid under Proton / Wine on Linux)
+async fn run_browse_wow_file(ctx: AppContext) {
+    let picked = tokio::task::spawn_blocking(|| {
+        rfd::FileDialog::new()
+            .set_title("Seleziona l'eseguibile di World of Warcraft (WoW.exe)")
+            .add_filter("Eseguibile World of Warcraft (*.exe, *.app)", &["exe", "app"])
+            .pick_file()
+    }).await;
+
+    if let Ok(Some(file_path)) = picked {
+        let folder = file_path.parent().unwrap_or(&file_path).to_path_buf();
+        apply_new_wow_path(ctx, folder).await;
+    }
+}
+
+/// Set custom WoW path from manual text input or paste
+async fn run_set_custom_wow_path(ctx: AppContext, raw_input: String) {
+    let trimmed = raw_input.trim();
+    if trimmed.is_empty() {
+        update_ui_status(&ctx.main_window_weak, "Inserisci un percorso valido prima di applicare", 0.0);
+        return;
+    }
+    let normalized = wow::discovery::normalize_path(Path::new(trimmed));
+    apply_new_wow_path(ctx, normalized).await;
+}
+
+/// Common logic to validate and apply any newly selected or entered WoW path
+async fn apply_new_wow_path(ctx: AppContext, raw_path: PathBuf) {
+    let normalized = wow::discovery::normalize_path(&raw_path);
+    info!("Verifica percorso WoW specificato: {:?}", normalized);
+
+    let resolved = wow::discovery::resolve_candidate_root(&normalized);
+    match validate_wow_root(&resolved) {
+        Ok(flavors) => {
+            let inst = WowInstallation::new(resolved.clone(), flavors);
+            info!("Percorso WoW confermato e impostato con successo: {:?}", resolved);
+            *ctx.wow_installation.write().await = Some(inst);
+            discover_and_refresh(&ctx).await;
+            update_ui_status(
+                &ctx.main_window_weak,
+                &format!("Percorso WoW impostato: {}", resolved.display()),
+                0.0,
+            );
+        }
+        Err(e) => {
+            warn!("Percorso specificato non valido ({:?}): {}", resolved, e);
+            update_ui_status(
+                &ctx.main_window_weak,
+                "Cartella non valida: non contiene WoW o la cartella Interface.",
+                0.0,
+            );
         }
     }
 }
@@ -1190,26 +1250,9 @@ async fn run_launch_game(ctx: AppContext) {
 
     let client_path = inst.game_client_path();
     let flavor = inst.primary_flavor.unwrap_or(WowFlavor::Forever);
-    let candidates = [
-        // macOS App bundles
-        client_path.join("World of Warcraft.app"),
-        client_path.join("WoW.app"),
-        client_path.join("World of Warcraft-64.app"),
-        client_path.join("World of Warcraft Classic.app"),
-        inst.root_path.join("World of Warcraft.app"),
-        inst.root_path.join("WoW.app"),
-        inst.root_path.join("forever").join("World of Warcraft.app"),
-        inst.root_path.join("_forever_").join("World of Warcraft.app"),
-        // Windows Executables / Wine
-        client_path.join("Wow.exe"),
-        client_path.join("WoWClassic.exe"),
-        inst.root_path.join(flavor.as_dir_name()).join("Wow.exe"),
-        inst.root_path.join("forever").join("Wow.exe"),
-        inst.root_path.join("Wow.exe"),
-        inst.root_path.join("World of Warcraft Launcher.exe"),
-    ];
 
-    let found_exe = candidates.iter().find(|p| p.exists());
+    let found_exe = wow::discovery::find_game_executable(&inst.root_path, flavor)
+        .or_else(|| wow::discovery::find_game_executable(&client_path, flavor));
 
     if let Some(exe) = found_exe {
         info!("Avvio eseguibile di gioco WoW Forever: {:?}", exe);
@@ -1218,7 +1261,7 @@ async fn run_launch_game(ctx: AppContext) {
         let res = std::process::Command::new("open").arg(exe).spawn();
 
         #[cfg(not(target_os = "macos"))]
-        let res = std::process::Command::new(exe).current_dir(exe.parent().unwrap_or(&client_path)).spawn();
+        let res = std::process::Command::new(&exe).current_dir(exe.parent().unwrap_or(&client_path)).spawn();
 
         match res {
             Ok(_) => {

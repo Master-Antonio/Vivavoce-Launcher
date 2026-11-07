@@ -111,16 +111,6 @@ pub fn extract_account_name(path: &Path) -> String {
         }
     }
 
-    // Fallback: check 2 levels up
-    if let Some(parent) = path.parent() {
-        if let Some(account_dir) = parent.parent() {
-            let name = account_dir.file_name().unwrap_or_default().to_string_lossy();
-            if !name.is_empty() && !name.eq_ignore_ascii_case("WTF") {
-                return name.into_owned();
-            }
-        }
-    }
-
     "Default".to_string()
 }
 

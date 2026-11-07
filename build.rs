@@ -6,7 +6,8 @@ fn main() {
         res.set("ProductName", "VivaVoce Voiceover Launcher");
         res.set("FileDescription", "VivaVoce Launcher — WoW Forever");
         res.set("LegalCopyright", "Copyright © 2026 VivaVoce Team");
-        res.set("ProductVersion", "0.1.0");
+        res.set("ProductVersion", env!("CARGO_PKG_VERSION"));
+        res.set("FileVersion", env!("CARGO_PKG_VERSION"));
         if let Err(e) = res.compile() {
             eprintln!("Warning: Failed to compile Windows resource: {}", e);
         }

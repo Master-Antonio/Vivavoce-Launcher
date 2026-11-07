@@ -45,6 +45,20 @@ struct AppContext {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Clean up leftover .old executable from previous self-update
+    if let Ok(current_exe) = std::env::current_exe() {
+        if let Some(exe_dir) = current_exe.parent() {
+            let old_exe = exe_dir.join("vivavoce-launcher.exe.old");
+            if old_exe.exists() {
+                let _ = std::fs::remove_file(old_exe);
+            }
+            let old_mac = exe_dir.join("vivavoce-launcher.old");
+            if old_mac.exists() {
+                let _ = std::fs::remove_file(old_mac);
+            }
+        }
+    }
+
     // 1. Initialize logging
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -53,7 +67,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
-    info!("Avvio VivaVoce WoW Voiceover Launcher v0.1.0...");
+    info!("Avvio VivaVoce WoW Voiceover Launcher v{}...", env!("CARGO_PKG_VERSION"));
 
     // 2. Initialize UI
     let main_window = MainWindow::new()?;
@@ -1642,13 +1656,14 @@ async fn run_check_launcher_update(ctx: AppContext, manual_trigger: bool) {
             let weak = ctx.main_window_weak.clone();
             let _ = weak.upgrade_in_event_loop(move |win| {
                 if has_update {
+                    let clean_tag = remote_tag.trim_start_matches(|c| c == 'v' || c == 'V');
                     win.set_launcher_has_update(true);
-                    win.set_launcher_new_version(SharedString::from(&remote_tag));
+                    win.set_launcher_new_version(SharedString::from(clean_tag));
                     win.set_launcher_update_status(SharedString::from(format!(
                         "Nuova versione v{} disponibile!",
-                        remote_tag
+                        clean_tag
                     )));
-                    info!("Nuova versione launcher rilevata: {}", remote_tag);
+                    info!("Nuova versione launcher rilevata: v{}", clean_tag);
                 } else {
                     win.set_launcher_has_update(false);
                     if manual_trigger {

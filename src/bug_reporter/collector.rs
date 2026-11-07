@@ -156,7 +156,7 @@ impl BugReport {
                 }
 
                 md.push_str("## Informazioni sull'Ambiente\n");
-                md.push_str("- **Launcher**: VivaVoce Native v0.1.0 (Rust + Slint)\n");
+                md.push_str(&format!("- **Launcher**: VivaVoce Native v{} (Rust + Slint)\n", env!("CARGO_PKG_VERSION")));
                 md.push_str("- **Architettura**: 6 componenti modulari integrati\n");
             }
         }

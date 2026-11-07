@@ -16,8 +16,8 @@ use bug_reporter::{BugReport, IssueType, Submitter};
 use engine::downloader::{Downloader, ProgressEvent};
 use engine::extractor::extract_tar_zst_file;
 use engine::manifest::RemoteManifest;
-use engine::scanner::scan_delta;
-use engine::uninstaller::uninstall_vivavoce;
+use engine::scanner::{scan_delta, VIVAVOCE_MANAGED_MODULES};
+use engine::uninstaller::{safe_remove_dir_all, uninstall_vivavoce};
 use wow::discovery::{
     detect_wow_installations, find_wow_install_path, get_addons_path, validate_wow_root,
     WowFlavor, WowInstallation,
@@ -78,7 +78,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Setup frameless window dragging, minimize, and close callbacks
+/// Setup frameless window dragging, minimize, maximize, resize, preset resolution, and close callbacks
 fn setup_window_callbacks(main_window: &MainWindow) {
     let window_for_drag = main_window.as_weak();
     main_window.on_drag_window(move || {
@@ -93,6 +93,45 @@ fn setup_window_callbacks(main_window: &MainWindow) {
     main_window.on_minimize_window(move || {
         if let Some(win) = window_for_minimize.upgrade() {
             win.window().set_minimized(true);
+        }
+    });
+
+    let window_for_maximize = main_window.as_weak();
+    main_window.on_maximize_window(move || {
+        if let Some(win) = window_for_maximize.upgrade() {
+            win.window().with_winit_window(|winit_window| {
+                let is_max = winit_window.is_maximized();
+                winit_window.set_maximized(!is_max);
+                win.set_is_maximized(!is_max);
+            });
+        }
+    });
+
+    let window_for_resize = main_window.as_weak();
+    main_window.on_resize_window(move || {
+        if let Some(win) = window_for_resize.upgrade() {
+            win.window().with_winit_window(|winit_window| {
+                let _ = winit_window.drag_resize_window(winit::window::ResizeDirection::SouthEast);
+            });
+        }
+    });
+
+    let window_for_set_size = main_window.as_weak();
+    main_window.on_set_window_size(move |width, height| {
+        if let Some(win) = window_for_set_size.upgrade() {
+            win.window().with_winit_window(|winit_window| {
+                if width <= 0 || height <= 0 {
+                    let is_max = winit_window.is_maximized();
+                    winit_window.set_maximized(!is_max);
+                    win.set_is_maximized(!is_max);
+                } else {
+                    if winit_window.is_maximized() {
+                        winit_window.set_maximized(false);
+                        win.set_is_maximized(false);
+                    }
+                    let _ = winit_window.request_inner_size(winit::dpi::LogicalSize::new(width as f64, height as f64));
+                }
+            });
         }
     });
 
@@ -198,6 +237,26 @@ fn setup_action_callbacks(main_window: &MainWindow, ctx: AppContext) {
             run_launch_game(ctx_clone).await;
         });
     });
+
+    // INSTALL INDIVIDUAL MODULE
+    let inst_mod_ctx = ctx.clone();
+    main_window.on_install_module(move |id| {
+        let ctx_clone = inst_mod_ctx.clone();
+        let id_str = id.to_string();
+        tokio::spawn(async move {
+            run_install_module(ctx_clone, id_str).await;
+        });
+    });
+
+    // REMOVE INDIVIDUAL MODULE
+    let rem_mod_ctx = ctx.clone();
+    main_window.on_remove_module(move |id| {
+        let ctx_clone = rem_mod_ctx.clone();
+        let id_str = id.to_string();
+        tokio::spawn(async move {
+            run_remove_module(ctx_clone, id_str).await;
+        });
+    });
 }
 
 /// Auto-discovery of WoW on Windows, reading SavedVariables, and populating Slint models
@@ -228,9 +287,19 @@ async fn discover_and_refresh(ctx: &AppContext) {
             other => format!("{:?}", other),
         };
 
-        // Check installed version from TOC if present
+        // Check installed version from .installed_version file or TOC if present
         let installed_version = if is_installed {
-            read_toc_version(&addons_dir.join("VivaVoce/VivaVoce.toc")).unwrap_or_else(|| "1.0.0".to_string())
+            let ver_file = addons_dir.join("VivaVoce/.installed_version");
+            if let Ok(ver) = std::fs::read_to_string(&ver_file) {
+                let trimmed = ver.trim().to_string();
+                if !trimmed.is_empty() {
+                    trimmed
+                } else {
+                    read_toc_version(&addons_dir.join("VivaVoce/VivaVoce.toc")).unwrap_or_else(|| "1.0.0".to_string())
+                }
+            } else {
+                read_toc_version(&addons_dir.join("VivaVoce/VivaVoce.toc")).unwrap_or_else(|| "1.0.0".to_string())
+            }
         } else {
             "".to_string()
         };
@@ -278,7 +347,7 @@ async fn discover_and_refresh(ctx: &AppContext) {
             win.set_recent_dialogues(ModelRc::new(VecModel::from(dialogue_models)));
 
             // Populate package cards
-            let packages = get_default_packages(is_installed);
+            let packages = get_packages_status(Some(&addons_dir));
             win.set_packages(ModelRc::new(VecModel::from(packages)));
         });
 
@@ -323,7 +392,7 @@ async fn discover_and_refresh(ctx: &AppContext) {
             win.set_sub_status_text(SharedString::from("Seleziona manualmente la cartella di World of Warcraft"));
             win.set_is_installed(false);
             win.set_has_update(false);
-            let packages = get_default_packages(false);
+            let packages = get_packages_status(None);
             win.set_packages(ModelRc::new(VecModel::from(packages)));
         });
     }
@@ -457,6 +526,8 @@ async fn run_update_pipeline(ctx: AppContext, is_repair: bool) {
                             Ok(Ok(summary)) => {
                                 info!("Patch delta applicata! Estratti {} file", summary.files_extracted);
                                 let new_ver = manifest.version.clone();
+                                update_installed_toc_version(&addons_dir, &new_ver);
+                                let addons_for_refresh = addons_dir.clone();
                                 let _ = weak.upgrade_in_event_loop(move |win| {
                                     win.set_progress(1.0);
                                     win.set_status_text(SharedString::from(format!("VivaVoce v{} aggiornato con successo!", new_ver)));
@@ -465,7 +536,7 @@ async fn run_update_pipeline(ctx: AppContext, is_repair: bool) {
                                     win.set_has_update(false);
                                     win.set_installed_version(SharedString::from(&new_ver));
                                     win.set_is_updating(false);
-                                    let packages = get_default_packages(true);
+                                    let packages = get_packages_status(Some(&addons_for_refresh));
                                     win.set_packages(ModelRc::new(VecModel::from(packages)));
                                 });
                                 return;
@@ -499,6 +570,8 @@ async fn run_update_pipeline(ctx: AppContext, is_repair: bool) {
 
         if let Ok(Ok(_)) = sync_res {
             let ver = remote_manifest.map(|m| m.version).unwrap_or_else(|| "1.0.0".to_string());
+            update_installed_toc_version(&addons_dir, &ver);
+            let addons_for_refresh = addons_dir.clone();
             let _ = weak.upgrade_in_event_loop(move |win| {
                 win.set_progress(1.0);
                 win.set_status_text(SharedString::from("VivaVoce sincronizzato e pronto"));
@@ -507,7 +580,7 @@ async fn run_update_pipeline(ctx: AppContext, is_repair: bool) {
                 win.set_has_update(false);
                 win.set_installed_version(SharedString::from(&ver));
                 win.set_is_updating(false);
-                let packages = get_default_packages(true);
+                let packages = get_packages_status(Some(&addons_for_refresh));
                 win.set_packages(ModelRc::new(VecModel::from(packages)));
             });
             return;
@@ -547,6 +620,8 @@ async fn run_update_pipeline(ctx: AppContext, is_repair: bool) {
         }
 
         let new_ver = manifest.version.clone();
+        update_installed_toc_version(&addons_dir, &new_ver);
+        let addons_for_refresh = addons_dir.clone();
         let _ = weak.upgrade_in_event_loop(move |win| {
             win.set_progress(1.0);
             win.set_status_text(SharedString::from("Installazione completata con successo!"));
@@ -555,7 +630,7 @@ async fn run_update_pipeline(ctx: AppContext, is_repair: bool) {
             win.set_has_update(false);
             win.set_installed_version(SharedString::from(&new_ver));
             win.set_is_updating(false);
-            let packages = get_default_packages(true);
+            let packages = get_packages_status(Some(&addons_for_refresh));
             win.set_packages(ModelRc::new(VecModel::from(packages)));
         });
     } else {
@@ -634,22 +709,24 @@ async fn run_uninstall(ctx: AppContext) {
 
     let flavor = inst.primary_flavor.unwrap_or(WowFlavor::Forever);
     let addons_dir = get_addons_path(&inst.root_path, flavor);
+    let addons_dir_uninst = addons_dir.clone();
     let res = tokio::task::spawn_blocking(move || {
-        uninstall_vivavoce(&addons_dir, false)
+        uninstall_vivavoce(&addons_dir_uninst, false)
     }).await;
 
     match res {
         Ok(Ok(uninst)) => {
             info!("VivaVoce disinstallato: rimosse {:?}, liberati {} byte", uninst.removed_addon_dirs, uninst.freed_bytes);
             let weak = ctx.main_window_weak.clone();
-            let _ = weak.upgrade_in_event_loop(|win| {
+            let addons_for_refresh = addons_dir.clone();
+            let _ = weak.upgrade_in_event_loop(move |win| {
                 win.set_is_installed(false);
                 win.set_has_update(true);
                 win.set_progress(0.0);
                 win.set_status_text(SharedString::from("VivaVoce rimosso correttamente"));
                 win.set_sub_status_text(SharedString::from("Nessun altro addon è stato modificato"));
                 win.set_is_updating(false);
-                let packages = get_default_packages(false);
+                let packages = get_packages_status(Some(&addons_for_refresh));
                 win.set_packages(ModelRc::new(VecModel::from(packages)));
             });
         }
@@ -981,70 +1058,301 @@ fn read_toc_version(toc_path: &Path) -> Option<String> {
     None
 }
 
-/// Returns the 6 VivaVoce package descriptors
-fn get_default_packages(installed: bool) -> Vec<PackageInfo> {
+/// Aggiorna i file TOC e il file .installed_version per riflettere la versione installata
+fn update_installed_toc_version(addons_dir: &Path, version: &str) {
+    for &module in VIVAVOCE_MANAGED_MODULES {
+        let toc_path = addons_dir.join(module).join(format!("{}.toc", module));
+        if toc_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&toc_path) {
+                let mut new_lines = Vec::new();
+                let mut replaced = false;
+                for line in content.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with("## Version:") {
+                        new_lines.push(format!("## Version: {}", version));
+                        replaced = true;
+                    } else {
+                        new_lines.push(line.to_string());
+                    }
+                }
+                if !replaced {
+                    new_lines.insert(0, format!("## Version: {}", version));
+                }
+                let _ = std::fs::write(&toc_path, new_lines.join("\r\n"));
+            }
+        }
+    }
+
+    let vv_dir = addons_dir.join("VivaVoce");
+    if vv_dir.exists() {
+        let ver_file = vv_dir.join(".installed_version");
+        let _ = std::fs::write(&ver_file, version);
+    }
+}
+
+/// Returns the 6 VivaVoce package descriptors with live on-disk installation status
+fn get_packages_status(addons_dir: Option<&Path>) -> Vec<PackageInfo> {
+    let check = |folder: &str| -> bool {
+        if let Some(dir) = addons_dir {
+            dir.join(folder).is_dir()
+        } else {
+            false
+        }
+    };
+
+    let core_installed = check("VivaVoce") && addons_dir.map_or(false, |d| d.join("VivaVoce/Core.lua").exists());
+    let quests_installed = check("VivaVoce_Quests");
+    let books_installed = check("VivaVoce_Books");
+    let codex_installed = check("VivaVoce_Codex");
+    let zones_installed = check("VivaVoce_Zones");
+    let collector_installed = check("VivaVoce_Collector");
+
     vec![
         PackageInfo {
-            id: SharedString::from("vivavoce-core"),
+            id: SharedString::from("vivavoce_core"),
             name: SharedString::from("VivaVoce Core"),
             description: SharedString::from("Motore audio principale, gestione code, sottotitoli e opzioni"),
-            filename: SharedString::from("vivavoce-core.tar.zst"),
-            size_str: SharedString::from("865 KB"),
-            installed,
-            verified: installed,
-            blake3_hash: SharedString::from("b3f8...91a2"),
+            filename: SharedString::from("VivaVoce_Core.tar.zst"),
+            size_str: SharedString::from("2.3 MB"),
+            installed: core_installed,
+            verified: core_installed,
+            blake3_hash: SharedString::from("5045...e98a"),
         },
         PackageInfo {
-            id: SharedString::from("vivavoce-quests"),
+            id: SharedString::from("vivavoce_quests"),
             name: SharedString::from("VivaVoce Quests"),
             description: SharedString::from("15.838 battute: dialoghi quest, gossip NPC, accettazione e completamento"),
-            filename: SharedString::from("vivavoce-quests.tar.zst"),
+            filename: SharedString::from("VivaVoce_Quests.tar.zst"),
             size_str: SharedString::from("2.48 GB"),
-            installed,
-            verified: installed,
-            blake3_hash: SharedString::from("7c2d...4401"),
+            installed: quests_installed,
+            verified: quests_installed,
+            blake3_hash: SharedString::from("1744...c11d"),
         },
         PackageInfo {
-            id: SharedString::from("vivavoce-books"),
+            id: SharedString::from("vivavoce_books"),
             name: SharedString::from("VivaVoce Books"),
             description: SharedString::from("5.594 battute: tomi di Azeroth, lettere, diari, pergamene e lapidi"),
-            filename: SharedString::from("vivavoce-books.tar.zst"),
+            filename: SharedString::from("VivaVoce_Books.tar.zst"),
             size_str: SharedString::from("1.12 GB"),
-            installed,
-            verified: installed,
-            blake3_hash: SharedString::from("33aa...ff99"),
+            installed: books_installed,
+            verified: books_installed,
+            blake3_hash: SharedString::from("5187...ed0f"),
         },
         PackageInfo {
-            id: SharedString::from("vivavoce-codex"),
+            id: SharedString::from("vivavoce_codex"),
             name: SharedString::from("VivaVoce Codex"),
             description: SharedString::from("1.606 battute: supporto a CodexIT e missioni lore classiche"),
-            filename: SharedString::from("vivavoce-codex.tar.zst"),
+            filename: SharedString::from("VivaVoce_Codex.tar.zst"),
             size_str: SharedString::from("385 MB"),
-            installed,
-            verified: installed,
-            blake3_hash: SharedString::from("19e0...8821"),
+            installed: codex_installed,
+            verified: codex_installed,
+            blake3_hash: SharedString::from("8d98...ac54"),
         },
         PackageInfo {
-            id: SharedString::from("vivavoce-zones"),
+            id: SharedString::from("vivavoce_zones"),
             name: SharedString::from("VivaVoce Zones"),
             description: SharedString::from("Annunci e tracce d'atmosfera delle zone del mondo"),
-            filename: SharedString::from("vivavoce-zones.tar.zst"),
-            size_str: SharedString::from("120 MB"),
-            installed,
-            verified: installed,
-            blake3_hash: SharedString::from("4fa1...bb12"),
+            filename: SharedString::from("VivaVoce_Zones.tar.zst"),
+            size_str: SharedString::from("81 MB"),
+            installed: zones_installed,
+            verified: zones_installed,
+            blake3_hash: SharedString::from("8419...475a"),
         },
         PackageInfo {
-            id: SharedString::from("vivavoce-collector"),
+            id: SharedString::from("vivavoce_collector"),
             name: SharedString::from("VivaVoce Collector"),
             description: SharedString::from("Rilevamento in-game di dialoghi non doppiati e telemetria locale"),
-            filename: SharedString::from("vivavoce-collector.tar.zst"),
-            size_str: SharedString::from("45 KB"),
-            installed,
-            verified: installed,
-            blake3_hash: SharedString::from("e220...5c61"),
+            filename: SharedString::from("VivaVoce_Collector.tar.zst"),
+            size_str: SharedString::from("287 KB"),
+            installed: collector_installed,
+            verified: collector_installed,
+            blake3_hash: SharedString::from("530b...ba3c"),
         },
     ]
+}
+
+/// Installazione di un singolo modulo selezionato
+async fn run_install_module(ctx: AppContext, module_id: String) {
+    let installation = {
+        let lock = ctx.wow_installation.read().await;
+        lock.clone()
+    };
+    let Some(inst) = installation else {
+        update_ui_status(&ctx.main_window_weak, "Errore: Nessun percorso WoW valido", 0.0);
+        return;
+    };
+
+    let flavor = inst.primary_flavor.unwrap_or(WowFlavor::Forever);
+    let addons_dir = get_addons_path(&inst.root_path, flavor);
+
+    let (folder_name, pkg_id) = match module_id.as_str() {
+        "vivavoce_core" | "vivavoce-core" | "vivavoce" => ("VivaVoce", "vivavoce_core"),
+        "vivavoce_quests" | "vivavoce-quests" => ("VivaVoce_Quests", "vivavoce_quests"),
+        "vivavoce_books" | "vivavoce-books" => ("VivaVoce_Books", "vivavoce_books"),
+        "vivavoce_codex" | "vivavoce-codex" => ("VivaVoce_Codex", "vivavoce_codex"),
+        "vivavoce_zones" | "vivavoce-zones" => ("VivaVoce_Zones", "vivavoce_zones"),
+        "vivavoce_collector" | "vivavoce-collector" => ("VivaVoce_Collector", "vivavoce_collector"),
+        other => {
+            warn!("Modulo non riconosciuto: {}", other);
+            return;
+        }
+    };
+
+    set_ui_updating(&ctx.main_window_weak, true);
+    update_ui_status(&ctx.main_window_weak, &format!("Installazione {} in corso...", folder_name), 0.3);
+
+    let weak = ctx.main_window_weak.clone();
+
+    // 1. Controlla prima se presente nei sorgenti locali K:\WoW\VivaVoce
+    let source_base = PathBuf::from(r"K:\WoW\VivaVoce");
+    let local_src = if folder_name == "VivaVoce" {
+        source_base.join("pack/VivaVoce")
+    } else {
+        source_base.join(folder_name)
+    };
+
+    if local_src.exists() {
+        let dst = addons_dir.join(folder_name);
+        let sync_res = tokio::task::spawn_blocking(move || {
+            copy_dir_recursive(&local_src, &dst)
+        }).await;
+
+        if let Ok(Ok(_)) = sync_res {
+            update_installed_toc_version(&addons_dir, "1.0.0");
+            let addons_for_refresh = addons_dir.clone();
+            let _ = weak.upgrade_in_event_loop(move |win| {
+                let packages = get_packages_status(Some(&addons_for_refresh));
+                let is_any_installed = addons_for_refresh.join("VivaVoce").exists();
+                win.set_packages(ModelRc::new(VecModel::from(packages)));
+                win.set_is_installed(is_any_installed);
+                win.set_status_text(SharedString::from(format!("Modulo {} installato!", folder_name)));
+                win.set_sub_status_text(SharedString::from("Modulo pronto all'uso in gioco"));
+                win.set_is_updating(false);
+            });
+            return;
+        }
+    }
+
+    // 2. Fallback download da GitHub Releases
+    update_ui_status(&weak, &format!("Download pacchetto {}...", folder_name), 0.5);
+    let downloader = Downloader::new();
+    let temp_dir = std::env::temp_dir().join("VivaVoceUpdates");
+    let _ = std::fs::create_dir_all(&temp_dir);
+
+    let client = reqwest::Client::builder()
+        .user_agent("VivaVoceLauncher/0.1.0")
+        .timeout(Duration::from_secs(6))
+        .build()
+        .unwrap_or_default();
+
+    if let Ok(resp) = client.get(REMOTE_MANIFEST_URL).send().await {
+        if resp.status().is_success() {
+            if let Ok(manifest) = resp.json::<RemoteManifest>().await {
+                if let Some(pkg) = manifest.packages.iter().find(|p| p.id == pkg_id) {
+                    let cancel_token = ctx.cancel_token.clone();
+                    match downloader.download_package(pkg, &temp_dir, None, Some(cancel_token)).await {
+                        Ok(pkg_path) => {
+                            let addons_target = addons_dir.clone();
+                            let hash_expected = pkg.blake3.clone();
+                            let _ = tokio::task::spawn_blocking(move || {
+                                extract_tar_zst_file(&pkg_path, &addons_target, Some(&hash_expected), None)
+                            }).await;
+
+                            update_installed_toc_version(&addons_dir, &manifest.version);
+                            let addons_for_refresh = addons_dir.clone();
+                            let _ = weak.upgrade_in_event_loop(move |win| {
+                                let packages = get_packages_status(Some(&addons_for_refresh));
+                                let is_any_installed = addons_for_refresh.join("VivaVoce").exists();
+                                win.set_packages(ModelRc::new(VecModel::from(packages)));
+                                win.set_is_installed(is_any_installed);
+                                win.set_status_text(SharedString::from(format!("Modulo {} installato con successo!", folder_name)));
+                                win.set_sub_status_text(SharedString::from("Modulo pronto"));
+                                win.set_is_updating(false);
+                            });
+                            return;
+                        }
+                        Err(e) => {
+                            update_ui_status(&weak, &format!("Errore download: {}", e), 0.0);
+                            set_ui_updating(&weak, false);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    update_ui_status(&weak, &format!("Impossibile scaricare {}", folder_name), 0.0);
+    set_ui_updating(&weak, false);
+}
+
+/// Rimozione di un singolo modulo selezionato
+async fn run_remove_module(ctx: AppContext, module_id: String) {
+    let installation = {
+        let lock = ctx.wow_installation.read().await;
+        lock.clone()
+    };
+    let Some(inst) = installation else {
+        update_ui_status(&ctx.main_window_weak, "Errore: Nessun percorso WoW valido", 0.0);
+        return;
+    };
+
+    let flavor = inst.primary_flavor.unwrap_or(WowFlavor::Forever);
+    let addons_dir = get_addons_path(&inst.root_path, flavor);
+
+    let folder_name = match module_id.as_str() {
+        "vivavoce_core" | "vivavoce-core" | "vivavoce" => "VivaVoce",
+        "vivavoce_quests" | "vivavoce-quests" => "VivaVoce_Quests",
+        "vivavoce_books" | "vivavoce-books" => "VivaVoce_Books",
+        "vivavoce_codex" | "vivavoce-codex" => "VivaVoce_Codex",
+        "vivavoce_zones" | "vivavoce-zones" => "VivaVoce_Zones",
+        "vivavoce_collector" | "vivavoce-collector" => "VivaVoce_Collector",
+        other => {
+            warn!("Modulo non riconosciuto: {}", other);
+            return;
+        }
+    };
+
+    // Sicurezza: verificare che folder_name sia strettamente uno dei moduli VivaVoce
+    if !VIVAVOCE_MANAGED_MODULES.contains(&folder_name) {
+        error!("Tentativo di rimozione di cartella non autorizzata: {}", folder_name);
+        return;
+    }
+
+    set_ui_updating(&ctx.main_window_weak, true);
+    update_ui_status(&ctx.main_window_weak, &format!("Rimozione {} in corso...", folder_name), 0.5);
+
+    let target_dir = addons_dir.join(folder_name);
+    let weak = ctx.main_window_weak.clone();
+    let addons_for_refresh = addons_dir.clone();
+
+    let res = tokio::task::spawn_blocking(move || {
+        safe_remove_dir_all(&target_dir)
+    }).await;
+
+    match res {
+        Ok(Ok(_)) => {
+            info!("Modulo {} rimosso con successo", folder_name);
+            let _ = weak.upgrade_in_event_loop(move |win| {
+                let packages = get_packages_status(Some(&addons_for_refresh));
+                let is_any_installed = addons_for_refresh.join("VivaVoce").exists();
+                win.set_packages(ModelRc::new(VecModel::from(packages)));
+                win.set_is_installed(is_any_installed);
+                win.set_status_text(SharedString::from(format!("Modulo {} rimosso", folder_name)));
+                win.set_sub_status_text(SharedString::from("Gli altri addon non sono stati modificati"));
+                win.set_is_updating(false);
+            });
+        }
+        Ok(Err(e)) => {
+            error!("Errore rimozione {}: {}", folder_name, e);
+            update_ui_status(&ctx.main_window_weak, &format!("Errore rimozione: {}", e), 0.0);
+            set_ui_updating(&ctx.main_window_weak, false);
+        }
+        Err(e) => {
+            error!("Task rimozione interrotto: {}", e);
+            set_ui_updating(&ctx.main_window_weak, false);
+        }
+    }
 }
 
 /// Helper to update status text and progress bar safely on the Slint UI thread

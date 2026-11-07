@@ -36,7 +36,7 @@ export component StatusBadge inherits Rectangle {
         (effective-state == 1 ? ("Installato (v" + (root.installed-version != "" ? root.installed-version : "1.0.0") + ")") :
         "Non installato")));
 
-    height: 24px;
+    height: 28px;
     border-radius: Theme.radius-pill;
     background: badge-bg;
     border-width: 1px;
@@ -46,27 +46,31 @@ export component StatusBadge inherits Rectangle {
     animate border-color { duration: Theme.transition-normal; easing: ease-out; }
 
     HorizontalLayout {
-        padding-left: 8px;
-        padding-right: 10px;
-        spacing: 6px;
+        padding-left: 10px;
+        padding-right: 12px;
+        spacing: 7px;
         alignment: center;
 
-        // Clean solid status dot (No artificial multi-nested halos)
-        Rectangle {
-            width: 6px;
-            height: 6px;
-            border-radius: 3px;
-            background: root.badge-color;
-            y: (parent.height - self.height) / 2;
+        // Clean solid status dot
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 7px;
+                height: 7px;
+                border-radius: 3.5px;
+                background: root.badge-color;
+            }
         }
 
-        // Status Label Text (Sentence case)
-        Text {
-            text: root.display-text;
-            color: root.badge-color;
-            font-size: 11px;
-            font-weight: 500;
-            vertical-alignment: center;
+        // Status Label Text
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: root.display-text;
+                color: root.badge-color;
+                font-size: 12px;
+                font-weight: 500;
+            }
         }
     }
 }

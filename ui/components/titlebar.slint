@@ -1,27 +1,19 @@
 import { Theme } from "../theme.slint";
 
 export component TitleBar inherits Rectangle {
-    in-out property <string> title: "VivaVoce";
-    in-out property <string> subtitle: "WoW Forever Voiceover Launcher";
-    in-out property <string> version-tag: "WoW Forever";
+    in-out property <bool> is-maximized: false;
 
     callback minimize-clicked();
+    callback maximize-clicked();
     callback close-clicked();
     callback drag-window();
 
-    height: 40px;
+    height: 36px;
     background: transparent;
 
-    // Subtle bottom border
-    Rectangle {
-        y: parent.height - 1px;
-        height: 1px;
-        background: Theme.border-subtle;
-    }
-
     // Draggable window area covering the non-button space
-    TouchArea {
-        width: parent.width - 90px;
+    drag-touch := TouchArea {
+        width: parent.width - 120px;
         height: parent.height;
         x: 0;
         y: 0;
@@ -37,93 +29,17 @@ export component TitleBar inherits Rectangle {
     HorizontalLayout {
         padding-left: 14px;
         padding-right: 12px;
-        alignment: space-between;
+        alignment: end;
 
-        // Left Branding Block
-        HorizontalLayout {
-            spacing: 10px;
-            alignment: start;
-
-            // VivaVoce Official Logo Crest
-            Rectangle {
-                width: 24px;
-                height: 24px;
-                y: (parent.height - self.height) / 2;
-                border-radius: Theme.radius-xs;
-                background: #11151f;
-                border-width: 1px;
-                border-color: Theme.border-subtle;
-                clip: true;
-
-                Image {
-                    width: 100%;
-                    height: 100%;
-                    source: @image-url("../assets/logo.png");
-                    image-fit: contain;
-                }
-            }
-
-            // Title Text Block (Sentence case)
-            HorizontalLayout {
-                spacing: 8px;
-                alignment: center;
-
-                Text {
-                    text: root.title;
-                    color: Theme.gold-light;
-                    font-size: 13px;
-                    font-weight: 600;
-                    vertical-alignment: center;
-                }
-
-                Text {
-                    text: "·";
-                    color: Theme.text-muted;
-                    font-size: 12px;
-                    vertical-alignment: center;
-                }
-
-                Text {
-                    text: root.subtitle;
-                    color: Theme.text-secondary;
-                    font-size: 12px;
-                    font-weight: 400;
-                    vertical-alignment: center;
-                }
-
-                // Small Tag Pill
-                Rectangle {
-                    height: 18px;
-                    y: (parent.height - self.height) / 2;
-                    border-radius: Theme.radius-pill;
-                    background: #c89b3c15;
-                    border-width: 1px;
-                    border-color: #c89b3c30;
-
-                    HorizontalLayout {
-                        padding-left: 7px;
-                        padding-right: 7px;
-                        Text {
-                            text: root.version-tag;
-                            color: Theme.gold-light;
-                            font-size: 10px;
-                            font-weight: 500;
-                            vertical-alignment: center;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Window Controls (Right side)
+        // Window Controls (Right side: Minimize, Maximize/Restore, Close)
         HorizontalLayout {
             spacing: 4px;
             alignment: end;
 
             // Minimize Button
             Rectangle {
-                width: 28px;
-                height: 24px;
+                width: 30px;
+                height: 26px;
                 y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-xs;
                 background: min-touch.has-hover ? (min-touch.pressed ? #1c2333 : #141a26) : transparent;
@@ -136,8 +52,8 @@ export component TitleBar inherits Rectangle {
                 }
 
                 Image {
-                    width: 12px;
-                    height: 12px;
+                    width: 13px;
+                    height: 13px;
                     source: @image-url("../assets/icons/minus.svg");
                     colorize: min-touch.has-hover ? Theme.text-primary : Theme.text-secondary;
                     image-fit: contain;
@@ -147,10 +63,37 @@ export component TitleBar inherits Rectangle {
                 }
             }
 
+            // Maximize / Restore Button
+            Rectangle {
+                width: 30px;
+                height: 26px;
+                y: (parent.height - self.height) / 2;
+                border-radius: Theme.radius-xs;
+                background: max-touch.has-hover ? (max-touch.pressed ? #1c2333 : #141a26) : transparent;
+
+                animate background { duration: Theme.transition-fast; easing: ease-out; }
+
+                max-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.maximize-clicked(); }
+                }
+
+                Image {
+                    width: 12px;
+                    height: 12px;
+                    source: root.is-maximized ? @image-url("../assets/icons/copy.svg") : @image-url("../assets/icons/square.svg");
+                    colorize: max-touch.has-hover ? Theme.text-primary : Theme.text-secondary;
+                    image-fit: contain;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    animate colorize { duration: Theme.transition-fast; }
+                }
+            }
+
             // Close Button
             Rectangle {
-                width: 28px;
-                height: 24px;
+                width: 30px;
+                height: 26px;
                 y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-xs;
                 background: close-touch.has-hover ? (close-touch.pressed ? #7f1d1d : #ef444422) : transparent;
@@ -163,8 +106,8 @@ export component TitleBar inherits Rectangle {
                 }
 
                 Image {
-                    width: 12px;
-                    height: 12px;
+                    width: 13px;
+                    height: 13px;
                     source: @image-url("../assets/icons/x.svg");
                     colorize: close-touch.has-hover ? #fca5a5 : Theme.text-secondary;
                     image-fit: contain;

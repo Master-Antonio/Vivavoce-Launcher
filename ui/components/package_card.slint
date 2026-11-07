@@ -1,4 +1,5 @@
 import { Theme } from "../theme.slint";
+import { PrimaryButton, SecondaryButton, DangerButton } from "buttons.slint";
 
 export struct PackageInfo {
     id: string,
@@ -13,6 +14,8 @@ export struct PackageInfo {
 
 export component PackageCard inherits Rectangle {
     in-out property <PackageInfo> package-data;
+    callback install-clicked(string);
+    callback remove-clicked(string);
 
     // Real native PNG AddOn Icon from textures
     private property <image> package-icon:
@@ -24,7 +27,7 @@ export component PackageCard inherits Rectangle {
         (root.package-data.id == "vivavoce-collector" || root.package-data.id == "vivavoce_collector" ? @image-url("../assets/collector.png") :
         @image-url("../assets/logo.png"))))));
 
-    height: 64px;
+    height: 72px;
     background: p-touch.has-hover ? Theme.bg-card-hover : Theme.bg-card;
     border-radius: Theme.radius-md;
     border-width: 1px;
@@ -39,19 +42,19 @@ export component PackageCard inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 14px;
+        padding-left: 14px;
+        padding-right: 16px;
         alignment: space-between;
 
         // Left Block: Official AddOn Texture Icon + Name / Description
         HorizontalLayout {
-            spacing: 12px;
+            spacing: 14px;
             alignment: start;
 
             // Module Icon Box with Real WoW Texture
             Rectangle {
-                width: 40px;
-                height: 40px;
+                width: 46px;
+                height: 46px;
                 y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-sm;
                 background: #11151f;
@@ -70,7 +73,7 @@ export component PackageCard inherits Rectangle {
             // Text Info Block
             VerticalLayout {
                 alignment: center;
-                spacing: 2px;
+                spacing: 3px;
 
                 HorizontalLayout {
                     spacing: 8px;
@@ -79,7 +82,7 @@ export component PackageCard inherits Rectangle {
                     Text {
                         text: root.package-data.name;
                         color: Theme.text-primary;
-                        font-size: 13px;
+                        font-size: 15px;
                         font-weight: 600;
                         vertical-alignment: center;
                     }
@@ -87,7 +90,7 @@ export component PackageCard inherits Rectangle {
                     Text {
                         text: root.package-data.filename;
                         color: Theme.text-muted;
-                        font-size: 11px;
+                        font-size: 12px;
                         font-weight: 400;
                         vertical-alignment: center;
                     }
@@ -96,44 +99,40 @@ export component PackageCard inherits Rectangle {
                 Text {
                     text: root.package-data.description;
                     color: Theme.text-secondary;
-                    font-size: 11px;
+                    font-size: 13px;
                     overflow: elide;
-                    max-width: 440px;
+                    max-width: 520px;
                 }
             }
         }
 
-        // Right Block: Status Pill and Size (Single non-repetitive status line)
+        // Right Block: Status Pill, Size, and Action Button
         HorizontalLayout {
             alignment: end;
-            spacing: 8px;
+            spacing: 10px;
 
             // Status Badge
             Rectangle {
-                height: 22px;
+                height: 28px;
                 y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-pill;
-                background: root.package-data.verified ? Theme.status-success-bg :
-                            (root.package-data.installed ? Theme.status-info-bg : #14182480);
+                background: root.package-data.installed ? Theme.status-success-bg : #14182480;
                 border-width: 1px;
-                border-color: root.package-data.verified ? Theme.status-success-border :
-                              (root.package-data.installed ? Theme.status-info-border : Theme.border-normal);
+                border-color: root.package-data.installed ? Theme.status-success-border : Theme.border-normal;
 
                 HorizontalLayout {
-                    padding-left: 8px;
-                    padding-right: 8px;
-                    spacing: 5px;
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 6px;
                     alignment: center;
 
                     VerticalLayout {
                         alignment: center;
                         Image {
-                            width: 11px;
-                            height: 11px;
-                            source: root.package-data.verified ? @image-url("../assets/icons/check.svg") :
-                                    (root.package-data.installed ? @image-url("../assets/icons/clock.svg") : @image-url("../assets/icons/alert-circle.svg"));
-                            colorize: root.package-data.verified ? Theme.status-success :
-                                      (root.package-data.installed ? Theme.status-info : Theme.text-muted);
+                            width: 12px;
+                            height: 12px;
+                            source: root.package-data.installed ? @image-url("../assets/icons/check.svg") : @image-url("../assets/icons/alert-circle.svg");
+                            colorize: root.package-data.installed ? Theme.status-success : Theme.text-muted;
                             image-fit: contain;
                         }
                     }
@@ -141,11 +140,9 @@ export component PackageCard inherits Rectangle {
                     VerticalLayout {
                         alignment: center;
                         Text {
-                            text: root.package-data.verified ? "File integro" :
-                                  (root.package-data.installed ? "Installato" : "Mancante");
-                            color: root.package-data.verified ? Theme.status-success :
-                                   (root.package-data.installed ? Theme.status-info : Theme.text-muted);
-                            font-size: 10px;
+                            text: root.package-data.installed ? "Installato" : "Non installato";
+                            color: root.package-data.installed ? Theme.status-success : Theme.text-muted;
+                            font-size: 11px;
                             font-weight: 500;
                         }
                     }
@@ -154,7 +151,7 @@ export component PackageCard inherits Rectangle {
 
             // Size Badge
             Rectangle {
-                height: 22px;
+                height: 28px;
                 y: (parent.height - self.height) / 2;
                 background: #090c13;
                 border-radius: Theme.radius-xs;
@@ -162,18 +159,37 @@ export component PackageCard inherits Rectangle {
                 border-color: Theme.border-subtle;
 
                 HorizontalLayout {
-                    padding-left: 7px;
-                    padding-right: 7px;
+                    padding-left: 8px;
+                    padding-right: 8px;
                     alignment: center;
 
-                    Text {
-                        text: root.package-data.size-str;
-                        color: Theme.text-secondary;
-                        font-size: 10px;
-                        font-weight: 500;
-                        vertical-alignment: center;
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: root.package-data.size-str;
+                            color: Theme.text-secondary;
+                            font-size: 11px;
+                            font-weight: 500;
+                        }
                     }
                 }
+            }
+
+            // Action Button
+            if root.package-data.installed : DangerButton {
+                text: "Rimuovi";
+                icon: @image-url("../assets/icons/trash-2.svg");
+                custom-height: 28px;
+                y: (parent.height - self.height) / 2;
+                clicked => { root.remove-clicked(root.package-data.id); }
+            }
+
+            if !root.package-data.installed : SecondaryButton {
+                text: "Installa";
+                icon: @image-url("../assets/icons/download.svg");
+                custom-height: 28px;
+                y: (parent.height - self.height) / 2;
+                clicked => { root.install-clicked(root.package-data.id); }
             }
         }
     }

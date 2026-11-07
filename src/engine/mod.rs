@@ -16,6 +16,6 @@ pub use extractor::{
     extract_tar_zst_file, extract_tar_zst_stream, ExtractionError, ExtractionSummary, HashingReader,
 };
 pub use uninstaller::{
-    calculate_dir_size, detect_installed_modules, uninstall_addons_only, uninstall_vivavoce,
-    UninstallResult,
+    calculate_dir_size, detect_installed_modules, safe_remove_dir_all, uninstall_addons_only,
+    uninstall_vivavoce, UninstallResult,
 };

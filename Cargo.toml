@@ -8,6 +8,7 @@ description = "High-performance native launcher and updater for World of Warcraf
 [dependencies]
 slint = { version = "1.18", features = ["backend-winit", "renderer-skia"] }
 i-slint-backend-winit = "1.18"
+winit = "0.30"
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", default-features = false, features = ["stream", "cookies", "json", "rustls-tls"] }
 blake3 = { version = "1.6", features = ["rayon", "mmap"] }

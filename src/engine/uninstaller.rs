@@ -41,7 +41,7 @@ pub fn calculate_dir_size<P: AsRef<Path>>(dir: P) -> u64 {
 }
 
 /// Recursively unsets readonly attributes and removes a directory tree cleanly.
-fn safe_remove_dir_all<P: AsRef<Path>>(path: P) -> std::io::Result<()> {
+pub fn safe_remove_dir_all<P: AsRef<Path>>(path: P) -> std::io::Result<()> {
     let path = path.as_ref();
     if !path.exists() {
         return Ok(());

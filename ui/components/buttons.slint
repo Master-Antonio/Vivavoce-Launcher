@@ -4,7 +4,7 @@ export component PrimaryButton inherits Rectangle {
     in-out property <string> text: "Pulsante";
     in-out property <image> icon;
     in-out property <bool> enabled: true;
-    in-out property <length> custom-height: 44px;
+    in-out property <length> custom-height: 46px;
 
     callback clicked();
 
@@ -29,15 +29,17 @@ export component PrimaryButton inherits Rectangle {
     }
 
     HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
         alignment: center;
-        spacing: (root.icon.width > 0) ? 8px : 0px;
+        spacing: (root.icon.width > 0) ? 9px : 0px;
 
         if (root.icon.width > 0) : VerticalLayout {
             alignment: center;
             Image {
                 source: root.icon;
-                width: 16px;
-                height: 16px;
+                width: 17px;
+                height: 17px;
                 colorize: !root.enabled ? Theme.text-muted : Theme.btn-primary-text;
                 image-fit: contain;
             }
@@ -48,7 +50,7 @@ export component PrimaryButton inherits Rectangle {
             Text {
                 text: root.text;
                 color: !root.enabled ? Theme.text-muted : Theme.btn-primary-text;
-                font-size: 14px;
+                font-size: 15px;
                 font-weight: 600;
             }
         }
@@ -59,7 +61,7 @@ export component SecondaryButton inherits Rectangle {
     in-out property <string> text: "Pulsante";
     in-out property <image> icon;
     in-out property <bool> enabled: true;
-    in-out property <length> custom-height: 36px;
+    in-out property <length> custom-height: 38px;
 
     callback clicked();
 
@@ -84,17 +86,17 @@ export component SecondaryButton inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 12px;
+        padding-left: 14px;
+        padding-right: 14px;
         alignment: center;
-        spacing: (root.icon.width > 0) ? 7px : 0px;
+        spacing: (root.icon.width > 0) ? 8px : 0px;
 
         if (root.icon.width > 0) : VerticalLayout {
             alignment: center;
             Image {
                 source: root.icon;
-                width: 14px;
-                height: 14px;
+                width: 15px;
+                height: 15px;
                 colorize: !root.enabled ? Theme.text-muted : (touch.has-hover ? Theme.text-primary : Theme.text-secondary);
                 image-fit: contain;
                 animate colorize { duration: Theme.transition-fast; }
@@ -106,7 +108,7 @@ export component SecondaryButton inherits Rectangle {
             Text {
                 text: root.text;
                 color: !root.enabled ? Theme.text-muted : (touch.has-hover ? Theme.text-primary : Theme.text-secondary);
-                font-size: 12px;
+                font-size: 13px;
                 font-weight: 500;
                 animate color { duration: Theme.transition-fast; }
             }
@@ -118,7 +120,7 @@ export component DangerButton inherits Rectangle {
     in-out property <string> text: "Elimina";
     in-out property <image> icon;
     in-out property <bool> enabled: true;
-    in-out property <length> custom-height: 36px;
+    in-out property <length> custom-height: 38px;
 
     callback clicked();
 
@@ -143,17 +145,17 @@ export component DangerButton inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 12px;
+        padding-left: 14px;
+        padding-right: 14px;
         alignment: center;
-        spacing: (root.icon.width > 0) ? 7px : 0px;
+        spacing: (root.icon.width > 0) ? 8px : 0px;
 
         if (root.icon.width > 0) : VerticalLayout {
             alignment: center;
             Image {
                 source: root.icon;
-                width: 14px;
-                height: 14px;
+                width: 15px;
+                height: 15px;
                 colorize: !root.enabled ? Theme.text-muted : Theme.btn-danger-text;
                 image-fit: contain;
             }
@@ -164,7 +166,7 @@ export component DangerButton inherits Rectangle {
             Text {
                 text: root.text;
                 color: !root.enabled ? Theme.text-muted : (touch.has-hover ? #fca5a5 : Theme.btn-danger-text);
-                font-size: 12px;
+                font-size: 13px;
                 font-weight: 500;
                 animate color { duration: Theme.transition-fast; }
             }

@@ -99,13 +99,15 @@ pub fn find_saved_variables_files(search_root: &Path) -> Vec<PathBuf> {
 /// E.g. `.../WTF/Account/425836249#1/SavedVariables/VivaVoce.lua` -> `"425836249#1"`.
 #[must_use]
 pub fn extract_account_name(path: &Path) -> String {
-    let mut prev_was_account = false;
-    for component in path.components() {
-        if prev_was_account {
-            return component.as_os_str().to_string_lossy().into_owned();
-        }
-        if component.as_os_str().to_string_lossy().eq_ignore_ascii_case("Account") {
-            prev_was_account = true;
+    let raw = path.to_string_lossy();
+    let parts: Vec<&str> = raw
+        .split(|c| c == '/' || c == '\\')
+        .filter(|p| !p.is_empty())
+        .collect();
+
+    for window in parts.windows(2) {
+        if window[0].eq_ignore_ascii_case("Account") {
+            return window[1].to_string();
         }
     }
 

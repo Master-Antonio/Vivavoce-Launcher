@@ -648,19 +648,19 @@ mod tests {
 
     #[test]
     fn test_get_addons_path() {
-        let wow_root = Path::new("C:\\Games\\World of Warcraft");
-        let path = get_addons_path(wow_root, WowFlavor::Forever);
+        let wow_root = Path::new("Games").join("World of Warcraft");
+        let path = get_addons_path(&wow_root, WowFlavor::Forever);
         assert_eq!(
             path,
-            PathBuf::from("C:\\Games\\World of Warcraft\\_forever_\\Interface\\AddOns")
+            wow_root.join("_forever_").join("Interface").join("AddOns")
         );
 
         // If the wow_root passed is already the flavor dir
-        let flavor_root = Path::new("C:\\Games\\World of Warcraft\\_forever_");
-        let path_direct = get_addons_path(flavor_root, WowFlavor::Forever);
+        let flavor_root = wow_root.join("_forever_");
+        let path_direct = get_addons_path(&flavor_root, WowFlavor::Forever);
         assert_eq!(
             path_direct,
-            PathBuf::from("C:\\Games\\World of Warcraft\\_forever_\\Interface\\AddOns")
+            flavor_root.join("Interface").join("AddOns")
         );
     }
 
@@ -715,11 +715,15 @@ mod tests {
         let _ = std::fs::remove_dir_all(&temp_wow);
         std::fs::create_dir_all(&temp_wow).unwrap();
 
-        // Simulate binary product.db with embedded path
-        let path_str = temp_wow.to_string_lossy().to_string();
+        // Simulate binary product.db with embedded path using platform separator
+        let sep = std::path::MAIN_SEPARATOR;
+        let mut path_str = temp_wow.to_string_lossy().to_string();
+        if !path_str.ends_with(sep) {
+            path_str.push(sep);
+        }
         let simulated_payload = format!(
             "\x01\x02\x03\x04{}World of Warcraft  eu\x00\x01\x02",
-            if path_str.ends_with('\\') { path_str } else { format!("{}\\", path_str) }
+            path_str
         );
         let wow_folder = temp_wow.join("World of Warcraft");
         std::fs::create_dir_all(&wow_folder).unwrap();

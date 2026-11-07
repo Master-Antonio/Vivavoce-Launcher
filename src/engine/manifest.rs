@@ -174,10 +174,10 @@ impl LocalState {
 
 /// Normalizes a relative path to use forward slashes `/`, ensuring cross-platform consistency.
 pub fn normalize_relative_path<P: AsRef<Path>>(path: P) -> String {
-    let p = path.as_ref();
-    let components: Vec<&str> = p
-        .iter()
-        .filter_map(|c| c.to_str())
+    let raw = path.as_ref().to_string_lossy();
+    let normalized = raw.replace('\\', "/");
+    let components: Vec<&str> = normalized
+        .split('/')
         .filter(|&c| c != "." && !c.is_empty())
         .collect();
     components.join("/")

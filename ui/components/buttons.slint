@@ -12,15 +12,12 @@ export component PrimaryButton inherits Rectangle {
     border-radius: Theme.radius-md;
     clip: true;
 
-    y: (touch.pressed && root.enabled) ? 1px : 0px;
-    animate y { duration: Theme.transition-instant; easing: ease-out; }
-
     background: !root.enabled ? #1a202c : (touch.has-hover ? (touch.pressed ? Theme.btn-primary-pressed : Theme.btn-primary-hover) : Theme.btn-primary-bg);
     border-width: 1px;
     border-color: !root.enabled ? Theme.border-subtle : Theme.border-gold-normal;
 
-    animate background { duration: Theme.transition-fast; easing: ease-out; }
-    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+    animate background { duration: touch.pressed ? 60ms : 140ms; easing: ease-out; }
+    animate border-color { duration: touch.pressed ? 60ms : 140ms; easing: ease-out; }
 
     touch := TouchArea {
         enabled: root.enabled;
@@ -31,6 +28,7 @@ export component PrimaryButton inherits Rectangle {
     HorizontalLayout {
         padding-left: 16px;
         padding-right: 16px;
+        padding-top: (touch.pressed && root.enabled) ? 2px : 0px;
         alignment: center;
         spacing: (root.icon.width > 0) ? 9px : 0px;
 
@@ -69,15 +67,12 @@ export component SecondaryButton inherits Rectangle {
     border-radius: Theme.radius-md;
     clip: true;
 
-    y: (touch.pressed && root.enabled) ? 1px : 0px;
-    animate y { duration: Theme.transition-instant; easing: ease-out; }
-
     background: !root.enabled ? #0f131a : (touch.has-hover ? (touch.pressed ? Theme.btn-secondary-pressed : Theme.btn-secondary-hover) : Theme.btn-secondary-bg);
     border-width: 1px;
     border-color: !root.enabled ? Theme.border-subtle : (touch.has-hover ? Theme.btn-secondary-border-hover : Theme.btn-secondary-border);
 
-    animate background { duration: Theme.transition-fast; easing: ease-out; }
-    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+    animate background { duration: touch.pressed ? 60ms : 140ms; easing: ease-out; }
+    animate border-color { duration: touch.pressed ? 60ms : 140ms; easing: ease-out; }
 
     touch := TouchArea {
         enabled: root.enabled;
@@ -88,6 +83,7 @@ export component SecondaryButton inherits Rectangle {
     HorizontalLayout {
         padding-left: 14px;
         padding-right: 14px;
+        padding-top: (touch.pressed && root.enabled) ? 2px : 0px;
         alignment: center;
         spacing: (root.icon.width > 0) ? 8px : 0px;
 
@@ -128,15 +124,12 @@ export component DangerButton inherits Rectangle {
     border-radius: Theme.radius-md;
     clip: true;
 
-    y: (touch.pressed && root.enabled) ? 1px : 0px;
-    animate y { duration: Theme.transition-instant; easing: ease-out; }
-
     background: !root.enabled ? #150a0d : (touch.has-hover ? (touch.pressed ? Theme.btn-danger-pressed : Theme.btn-danger-hover) : Theme.btn-danger-bg);
     border-width: 1px;
     border-color: !root.enabled ? #200f12 : (touch.has-hover ? Theme.btn-danger-border-hover : Theme.btn-danger-border);
 
-    animate background { duration: Theme.transition-fast; easing: ease-out; }
-    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+    animate background { duration: touch.pressed ? 60ms : 140ms; easing: ease-out; }
+    animate border-color { duration: touch.pressed ? 60ms : 140ms; easing: ease-out; }
 
     touch := TouchArea {
         enabled: root.enabled;
@@ -147,6 +140,7 @@ export component DangerButton inherits Rectangle {
     HorizontalLayout {
         padding-left: 14px;
         padding-right: 14px;
+        padding-top: (touch.pressed && root.enabled) ? 2px : 0px;
         alignment: center;
         spacing: (root.icon.width > 0) ? 8px : 0px;
 

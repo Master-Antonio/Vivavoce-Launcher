@@ -22,6 +22,9 @@ export component BugCard inherits Rectangle {
     in-out property <int> selected-dialogue-index: -1;
     in-out property <int> selected-audio-category: 0;
     in-out property <string> audio-description: "";
+    in-out property <string> audio-quest-title: "";
+    in-out property <string> audio-quest-id: "";
+    in-out property <string> audio-dialogue-text: "";
     in-out property <string> manual-sound-file: "";
 
     // AddOn properties
@@ -30,15 +33,24 @@ export component BugCard inherits Rectangle {
     in-out property <string> addon-description: "";
     in-out property <string> addon-repro-steps: "";
 
+    // Attachment properties & callbacks
+    in-out property <string> attachment-path: "";
+    in-out property <string> attachment-filename: "";
+    callback select-attachment();
+    callback remove-attachment();
+    callback reveal-attachment();
+
     // Callbacks
-    callback create-github-issue(int /* type: 0=audio, 1=addon */, string /* category */, string /* title */, string /* description */, string /* extra_data */);
-    callback export-report-md(int /* type */, string /* category */, string /* title */, string /* description */, string /* extra_data */);
+    callback create-github-issue(int /* type: 0=audio, 1=addon */, string /* category */, string /* title */, string /* description */, string /* extra_data */, string /* attachment_path */);
+    callback export-report-md(int /* type */, string /* category */, string /* title */, string /* description */, string /* extra_data */, string /* attachment_path */);
     callback open-issue-url(string /* url */);
 
     // Categories
     private property <[string]> audio-categories: [
+        "Voce mancante",
         "Pronuncia ed enfasi",
         "Volume o qualità",
+        "Sesso o voce errata",
         "Audio tagliato o glitch",
         "Testo non corrispondente",
         "Altro su audio"
@@ -65,10 +77,20 @@ export component BugCard inherits Rectangle {
 
     // Selected dialogue title
     private property <string> current-dialogue-title:
-        (root.selected-dialogue-index >= 0 && root.selected-dialogue-index < root.recent-dialogues.length) ?
-            root.recent-dialogues[root.selected-dialogue-index].npc-name :
-            "Segnalazione Audio";
+        (root.selected-audio-category == 0 && root.audio-quest-title != "") ?
+            root.audio-quest-title :
+            ((root.selected-dialogue-index >= 0 && root.selected-dialogue-index < root.recent-dialogues.length) ?
+                root.recent-dialogues[root.selected-dialogue-index].npc-name :
+                (root.audio-quest-title != "" ? root.audio-quest-title : (root.selected-audio-category == 0 ? "Voce mancante" : "Segnalazione Audio")));
 
+    private property <string> audio-effective-description:
+        (root.selected-audio-category == 0) ?
+            ((root.audio-quest-id != "" ? "[Quest/NPC ID: " + root.audio-quest-id + "]\n" : "")
+             + (root.audio-dialogue-text != "" ? "[Testo a schermo: " + root.audio-dialogue-text + "]\n\n" : "")
+             + root.audio-description) :
+            root.audio-description;
+
+    width: 100%;
     background: Theme.bg-panel;
     border-radius: Theme.radius-lg;
     border-width: 1px;
@@ -76,6 +98,7 @@ export component BugCard inherits Rectangle {
     clip: true;
 
     VerticalLayout {
+        width: 100%;
         padding: 18px;
         spacing: 14px;
         alignment: start;
@@ -84,7 +107,7 @@ export component BugCard inherits Rectangle {
         // HEADER: MODE SELECTOR (Emil Kowalski Segmented Control)
         // =====================================================================
         HorizontalLayout {
-            alignment: space-between;
+            alignment: start;
 
             // Segmented Pill Control for Audio vs AddOn
             Rectangle {
@@ -300,6 +323,7 @@ export component BugCard inherits Rectangle {
                                     alignment: space-between;
 
                                     VerticalLayout {
+                                        horizontal-stretch: 1;
                                         spacing: 2px;
                                         alignment: center;
 
@@ -361,7 +385,6 @@ export component BugCard inherits Rectangle {
                                             color: Theme.text-primary;
                                             font-size: 12px;
                                             overflow: elide;
-                                            max-width: 580px;
                                         }
                                     }
 
@@ -401,9 +424,9 @@ export component BugCard inherits Rectangle {
                 }
             }
 
-            // Section 2: Audio Category Pills
+            // Section 2: Audio Category Pills (2 rows of 3 pills)
             VerticalLayout {
-                spacing: 6px;
+                spacing: 8px;
 
                 Text {
                     text: "Categoria problema audio";
@@ -412,34 +435,306 @@ export component BugCard inherits Rectangle {
                     font-weight: 600;
                 }
 
+                // Row 1 (Categories 0, 1, 2, 3)
                 HorizontalLayout {
                     spacing: 8px;
+                    alignment: start;
 
-                    for cat-name[c-idx] in root.audio-categories : Rectangle {
+                    // 0: Voce mancante
+                    Rectangle {
                         height: 32px;
                         border-radius: Theme.radius-pill;
-                        background: root.selected-audio-category == c-idx ? #c89b3c22 : (pill-touch.has-hover ? #182030 : Theme.bg-card);
+                        background: root.selected-audio-category == 0 ? #c89b3c22 : (au0.has-hover ? #182030 : Theme.bg-card);
                         border-width: 1px;
-                        border-color: root.selected-audio-category == c-idx ? Theme.border-gold-normal : Theme.border-normal;
-
+                        border-color: root.selected-audio-category == 0 ? Theme.border-gold-normal : Theme.border-normal;
                         animate background { duration: Theme.transition-fast; easing: ease-out; }
                         animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+                        au0 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-audio-category = 0; } }
+                        HorizontalLayout {
+                            padding-left: 14px; padding-right: 14px; alignment: center;
+                            Text { text: "Voce mancante"; color: root.selected-audio-category == 0 ? Theme.gold-light : (au0.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-audio-category == 0 ? 600 : 400; vertical-alignment: center; }
+                        }
+                    }
 
-                        pill-touch := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.selected-audio-category = c-idx; }
+                    // 1: Pronuncia ed enfasi
+                    Rectangle {
+                        height: 32px;
+                        border-radius: Theme.radius-pill;
+                        background: root.selected-audio-category == 1 ? #c89b3c22 : (au1.has-hover ? #182030 : Theme.bg-card);
+                        border-width: 1px;
+                        border-color: root.selected-audio-category == 1 ? Theme.border-gold-normal : Theme.border-normal;
+                        animate background { duration: Theme.transition-fast; easing: ease-out; }
+                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+                        au1 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-audio-category = 1; } }
+                        HorizontalLayout {
+                            padding-left: 14px; padding-right: 14px; alignment: center;
+                            Text { text: "Pronuncia ed enfasi"; color: root.selected-audio-category == 1 ? Theme.gold-light : (au1.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-audio-category == 1 ? 600 : 400; vertical-alignment: center; }
+                        }
+                    }
+
+                    // 2: Volume o qualità
+                    Rectangle {
+                        height: 32px;
+                        border-radius: Theme.radius-pill;
+                        background: root.selected-audio-category == 2 ? #c89b3c22 : (au2.has-hover ? #182030 : Theme.bg-card);
+                        border-width: 1px;
+                        border-color: root.selected-audio-category == 2 ? Theme.border-gold-normal : Theme.border-normal;
+                        animate background { duration: Theme.transition-fast; easing: ease-out; }
+                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+                        au2 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-audio-category = 2; } }
+                        HorizontalLayout {
+                            padding-left: 14px; padding-right: 14px; alignment: center;
+                            Text { text: "Volume o qualità"; color: root.selected-audio-category == 2 ? Theme.gold-light : (au2.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-audio-category == 2 ? 600 : 400; vertical-alignment: center; }
+                        }
+                    }
+
+                    // 3: Sesso o voce errata (NPC femmina che parla maschio o viceversa)
+                    Rectangle {
+                        height: 32px;
+                        border-radius: Theme.radius-pill;
+                        background: root.selected-audio-category == 3 ? #c89b3c22 : (au3.has-hover ? #182030 : Theme.bg-card);
+                        border-width: 1px;
+                        border-color: root.selected-audio-category == 3 ? Theme.border-gold-normal : Theme.border-normal;
+                        animate background { duration: Theme.transition-fast; easing: ease-out; }
+                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+                        au3 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-audio-category = 3; } }
+                        HorizontalLayout {
+                            padding-left: 14px; padding-right: 14px; alignment: center;
+                            Text { text: "Sesso o voce errata"; color: root.selected-audio-category == 3 ? Theme.gold-light : (au3.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-audio-category == 3 ? 600 : 400; vertical-alignment: center; }
+                        }
+                    }
+                }
+
+                // Row 2 (Categories 4, 5, 6)
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+
+                    // 4: Audio tagliato o glitch
+                    Rectangle {
+                        height: 32px;
+                        border-radius: Theme.radius-pill;
+                        background: root.selected-audio-category == 4 ? #c89b3c22 : (au4.has-hover ? #182030 : Theme.bg-card);
+                        border-width: 1px;
+                        border-color: root.selected-audio-category == 4 ? Theme.border-gold-normal : Theme.border-normal;
+                        animate background { duration: Theme.transition-fast; easing: ease-out; }
+                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+                        au4 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-audio-category = 4; } }
+                        HorizontalLayout {
+                            padding-left: 14px; padding-right: 14px; alignment: center;
+                            Text { text: "Audio tagliato o glitch"; color: root.selected-audio-category == 4 ? Theme.gold-light : (au4.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-audio-category == 4 ? 600 : 400; vertical-alignment: center; }
+                        }
+                    }
+
+                    // 5: Testo non corrispondente
+                    Rectangle {
+                        height: 32px;
+                        border-radius: Theme.radius-pill;
+                        background: root.selected-audio-category == 5 ? #c89b3c22 : (au5.has-hover ? #182030 : Theme.bg-card);
+                        border-width: 1px;
+                        border-color: root.selected-audio-category == 5 ? Theme.border-gold-normal : Theme.border-normal;
+                        animate background { duration: Theme.transition-fast; easing: ease-out; }
+                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+                        au5 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-audio-category = 5; } }
+                        HorizontalLayout {
+                            padding-left: 14px; padding-right: 14px; alignment: center;
+                            Text { text: "Testo non corrispondente"; color: root.selected-audio-category == 5 ? Theme.gold-light : (au5.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-audio-category == 5 ? 600 : 400; vertical-alignment: center; }
+                        }
+                    }
+
+                    // 6: Altro su audio
+                    Rectangle {
+                        height: 32px;
+                        border-radius: Theme.radius-pill;
+                        background: root.selected-audio-category == 6 ? #c89b3c22 : (au6.has-hover ? #182030 : Theme.bg-card);
+                        border-width: 1px;
+                        border-color: root.selected-audio-category == 6 ? Theme.border-gold-normal : Theme.border-normal;
+                        animate background { duration: Theme.transition-fast; easing: ease-out; }
+                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+                        au6 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-audio-category = 6; } }
+                        HorizontalLayout {
+                            padding-left: 14px; padding-right: 14px; alignment: center;
+                            Text { text: "Altro su audio"; color: root.selected-audio-category == 6 ? Theme.gold-light : (au6.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-audio-category == 6 ? 600 : 400; vertical-alignment: center; }
+                        }
+                    }
+                }
+            }
+
+            // Sezione specifica per "Voce mancante" (ID, Quest e Testo a schermo)
+            if (root.selected-audio-category == 0) : VerticalLayout {
+                spacing: 10px;
+
+                // Hint banner su come ottenere ID e dati in-game
+                Rectangle {
+                    border-radius: Theme.radius-sm;
+                    background: #c89b3c10;
+                    border-width: 1px;
+                    border-color: #c89b3c33;
+
+                    HorizontalLayout {
+                        padding: 10px;
+                        spacing: 10px;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                width: 16px;
+                                height: 16px;
+                                source: @image-url("../assets/icons/shield-check.svg");
+                                colorize: Theme.gold-light;
+                                image-fit: contain;
+                            }
                         }
 
-                        HorizontalLayout {
-                            padding-left: 14px;
-                            padding-right: 14px;
-                            alignment: center;
-                            Text {
-                                text: cat-name;
-                                color: root.selected-audio-category == c-idx ? Theme.gold-light : (pill-touch.has-hover ? Theme.text-primary : Theme.text-secondary);
+                        Text {
+                            text: "Come trovare i dati: nel gioco puoi digitare /vvq in chat con la finestra aperta per copiare ID e testo. Altrimenti, inserisci qui sotto il nome della quest e dell'NPC.";
+                            color: Theme.gold-light;
+                            font-size: 11px;
+                            wrap: word-wrap;
+                            horizontal-stretch: 1;
+                        }
+                    }
+                }
+
+                // Grid: Titolo Quest / NPC + ID
+                HorizontalLayout {
+                    spacing: 10px;
+
+                    // Titolo Quest o NPC
+                    VerticalLayout {
+                        spacing: 4px;
+                        horizontal-stretch: 2;
+
+                        Text {
+                            text: "Titolo Quest o Nome NPC *";
+                            color: Theme.text-primary;
+                            font-size: 12px;
+                            font-weight: 600;
+                        }
+
+                        Rectangle {
+                            height: 38px;
+                            background: Theme.bg-input;
+                            border-radius: Theme.radius-sm;
+                            border-width: 1px;
+                            border-color: quest-title-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
+                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                            TouchArea {
+                                mouse-cursor: text;
+                                clicked => { quest-title-input.focus(); }
+                            }
+
+                            if (root.audio-quest-title == "" && !quest-title-input.has-focus) : Text {
+                                x: 12px;
+                                y: 11px;
+                                text: "es: La miniera di Fargodeep, o Maresciallo Dughan...";
+                                color: Theme.text-muted;
                                 font-size: 12px;
-                                font-weight: root.selected-audio-category == c-idx ? 600 : 400;
-                                vertical-alignment: center;
+                            }
+
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                padding-right: 12px;
+                                quest-title-input := TextInput {
+                                    text <=> root.audio-quest-title;
+                                    color: Theme.text-primary;
+                                    font-size: 13px;
+                                    single-line: true;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    // ID Quest o NPC (opzionale)
+                    VerticalLayout {
+                        spacing: 4px;
+                        horizontal-stretch: 1;
+
+                        Text {
+                            text: "ID Quest / NPC (opzionale)";
+                            color: Theme.text-primary;
+                            font-size: 12px;
+                            font-weight: 600;
+                        }
+
+                        Rectangle {
+                            height: 38px;
+                            background: Theme.bg-input;
+                            border-radius: Theme.radius-sm;
+                            border-width: 1px;
+                            border-color: quest-id-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
+                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                            TouchArea {
+                                mouse-cursor: text;
+                                clicked => { quest-id-input.focus(); }
+                            }
+
+                            if (root.audio-quest-id == "" && !quest-id-input.has-focus) : Text {
+                                x: 12px;
+                                y: 11px;
+                                text: "es: 40 (o link db)";
+                                color: Theme.text-muted;
+                                font-size: 12px;
+                            }
+
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                padding-right: 12px;
+                                quest-id-input := TextInput {
+                                    text <=> root.audio-quest-id;
+                                    color: Theme.text-primary;
+                                    font-size: 13px;
+                                    single-line: true;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Testo a schermo non doppiato (opzionale)
+                VerticalLayout {
+                    spacing: 4px;
+
+                    Text {
+                        text: "Testo a schermo non doppiato (opzionale)";
+                        color: Theme.text-primary;
+                        font-size: 12px;
+                        font-weight: 600;
+                    }
+
+                    Rectangle {
+                        height: 60px;
+                        background: Theme.bg-input;
+                        border-radius: Theme.radius-sm;
+                        border-width: 1px;
+                        border-color: dialogue-text-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
+                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                        TouchArea {
+                            mouse-cursor: text;
+                            clicked => { dialogue-text-input.focus(); }
+                        }
+
+                        if (root.audio-dialogue-text == "" && !dialogue-text-input.has-focus) : Text {
+                            x: 12px;
+                            y: 11px;
+                            text: "Incolla qui il testo in gioco, oppure la busta copiata con /vvq...";
+                            color: Theme.text-muted;
+                            font-size: 12px;
+                        }
+
+                        VerticalLayout {
+                            padding: 10px;
+                            dialogue-text-input := TextInput {
+                                text <=> root.audio-dialogue-text;
+                                color: Theme.text-primary;
+                                font-size: 12px;
+                                single-line: false;
+                                wrap: word-wrap;
                             }
                         }
                     }
@@ -451,20 +746,37 @@ export component BugCard inherits Rectangle {
                 spacing: 6px;
 
                 Text {
-                    text: "Dettagli anomalia o suggerimento";
+                    text: root.selected-audio-category == 0 ? "Note aggiuntive o contesto" : "Dettagli anomalia o suggerimento";
                     color: Theme.text-primary;
                     font-size: 13px;
                     font-weight: 600;
                 }
 
                 Rectangle {
-                    height: 76px;
+                    height: root.selected-audio-category == 0 ? 56px : 76px;
                     background: Theme.bg-input;
                     border-radius: Theme.radius-md;
                     border-width: 1px;
                     border-color: audio-desc-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
 
                     animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                    audio-touch := TouchArea {
+                        mouse-cursor: text;
+                        clicked => { audio-desc-input.focus(); }
+                    }
+
+                    if (root.audio-description == "" && !audio-desc-input.has-focus) : Text {
+                        x: 12px;
+                        y: 11px;
+                        text: root.selected-audio-category == 0 ?
+                            "es: NPC non parla quando accetto la quest, nessun audio viene riprodotto..." :
+                            (root.selected-audio-category == 3 ?
+                                "es: NPC femminile con voce maschile (o viceversa), pitch non coerente..." :
+                                "Descrivi l'anomalia (es: accento errato sulla parola 'Ironforge', audio interrotto a metà frase...)");
+                        color: Theme.text-muted;
+                        font-size: 12px;
+                    }
 
                     VerticalLayout {
                         padding: 10px;
@@ -474,15 +786,8 @@ export component BugCard inherits Rectangle {
                             font-size: 13px;
                             single-line: false;
                             wrap: word-wrap;
+                            horizontal-alignment: left;
                         }
-                    }
-
-                    if (root.audio-description == "") : Text {
-                        x: 12px;
-                        y: 11px;
-                        text: "Descrivi l'anomalia (es: accento errato sulla parola 'Ironforge', audio interrotto a metà frase...)";
-                        color: Theme.text-muted;
-                        font-size: 12px;
                     }
                 }
             }
@@ -633,26 +938,32 @@ export component BugCard inherits Rectangle {
 
                     animate border-color { duration: Theme.transition-fast; easing: ease-out; }
 
+                    title-touch := TouchArea {
+                        mouse-cursor: text;
+                        clicked => { addon-title-input.focus(); }
+                    }
+
+                    if (root.addon-title == "" && !addon-title-input.has-focus) : Text {
+                        x: 12px;
+                        y: 11px;
+                        text: "es: Errore Lua all'apertura del quest log di Ironforge";
+                        color: Theme.text-muted;
+                        font-size: 12px;
+                    }
+
                     HorizontalLayout {
                         padding-left: 12px;
                         padding-right: 12px;
-                        alignment: center;
+                        alignment: stretch;
 
                         addon-title-input := TextInput {
                             text <=> root.addon-title;
                             color: Theme.text-primary;
                             font-size: 13px;
                             single-line: true;
+                            horizontal-alignment: left;
                             vertical-alignment: center;
                         }
-                    }
-
-                    if (root.addon-title == "") : Text {
-                        x: 12px;
-                        y: 11px;
-                        text: "es: Errore Lua all'apertura del quest log di Ironforge";
-                        color: Theme.text-muted;
-                        font-size: 12px;
                     }
                 }
             }
@@ -677,6 +988,19 @@ export component BugCard inherits Rectangle {
 
                     animate border-color { duration: Theme.transition-fast; easing: ease-out; }
 
+                    desc-touch := TouchArea {
+                        mouse-cursor: text;
+                        clicked => { addon-desc-input.focus(); }
+                    }
+
+                    if (root.addon-description == "" && !addon-desc-input.has-focus) : Text {
+                        x: 12px;
+                        y: 11px;
+                        text: "Incolla qui l'errore Lua (Interface/AddOns/VivaVoce...) oppure descrivi il malfunzionamento";
+                        color: Theme.text-muted;
+                        font-size: 12px;
+                    }
+
                     VerticalLayout {
                         padding: 10px;
                         addon-desc-input := TextInput {
@@ -685,15 +1009,8 @@ export component BugCard inherits Rectangle {
                             font-size: 12px;
                             single-line: false;
                             wrap: word-wrap;
+                            horizontal-alignment: left;
                         }
-                    }
-
-                    if (root.addon-description == "") : Text {
-                        x: 12px;
-                        y: 11px;
-                        text: "Incolla qui l'errore Lua (Interface/AddOns/VivaVoce...) oppure descrivi il malfunzionamento";
-                        color: Theme.text-muted;
-                        font-size: 12px;
                     }
                 }
             }
@@ -718,45 +1035,314 @@ export component BugCard inherits Rectangle {
 
                     animate border-color { duration: Theme.transition-fast; easing: ease-out; }
 
-                    HorizontalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
-                        alignment: center;
-
-                        repro-input := TextInput {
-                            text <=> root.addon-repro-steps;
-                            color: Theme.text-primary;
-                            font-size: 13px;
-                            single-line: true;
-                            vertical-alignment: center;
-                        }
+                    repro-touch := TouchArea {
+                        mouse-cursor: text;
+                        clicked => { repro-input.focus(); }
                     }
 
-                    if (root.addon-repro-steps == "") : Text {
+                    if (root.addon-repro-steps == "" && !repro-input.has-focus) : Text {
                         x: 12px;
                         y: 11px;
                         text: "es: 1. Parlo con il gossip NPC, 2. Si chiude la finestra, 3. Compare l'errore";
                         color: Theme.text-muted;
                         font-size: 12px;
                     }
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        alignment: stretch;
+
+                        repro-input := TextInput {
+                            text <=> root.addon-repro-steps;
+                            color: Theme.text-primary;
+                            font-size: 13px;
+                            single-line: true;
+                            horizontal-alignment: left;
+                            vertical-alignment: center;
+                        }
+                    }
                 }
             }
         }
 
         // =====================================================================
-        // BOTTOM ACTION ROW (Badge, Feedback & GitHub Automated Creation)
+        // SECTION: ALLEGATO MULTIMEDIALE (Screenshot o Video)
+        // =====================================================================
+        VerticalLayout {
+            spacing: 6px;
+
+            HorizontalLayout {
+                alignment: space-between;
+
+                Text {
+                    text: "Screenshot o Video di prova (opzionale)";
+                    color: Theme.text-primary;
+                    font-size: 13px;
+                    font-weight: 600;
+                    vertical-alignment: center;
+                }
+
+                if (root.attachment-path != "") : Text {
+                    text: "1 file pronto";
+                    color: Theme.gold-light;
+                    font-size: 11px;
+                    font-weight: 500;
+                    vertical-alignment: center;
+                }
+            }
+
+            if (root.attachment-path == "") : Rectangle {
+                height: 44px;
+                background: Theme.bg-input;
+                border-radius: Theme.radius-sm;
+                border-width: 1px;
+                border-color: attach-drop-area.has-hover ? Theme.border-gold-normal : Theme.border-normal;
+                animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+                animate background { duration: Theme.transition-fast; easing: ease-out; }
+
+                attach-drop-area := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.select-attachment(); }
+                }
+
+                HorizontalLayout {
+                    padding-left: 14px;
+                    padding-right: 14px;
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        spacing: 10px;
+                        alignment: start;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                width: 16px;
+                                height: 16px;
+                                source: @image-url("../assets/icons/image.svg");
+                                colorize: attach-drop-area.has-hover ? Theme.gold-light : Theme.text-muted;
+                                image-fit: contain;
+                                animate colorize { duration: Theme.transition-fast; easing: ease-out; }
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            Text {
+                                text: "Allega screenshot o registrazione video (.png, .jpg, .mp4, .webm...)";
+                                color: attach-drop-area.has-hover ? Theme.text-primary : Theme.text-secondary;
+                                font-size: 12px;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    HorizontalLayout {
+                        alignment: end;
+                        VerticalLayout {
+                            alignment: center;
+                            SecondaryButton {
+                                text: "Sfoglia file…";
+                                icon: @image-url("../assets/icons/folder-open.svg");
+                                custom-height: 28px;
+                                clicked => { root.select-attachment(); }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (root.attachment-path != "") : Rectangle {
+                height: 48px;
+                background: #101622;
+                border-radius: Theme.radius-sm;
+                border-width: 1px;
+                border-color: Theme.border-gold-normal;
+                clip: true;
+
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        spacing: 10px;
+                        alignment: start;
+                        horizontal-stretch: 1;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 28px;
+                                height: 28px;
+                                border-radius: Theme.radius-xs;
+                                background: #c89b3c22;
+                                border-width: 1px;
+                                border-color: #c89b3c44;
+
+                                Image {
+                                    width: 15px;
+                                    height: 15px;
+                                    source: @image-url("../assets/icons/image.svg");
+                                    colorize: Theme.gold-light;
+                                    image-fit: contain;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+
+                            Text {
+                                text: root.attachment-filename != "" ? root.attachment-filename : root.attachment-path;
+                                color: Theme.text-primary;
+                                font-size: 12px;
+                                font-weight: 600;
+                                overflow: elide;
+                            }
+
+                            Text {
+                                text: "File pronto · Copiato negli appunti per incolla rapido (CTRL+V)";
+                                color: Theme.gold-muted;
+                                font-size: 11px;
+                                overflow: elide;
+                            }
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: end;
+
+                        VerticalLayout {
+                            alignment: center;
+                            SecondaryButton {
+                                text: "Apri cartella ↗";
+                                custom-height: 28px;
+                                clicked => { root.reveal-attachment(); }
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            SecondaryButton {
+                                text: "Cambia";
+                                custom-height: 28px;
+                                clicked => { root.select-attachment(); }
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 28px;
+                                height: 28px;
+                                border-radius: Theme.radius-xs;
+                                background: remove-touch.has-hover ? #ef444433 : #ef444415;
+                                border-width: 1px;
+                                border-color: remove-touch.has-hover ? #ef444488 : #ef444433;
+                                animate background { duration: Theme.transition-fast; easing: ease-out; }
+
+                                remove-touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.remove-attachment(); }
+                                }
+
+                                Image {
+                                    width: 12px;
+                                    height: 12px;
+                                    source: @image-url("../assets/icons/x.svg");
+                                    colorize: #ef4444;
+                                    image-fit: contain;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // =====================================================================
+        // SUCCESS & NOTIFICATION BANNER (Dedicated row to prevent button shift)
+        // =====================================================================
+        if (root.submit-status-text != "") : Rectangle {
+            height: 38px;
+            border-radius: Theme.radius-sm;
+            background: #22c55e14;
+            border-width: 1px;
+            border-color: #22c55e44;
+            clip: true;
+
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 14px;
+                alignment: space-between;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    horizontal-stretch: 1;
+
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            width: 15px;
+                            height: 15px;
+                            source: @image-url("../assets/icons/check.svg");
+                            colorize: Theme.status-success;
+                            image-fit: contain;
+                        }
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+                        horizontal-stretch: 1;
+                        Text {
+                            text: root.submit-status-text;
+                            color: Theme.status-success;
+                            font-size: 12px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
+                    }
+                }
+
+                if (root.last-created-issue-url != "") : HorizontalLayout {
+                    alignment: end;
+                    VerticalLayout {
+                        alignment: center;
+                        SecondaryButton {
+                            text: "Apri Issue creata ↗";
+                            custom-height: 26px;
+                            clicked => { root.open-issue-url(root.last-created-issue-url); }
+                        }
+                    }
+                }
+            }
+        }
+
+        // =====================================================================
+        // BOTTOM ACTION ROW (Badge & Action Buttons)
         // =====================================================================
         HorizontalLayout {
             alignment: space-between;
 
-            // Left Meta Badge / Status feedback
+            // Left Meta Badge
             HorizontalLayout {
-                spacing: 10px;
+                spacing: 8px;
                 alignment: start;
 
                 // Target badge
                 Rectangle {
-                    height: 28px;
+                    height: 32px;
                     y: (parent.height - self.height) / 2;
                     border-radius: Theme.radius-xs;
                     background: #11151f;
@@ -782,54 +1368,9 @@ export component BugCard inherits Rectangle {
                                 "WoW Forever (1.12.1) · AddOn v1.0.0";
                             color: Theme.gold-light;
                             font-size: 11px;
+                            overflow: elide;
                             vertical-alignment: center;
                         }
-                    }
-                }
-
-                // Status Toast / Created Link
-                if (root.submit-status-text != "") : Rectangle {
-                    height: 28px;
-                    y: (parent.height - self.height) / 2;
-                    border-radius: Theme.radius-xs;
-                    background: #22c55e18;
-                    border-width: 1px;
-                    border-color: #22c55e33;
-
-                    HorizontalLayout {
-                        padding-left: 10px;
-                        padding-right: 10px;
-                        spacing: 6px;
-                        alignment: center;
-
-                        VerticalLayout {
-                            alignment: center;
-                            Image {
-                                width: 13px;
-                                height: 13px;
-                                source: @image-url("../assets/icons/check.svg");
-                                colorize: Theme.status-success;
-                                image-fit: contain;
-                            }
-                        }
-
-                        VerticalLayout {
-                            alignment: center;
-                            Text {
-                                text: root.submit-status-text;
-                                color: Theme.status-success;
-                                font-size: 11px;
-                                font-weight: 500;
-                            }
-                        }
-                    }
-                }
-
-                if (root.last-created-issue-url != "") : SecondaryButton {
-                    text: "Apri Issue creata ↗";
-                    custom-height: 28px;
-                    clicked => {
-                        root.open-issue-url(root.last-created-issue-url);
                     }
                 }
             }
@@ -849,8 +1390,9 @@ export component BugCard inherits Rectangle {
                                 0,
                                 root.current-audio-category,
                                 root.current-dialogue-title,
-                                root.audio-description,
-                                root.current-sound-file
+                                root.audio-effective-description,
+                                root.current-sound-file,
+                                root.attachment-path
                             );
                         } else {
                             root.export-report-md(
@@ -858,7 +1400,8 @@ export component BugCard inherits Rectangle {
                                 root.current-addon-category,
                                 root.addon-title != "" ? root.addon-title : "Problema AddOn",
                                 root.addon-description,
-                                root.addon-repro-steps
+                                root.addon-repro-steps,
+                                root.attachment-path
                             );
                         }
                     }
@@ -874,8 +1417,9 @@ export component BugCard inherits Rectangle {
                                 0,
                                 root.current-audio-category,
                                 root.current-dialogue-title,
-                                root.audio-description,
-                                root.current-sound-file
+                                root.audio-effective-description,
+                                root.current-sound-file,
+                                root.attachment-path
                             );
                         } else {
                             root.create-github-issue(
@@ -883,7 +1427,8 @@ export component BugCard inherits Rectangle {
                                 root.current-addon-category,
                                 root.addon-title != "" ? root.addon-title : "Problema AddOn",
                                 root.addon-description,
-                                root.addon-repro-steps
+                                root.addon-repro-steps,
+                                root.attachment-path
                             );
                         }
                     }

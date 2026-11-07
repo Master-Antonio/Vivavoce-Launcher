@@ -20,8 +20,9 @@ impl Submitter {
         Ok(file_path)
     }
 
-    /// Native Windows clipboard copy using clip.exe
+    /// Native clipboard text copy (Windows: clip, macOS: pbcopy, Linux: xclip)
     pub fn copy_to_clipboard(text: &str) {
+        #[cfg(target_os = "windows")]
         if let Ok(mut child) = std::process::Command::new("clip")
             .stdin(std::process::Stdio::piped())
             .spawn()
@@ -31,6 +32,116 @@ impl Submitter {
                 let _ = stdin.write_all(text.as_bytes());
             }
             let _ = child.wait();
+        }
+
+        #[cfg(target_os = "macos")]
+        if let Ok(mut child) = std::process::Command::new("pbcopy")
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+        {
+            use std::io::Write;
+            if let Some(mut stdin) = child.stdin.take() {
+                let _ = stdin.write_all(text.as_bytes());
+            }
+            let _ = child.wait();
+        }
+
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        if let Ok(mut child) = std::process::Command::new("xclip")
+            .arg("-selection")
+            .arg("clipboard")
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+        {
+            use std::io::Write;
+            if let Some(mut stdin) = child.stdin.take() {
+                let _ = stdin.write_all(text.as_bytes());
+            }
+            let _ = child.wait();
+        }
+    }
+
+    /// Copies an image or media file directly to the clipboard.
+    /// - Windows: PowerShell with CF_DIB (in-memory image) and CF_HDROP.
+    /// - macOS: osascript with native PNG/JPEG clipboard classes.
+    pub fn copy_media_to_clipboard(path: &Path) {
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            let p_str = path.to_string_lossy().to_string();
+            let escaped = p_str.replace('\'', "''");
+
+            // Adds both CF_HDROP (file drop) and CF_DIB (in-memory image bitmap) to the Windows clipboard.
+            // Using MemoryStream ensures the original file on disk is never locked.
+            // [System.Windows.Forms.Clipboard]::SetDataObject($do, $true) persists the clipboard after the PowerShell process exits.
+            let script = format!(
+                "Add-Type -AssemblyName System.Windows.Forms, System.Drawing; \
+                try {{ \
+                    $do = New-Object System.Windows.Forms.DataObject; \
+                    $files = New-Object System.Collections.Specialized.StringCollection; \
+                    [void]$files.Add('{0}'); \
+                    $do.SetFileDropList($files); \
+                    try {{ \
+                        $bytes = [System.IO.File]::ReadAllBytes('{0}'); \
+                        $ms = New-Object System.IO.MemoryStream(,$bytes); \
+                        $img = [System.Drawing.Image]::FromStream($ms); \
+                        $do.SetImage($img); \
+                    }} catch {{}} \
+                    [System.Windows.Forms.Clipboard]::SetDataObject($do, $true); \
+                }} catch {{}}",
+                escaped
+            );
+
+            let _ = std::process::Command::new("powershell")
+                .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", &script])
+                .creation_flags(0x08000000) // CREATE_NO_WINDOW
+                .status();
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let p_str = path.to_string_lossy();
+            let lower = p_str.to_lowercase();
+            let script = if lower.ends_with(".png") {
+                format!("set the clipboard to (read (POSIX file \"{}\") as «class PNGf»)", p_str)
+            } else if lower.ends_with(".jpg") || lower.ends_with(".jpeg") {
+                format!("set the clipboard to (read (POSIX file \"{}\") as JPEG picture)", p_str)
+            } else {
+                format!("set the clipboard to (POSIX file \"{}\")", p_str)
+            };
+
+            let _ = std::process::Command::new("osascript")
+                .args(["-e", &script])
+                .status();
+        }
+    }
+
+    /// Highlights the file in file manager (Windows: Explorer, macOS: Finder, Linux: file manager)
+    pub fn reveal_in_explorer(path: &Path) {
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            let arg = format!("/select,\"{}\"", path.to_string_lossy());
+            let _ = std::process::Command::new("explorer")
+                .arg(arg)
+                .creation_flags(0x08000000)
+                .spawn();
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let _ = std::process::Command::new("open")
+                .args(["-R", &path.to_string_lossy()])
+                .spawn();
+        }
+
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        {
+            if let Some(parent) = path.parent() {
+                let _ = std::process::Command::new("xdg-open")
+                    .arg(parent)
+                    .spawn();
+            }
         }
     }
 
@@ -172,6 +283,7 @@ mod tests {
             npc_id: Some(1748),
             dialogue_title: Some("Re Varian Wrynn".to_string()),
             dialogue_text: Some("Per l'Alleanza!".to_string()),
+            attachment_path: None,
             timestamp_epoch: 1730920000,
         };
 
@@ -179,5 +291,13 @@ mod tests {
         assert!(url.starts_with("https://github.com/Master-Antonio/Vivavoce-Releases/issues/new?"));
         assert!(url.contains("labels=audio-bug"));
         assert!(url.contains("%5BAudio%5D"));
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn test_copy_media_to_clipboard() {
+        let logo_path = std::path::Path::new("ui/assets/logo.png");
+        assert!(logo_path.exists());
+        Submitter::copy_media_to_clipboard(logo_path);
     }
 }

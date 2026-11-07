@@ -1,3 +1,5 @@
+#![cfg_attr(windows, windows_subsystem = "windows")]
+
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -15,6 +17,10 @@ pub mod wow;
 use bug_reporter::{BugReport, IssueType, Submitter};
 use engine::downloader::{Downloader, ProgressEvent};
 use engine::extractor::extract_tar_zst_file;
+use engine::launcher_updater::{
+    apply_self_update, fetch_latest_release, find_platform_asset, is_newer_version,
+    restart_launcher, LAUNCHER_RELEASES_API_URL,
+};
 use engine::manifest::RemoteManifest;
 use engine::scanner::{scan_delta, VIVAVOCE_MANAGED_MODULES};
 use engine::uninstaller::{safe_remove_dir_all, uninstall_vivavoce};
@@ -51,6 +57,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 2. Initialize UI
     let main_window = MainWindow::new()?;
+    main_window.set_launcher_version(SharedString::from(env!("CARGO_PKG_VERSION")));
     let window_weak = main_window.as_weak();
 
     let app_context = AppContext {
@@ -70,6 +77,12 @@ async fn main() -> anyhow::Result<()> {
     let initial_ctx = app_context.clone();
     tokio::spawn(async move {
         discover_and_refresh(&initial_ctx).await;
+    });
+
+    // 5b. Initial Background Check for Launcher Updates
+    let updater_ctx = app_context.clone();
+    tokio::spawn(async move {
+        run_check_launcher_update(updater_ctx, false).await;
     });
 
     // 6. Run Slint event loop
@@ -175,16 +188,22 @@ fn setup_action_callbacks(main_window: &MainWindow, ctx: AppContext) {
 
     // SUBMIT / EXPORT BUG REPORT TO DISK
     let bug_ctx = ctx.clone();
-    main_window.on_submit_bug_report(move |rtype, cat, title, desc, extra| {
+    main_window.on_submit_bug_report(move |rtype, cat, title, desc, extra, attach| {
         let ctx_clone = bug_ctx.clone();
+        let cat_str = cat.to_string();
+        let title_str = title.to_string();
+        let desc_str = desc.to_string();
+        let extra_str = extra.to_string();
+        let attach_str = attach.to_string();
         tokio::spawn(async move {
             run_submit_bug_report(
                 ctx_clone,
                 rtype,
-                cat.to_string(),
-                title.to_string(),
-                desc.to_string(),
-                extra.to_string(),
+                cat_str,
+                title_str,
+                desc_str,
+                extra_str,
+                attach_str,
             )
             .await;
         });
@@ -192,19 +211,45 @@ fn setup_action_callbacks(main_window: &MainWindow, ctx: AppContext) {
 
     // CREATE GITHUB ISSUE (DIRECT API OR AUTOMATED 1-CLICK)
     let issue_ctx = ctx.clone();
-    main_window.on_create_github_issue(move |rtype, cat, title, desc, extra| {
+    main_window.on_create_github_issue(move |rtype, cat, title, desc, extra, attach| {
         let ctx_clone = issue_ctx.clone();
+        let cat_str = cat.to_string();
+        let title_str = title.to_string();
+        let desc_str = desc.to_string();
+        let extra_str = extra.to_string();
+        let attach_str = attach.to_string();
         tokio::spawn(async move {
             run_create_github_issue(
                 ctx_clone,
                 rtype,
-                cat.to_string(),
-                title.to_string(),
-                desc.to_string(),
-                extra.to_string(),
+                cat_str,
+                title_str,
+                desc_str,
+                extra_str,
+                attach_str,
             )
             .await;
         });
+    });
+
+    // SELECT BUG ATTACHMENT (SCREENSHOT / VIDEO)
+    let attach_ctx = ctx.clone();
+    main_window.on_select_bug_attachment(move || {
+        let ctx_clone = attach_ctx.clone();
+        tokio::spawn(async move {
+            run_select_bug_attachment(ctx_clone).await;
+        });
+    });
+
+    // REVEAL ATTACHMENT IN EXPLORER
+    let reveal_ctx = ctx.clone();
+    main_window.on_reveal_bug_attachment(move || {
+        if let Some(win) = reveal_ctx.main_window_weak.upgrade() {
+            let p_str = win.get_bug_attachment_path().to_string();
+            if !p_str.trim().is_empty() {
+                Submitter::reveal_in_explorer(std::path::Path::new(&p_str));
+            }
+        }
     });
 
     // SELECT WOW FOLDER
@@ -224,7 +269,8 @@ fn setup_action_callbacks(main_window: &MainWindow, ctx: AppContext) {
             if let Some(inst) = ctx_clone.wow_installation.read().await.as_ref() {
                 let flavor = inst.primary_flavor.unwrap_or(WowFlavor::Forever);
                 let addons = get_addons_path(&inst.root_path, flavor);
-                let _ = std::process::Command::new("explorer").arg(addons).spawn();
+                let _ = std::fs::create_dir_all(&addons);
+                open_system_folder(&addons);
             }
         });
     });
@@ -255,6 +301,24 @@ fn setup_action_callbacks(main_window: &MainWindow, ctx: AppContext) {
         let id_str = id.to_string();
         tokio::spawn(async move {
             run_remove_module(ctx_clone, id_str).await;
+        });
+    });
+
+    // CHECK LAUNCHER UPDATE
+    let check_updater_ctx = ctx.clone();
+    main_window.on_check_launcher_update(move || {
+        let ctx_clone = check_updater_ctx.clone();
+        tokio::spawn(async move {
+            run_check_launcher_update(ctx_clone, true).await;
+        });
+    });
+
+    // PERFORM LAUNCHER UPDATE
+    let perform_updater_ctx = ctx.clone();
+    main_window.on_perform_launcher_update(move || {
+        let ctx_clone = perform_updater_ctx.clone();
+        tokio::spawn(async move {
+            run_perform_launcher_update(ctx_clone).await;
         });
     });
 }
@@ -742,6 +806,22 @@ async fn run_uninstall(ctx: AppContext) {
     }
 }
 
+/// Returns a formatted OS string for bug reports (Windows, macOS with arch, Linux)
+fn current_os_info() -> String {
+    #[cfg(target_os = "windows")]
+    {
+        "Windows (x86_64)".to_string()
+    }
+    #[cfg(target_os = "macos")]
+    {
+        format!("macOS ({})", std::env::consts::ARCH)
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        format!("Linux ({})", std::env::consts::ARCH)
+    }
+}
+
 /// Helper to construct a BugReport for either Audio or AddOn issues
 async fn create_bug_report_from_params(
     ctx: &AppContext,
@@ -750,6 +830,7 @@ async fn create_bug_report_from_params(
     title_str: String,
     user_notes: String,
     extra_str: String,
+    attachment_str: String,
 ) -> Option<BugReport> {
     let installation = {
         let lock = ctx.wow_installation.read().await;
@@ -763,32 +844,77 @@ async fn create_bug_report_from_params(
     let epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
     let flavor = inst.primary_flavor.unwrap_or(WowFlavor::Forever);
 
+    let attachment_path = if attachment_str.trim().is_empty() {
+        None
+    } else {
+        Some(attachment_str.trim().to_string())
+    };
+
+    let os_str = current_os_info();
+
     if report_type_idx == 0 {
         // AUDIO REPORT
         let dialogues = ctx.recent_dialogues_cache.read().await.clone();
         let matched = dialogues.iter().find(|d| d.sound_file == extra_str || (extra_str.is_empty() && !d.sound_file.is_empty()));
 
+        // Parse special tags from user_notes if present (e.g. from "Voce mancante")
+        let mut clean_notes = user_notes.clone();
+        let mut parsed_quest_id = None;
+        let mut parsed_text = None;
+
+        if let Some(start) = clean_notes.find("[Quest/NPC ID: ") {
+            if let Some(end) = clean_notes[start..].find(']') {
+                let id_str = &clean_notes[start + 15..start + end];
+                if let Ok(id) = id_str.trim().parse::<u32>() {
+                    parsed_quest_id = Some(id);
+                }
+                clean_notes.replace_range(start..start + end + 1, "");
+            }
+        }
+
+        if let Some(start) = clean_notes.find("[Testo a schermo: ") {
+            if let Some(end) = clean_notes[start..].find(']') {
+                let text_val = clean_notes[start + 18..start + end].trim().to_string();
+                if !text_val.is_empty() {
+                    parsed_text = Some(text_val);
+                }
+                clean_notes.replace_range(start..start + end + 1, "");
+            }
+        }
+        let clean_notes = clean_notes.trim().to_string();
+
         let (quest_id, npc_id, dialogue_title, dialogue_text) = if let Some(d) = matched {
-            (d.quest_id, d.npc_id, Some(d.title.clone()), Some(d.text.clone()))
+            (
+                d.quest_id.or(parsed_quest_id),
+                d.npc_id,
+                Some(d.title.clone()),
+                Some(d.text.clone()).or(parsed_text),
+            )
         } else {
-            (None, None, if title_str.is_empty() { None } else { Some(title_str.clone()) }, None)
+            (
+                parsed_quest_id,
+                None,
+                if title_str.is_empty() { None } else { Some(title_str.clone()) },
+                parsed_text,
+            )
         };
 
         Some(BugReport {
             issue_type: IssueType::Audio,
             category: category_str,
             title: if title_str.is_empty() { "Segnalazione Audio".to_string() } else { title_str },
-            user_description: user_notes,
+            user_description: clean_notes,
             repro_steps: None,
             addon_version: "1.0.0".to_string(),
             client_flavor: format!("{:?}", flavor),
             wow_path: inst.root_path.to_string_lossy().to_string(),
-            os_info: "Windows (x86_64)".to_string(),
+            os_info: os_str,
             sound_file: if extra_str.is_empty() { None } else { Some(extra_str) },
             quest_id,
             npc_id,
             dialogue_title,
             dialogue_text,
+            attachment_path,
             timestamp_epoch: epoch,
         })
     } else {
@@ -802,12 +928,13 @@ async fn create_bug_report_from_params(
             addon_version: "1.0.0".to_string(),
             client_flavor: format!("{:?}", flavor),
             wow_path: inst.root_path.to_string_lossy().to_string(),
-            os_info: "Windows (x86_64)".to_string(),
+            os_info: os_str,
             sound_file: None,
             quest_id: None,
             npc_id: None,
             dialogue_title: None,
             dialogue_text: None,
+            attachment_path,
             timestamp_epoch: epoch,
         })
     }
@@ -821,6 +948,7 @@ async fn run_submit_bug_report(
     title_str: String,
     user_notes: String,
     extra_str: String,
+    attachment_str: String,
 ) {
     let report_opt = create_bug_report_from_params(
         &ctx,
@@ -829,6 +957,7 @@ async fn run_submit_bug_report(
         title_str,
         user_notes,
         extra_str,
+        attachment_str,
     )
     .await;
 
@@ -868,6 +997,7 @@ async fn run_create_github_issue(
     title_str: String,
     user_notes: String,
     extra_str: String,
+    attachment_str: String,
 ) {
     let report_opt = create_bug_report_from_params(
         &ctx,
@@ -876,6 +1006,7 @@ async fn run_create_github_issue(
         title_str,
         user_notes,
         extra_str,
+        attachment_str,
     )
     .await;
 
@@ -907,7 +1038,9 @@ async fn run_create_github_issue(
         match Submitter::submit_to_github_api(&report, &token).await {
             Ok(issue_url) => {
                 info!("Issue creata con successo via API GitHub: {}", issue_url);
-                Submitter::copy_to_clipboard(&report.to_markdown());
+                if report.attachment_path.is_none() {
+                    Submitter::copy_to_clipboard(&report.to_markdown());
+                }
                 let issue_url_clone = issue_url.clone();
                 let _ = weak.upgrade_in_event_loop(move |win| {
                     win.set_bug_submit_status(SharedString::from("Issue creata su GitHub con successo!"));
@@ -919,7 +1052,9 @@ async fn run_create_github_issue(
             Err(e) => {
                 warn!("API GitHub fallita: {}. Fallback 1-click su browser...", e);
                 let url = Submitter::build_github_issue_url(&report);
-                Submitter::copy_to_clipboard(&report.to_markdown());
+                if report.attachment_path.is_none() {
+                    Submitter::copy_to_clipboard(&report.to_markdown());
+                }
                 open_system_url(&url);
 
                 let err_msg = format!("Errore API: {}. Aperta pagina web GitHub con campi già pronti.", e);
@@ -931,13 +1066,38 @@ async fn run_create_github_issue(
     } else {
         // Automated 1-click fallback: opens browser with prefilled markdown body, title and labels
         let url = Submitter::build_github_issue_url(&report);
-        Submitter::copy_to_clipboard(&report.to_markdown());
+
+        let mut copied_media = false;
+        if let Some(ref path_str) = report.attachment_path {
+            let p = std::path::Path::new(path_str);
+            if p.exists() {
+                Submitter::copy_media_to_clipboard(p);
+                copied_media = true;
+            }
+        }
+
+        // Only copy markdown text to clipboard if NO media was selected,
+        // so clip.exe does not overwrite the image/video on the clipboard!
+        if !copied_media {
+            Submitter::copy_to_clipboard(&report.to_markdown());
+        }
+
         open_system_url(&url);
 
+        let status_msg = if copied_media {
+            "Pagina GitHub aperta! Clicca nella descrizione e premi CTRL+V per incollare l'allegato."
+        } else {
+            "Pagina GitHub aperta con tutti i dati precompilati!"
+        };
+
         let _ = weak.upgrade_in_event_loop(move |win| {
-            win.set_bug_submit_status(SharedString::from("Pagina GitHub aperta con tutti i dati precompilati!"));
+            win.set_bug_submit_status(SharedString::from(status_msg));
             win.set_status_text(SharedString::from("Aperta pagina GitHub con segnalazione precompilata"));
-            win.set_sub_status_text(SharedString::from("Report copiato anche negli appunti"));
+            win.set_sub_status_text(SharedString::from(if copied_media {
+                "Allegato copiato negli appunti: premi CTRL+V su GitHub"
+            } else {
+                "Report copiato negli appunti"
+            }));
         });
     }
 }
@@ -970,7 +1130,39 @@ async fn run_browse_wow_folder(ctx: AppContext) {
     }
 }
 
-/// Launch World of Warcraft executable
+/// Browse screenshot or video file for bug reporting via native file dialog
+async fn run_select_bug_attachment(ctx: AppContext) {
+    let picked = tokio::task::spawn_blocking(|| {
+        rfd::FileDialog::new()
+            .set_title("Seleziona Screenshot o Video per la segnalazione")
+            .add_filter(
+                "Immagini e Video (*.png, *.jpg, *.mp4, *.mkv...)",
+                &["png", "jpg", "jpeg", "gif", "bmp", "webp", "mp4", "webm", "avi", "mkv", "mov"],
+            )
+            .pick_file()
+    })
+    .await;
+
+    if let Ok(Some(path)) = picked {
+        let path_str = path.to_string_lossy().to_string();
+        let filename = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        info!("Allegato bug selezionato: {} ({})", filename, path_str);
+
+        // Pre-carica immediatamente l'immagine/file negli appunti Windows
+        let path_copy = path.clone();
+        tokio::task::spawn_blocking(move || {
+            Submitter::copy_media_to_clipboard(&path_copy);
+        });
+
+        let weak = ctx.main_window_weak.clone();
+        let _ = weak.upgrade_in_event_loop(move |win| {
+            win.set_bug_attachment_path(SharedString::from(path_str));
+            win.set_bug_attachment_filename(SharedString::from(filename));
+        });
+    }
+}
+
+/// Launch World of Warcraft executable or macOS .app bundle
 async fn run_launch_game(ctx: AppContext) {
     let inst_opt = {
         let lock = ctx.wow_installation.read().await;
@@ -985,9 +1177,20 @@ async fn run_launch_game(ctx: AppContext) {
     let client_path = inst.game_client_path();
     let flavor = inst.primary_flavor.unwrap_or(WowFlavor::Forever);
     let candidates = [
+        // macOS App bundles
+        client_path.join("World of Warcraft.app"),
+        client_path.join("WoW.app"),
+        client_path.join("World of Warcraft-64.app"),
+        client_path.join("World of Warcraft Classic.app"),
+        inst.root_path.join("World of Warcraft.app"),
+        inst.root_path.join("WoW.app"),
+        inst.root_path.join("forever").join("World of Warcraft.app"),
+        inst.root_path.join("_forever_").join("World of Warcraft.app"),
+        // Windows Executables / Wine
         client_path.join("Wow.exe"),
         client_path.join("WoWClassic.exe"),
         inst.root_path.join(flavor.as_dir_name()).join("Wow.exe"),
+        inst.root_path.join("forever").join("Wow.exe"),
         inst.root_path.join("Wow.exe"),
         inst.root_path.join("World of Warcraft Launcher.exe"),
     ];
@@ -996,7 +1199,14 @@ async fn run_launch_game(ctx: AppContext) {
 
     if let Some(exe) = found_exe {
         info!("Avvio eseguibile di gioco WoW Forever: {:?}", exe);
-        match std::process::Command::new(exe).current_dir(exe.parent().unwrap_or(&client_path)).spawn() {
+
+        #[cfg(target_os = "macos")]
+        let res = std::process::Command::new("open").arg(exe).spawn();
+
+        #[cfg(not(target_os = "macos"))]
+        let res = std::process::Command::new(exe).current_dir(exe.parent().unwrap_or(&client_path)).spawn();
+
+        match res {
             Ok(_) => {
                 update_ui_status(&ctx.main_window_weak, "World of Warcraft: Forever avviato!", 1.0);
             }
@@ -1006,8 +1216,8 @@ async fn run_launch_game(ctx: AppContext) {
             }
         }
     } else {
-        warn!("Eseguibile Wow.exe non trovato nelle posizioni note.");
-        update_ui_status(&ctx.main_window_weak, "Eseguibile Wow.exe non trovato nella cartella di WoW Forever.", 0.0);
+        warn!("Eseguibile WoW non trovato nelle posizioni note.");
+        update_ui_status(&ctx.main_window_weak, "Eseguibile WoW non trovato nella cartella di WoW Forever.", 0.0);
     }
 }
 
@@ -1371,9 +1581,184 @@ fn set_ui_updating(weak: &slint::Weak<MainWindow>, is_updating: bool) {
     });
 }
 
-/// Opens URL or file in default Windows shell handler
+/// Opens URL in default web browser across Windows, macOS, and Linux
 fn open_system_url(url: &str) {
-    let _ = std::process::Command::new("rundll32")
-        .args(["url.dll,FileProtocolHandler", url])
-        .spawn();
+    #[cfg(target_os = "windows")]
+    {
+        let _ = std::process::Command::new("rundll32")
+            .args(["url.dll,FileProtocolHandler", url])
+            .spawn();
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open")
+            .arg(url)
+            .spawn();
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let _ = std::process::Command::new("xdg-open")
+            .arg(url)
+            .spawn();
+    }
+}
+
+/// Opens a directory in default file manager (Explorer, Finder, xdg-open)
+fn open_system_folder(path: &Path) {
+    #[cfg(target_os = "windows")]
+    {
+        let _ = std::process::Command::new("explorer").arg(path).spawn();
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open").arg(path).spawn();
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let _ = std::process::Command::new("xdg-open").arg(path).spawn();
+    }
+}
+
+/// Checks GitHub Releases for updates to VivaVoce Launcher
+async fn run_check_launcher_update(ctx: AppContext, manual_trigger: bool) {
+    let current_ver = env!("CARGO_PKG_VERSION");
+    info!(
+        "Verifica aggiornamenti launcher da {} (versione locale: {})...",
+        LAUNCHER_RELEASES_API_URL, current_ver
+    );
+
+    if manual_trigger {
+        let weak = ctx.main_window_weak.clone();
+        let _ = weak.upgrade_in_event_loop(|win| {
+            win.set_launcher_update_status(SharedString::from("Verifica aggiornamenti in corso..."));
+        });
+    }
+
+    match fetch_latest_release(LAUNCHER_RELEASES_API_URL).await {
+        Ok(release) => {
+            let remote_tag = release.tag_name.clone();
+            let has_update = is_newer_version(&remote_tag, current_ver);
+
+            let weak = ctx.main_window_weak.clone();
+            let _ = weak.upgrade_in_event_loop(move |win| {
+                if has_update {
+                    win.set_launcher_has_update(true);
+                    win.set_launcher_new_version(SharedString::from(&remote_tag));
+                    win.set_launcher_update_status(SharedString::from(format!(
+                        "Nuova versione v{} disponibile!",
+                        remote_tag
+                    )));
+                    info!("Nuova versione launcher rilevata: {}", remote_tag);
+                } else {
+                    win.set_launcher_has_update(false);
+                    if manual_trigger {
+                        win.set_launcher_update_status(SharedString::from(
+                            "Nessun aggiornamento: hai già l'ultima versione.",
+                        ));
+                    }
+                }
+            });
+        }
+        Err(e) => {
+            warn!("Controllo aggiornamenti launcher fallito: {}", e);
+            if manual_trigger {
+                let weak = ctx.main_window_weak.clone();
+                let _ = weak.upgrade_in_event_loop(move |win| {
+                    win.set_launcher_update_status(SharedString::from(format!(
+                        "Errore verifica: {}",
+                        e
+                    )));
+                });
+            }
+        }
+    }
+}
+
+/// Downloads and applies the latest launcher binary, then restarts the application
+async fn run_perform_launcher_update(ctx: AppContext) {
+    let weak = ctx.main_window_weak.clone();
+    let _ = weak.upgrade_in_event_loop(|win| {
+        win.set_launcher_is_updating(true);
+        win.set_launcher_update_progress(0.0);
+        win.set_launcher_update_status(SharedString::from("Ricerca asset di rilascio..."));
+    });
+
+    info!("Avvio procedura di aggiornamento automatico del Launcher...");
+
+    let release = match fetch_latest_release(LAUNCHER_RELEASES_API_URL).await {
+        Ok(r) => r,
+        Err(e) => {
+            let weak_err = ctx.main_window_weak.clone();
+            let _ = weak_err.upgrade_in_event_loop(move |win| {
+                win.set_launcher_is_updating(false);
+                win.set_launcher_update_status(SharedString::from(format!("Errore: {}", e)));
+            });
+            return;
+        }
+    };
+
+    let Some(asset) = find_platform_asset(&release.assets) else {
+        let weak_err = ctx.main_window_weak.clone();
+        let _ = weak_err.upgrade_in_event_loop(|win| {
+            win.set_launcher_is_updating(false);
+            win.set_launcher_update_status(SharedString::from(
+                "Nessun asset compatibile trovato nel rilascio GitHub.",
+            ));
+        });
+        return;
+    };
+
+    let download_url = asset.browser_download_url.clone();
+    let asset_name = asset.name.clone();
+    info!("Scaricamento asset selezionato: {} ({})", asset_name, download_url);
+
+    let weak_progress = ctx.main_window_weak.clone();
+    let progress_cb = move |pct: f32, downloaded: u64, total: u64| {
+        let weak = weak_progress.clone();
+        let _ = weak.upgrade_in_event_loop(move |win| {
+            win.set_launcher_update_progress(pct);
+            let mb_down = downloaded as f64 / 1_048_576.0;
+            let mb_tot = total as f64 / 1_048_576.0;
+            let status = if total > 0 {
+                format!(
+                    "Download aggiornamento: {:.1} / {:.1} MB ({:.0}%)",
+                    mb_down,
+                    mb_tot,
+                    pct * 100.0
+                )
+            } else {
+                format!("Download aggiornamento: {:.1} MB", mb_down)
+            };
+            win.set_launcher_update_status(SharedString::from(status));
+        });
+    };
+
+    match apply_self_update(&download_url, progress_cb).await {
+        Ok(new_exe) => {
+            info!("Aggiornamento applicato con successo in {:?}", new_exe);
+            let weak_done = ctx.main_window_weak.clone();
+            let _ = weak_done.upgrade_in_event_loop(|win| {
+                win.set_launcher_update_progress(1.0);
+                win.set_launcher_update_status(SharedString::from(
+                    "Aggiornato! Riavvio del launcher in corso...",
+                ));
+            });
+
+            tokio::time::sleep(Duration::from_millis(800)).await;
+            if let Err(e) = restart_launcher(&new_exe) {
+                error!("Riavvio automatico fallito: {}", e);
+            }
+        }
+        Err(e) => {
+            error!("Aggiornamento del launcher fallito: {}", e);
+            let weak_err = ctx.main_window_weak.clone();
+            let _ = weak_err.upgrade_in_event_loop(move |win| {
+                win.set_launcher_is_updating(false);
+                win.set_launcher_update_status(SharedString::from(format!(
+                    "Errore aggiornamento: {}",
+                    e
+                )));
+            });
+        }
+    }
 }

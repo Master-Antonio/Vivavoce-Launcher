@@ -14,6 +14,7 @@ export struct PackageInfo {
 
 export component PackageCard inherits Rectangle {
     in-out property <PackageInfo> package-data;
+    in-out property <bool> is-busy: false;
     callback install-clicked(string);
     callback remove-clicked(string);
 
@@ -51,15 +52,15 @@ export component PackageCard inherits Rectangle {
             spacing: 14px;
             alignment: start;
 
-            // Module Icon Box with Real WoW Texture
+            // Module Icon Box with Real WoW Texture & Subtle Rim Highlight
             Rectangle {
                 width: 46px;
                 height: 46px;
                 y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-sm;
-                background: #11151f;
+                background: #0d111a;
                 border-width: 1px;
-                border-color: Theme.border-subtle;
+                border-color: #242f42;
                 clip: true;
 
                 Image {
@@ -74,6 +75,7 @@ export component PackageCard inherits Rectangle {
             VerticalLayout {
                 alignment: center;
                 spacing: 3px;
+                horizontal-stretch: 1;
 
                 HorizontalLayout {
                     spacing: 8px;
@@ -101,7 +103,7 @@ export component PackageCard inherits Rectangle {
                     color: Theme.text-secondary;
                     font-size: 13px;
                     overflow: elide;
-                    max-width: 520px;
+                    max-width: 580px;
                 }
             }
         }
@@ -177,17 +179,19 @@ export component PackageCard inherits Rectangle {
 
             // Action Button
             if root.package-data.installed : DangerButton {
-                text: "Rimuovi";
+                text: root.is-busy ? "Attendi..." : "Rimuovi";
                 icon: @image-url("../assets/icons/trash-2.svg");
                 custom-height: 28px;
+                enabled: !root.is-busy;
                 y: (parent.height - self.height) / 2;
                 clicked => { root.remove-clicked(root.package-data.id); }
             }
 
             if !root.package-data.installed : SecondaryButton {
-                text: "Installa";
+                text: root.is-busy ? "Attendi..." : "Installa";
                 icon: @image-url("../assets/icons/download.svg");
                 custom-height: 28px;
+                enabled: !root.is-busy;
                 y: (parent.height - self.height) / 2;
                 clicked => { root.install-clicked(root.package-data.id); }
             }

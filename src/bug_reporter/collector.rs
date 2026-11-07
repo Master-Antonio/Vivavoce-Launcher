@@ -27,8 +27,10 @@ impl IssueType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BugCategory {
+    MissingVoice,
     Pronunciation,
     VolumeOrQuality,
+    GenderMismatch,
     CutOrGlitch,
     TextMismatch,
     LuaError,
@@ -38,8 +40,10 @@ pub enum BugCategory {
 impl BugCategory {
     pub fn as_str(&self) -> &'static str {
         match self {
+            Self::MissingVoice => "Voce mancante (non doppiata)",
             Self::Pronunciation => "Pronuncia / Accento",
             Self::VolumeOrQuality => "Volume / Qualità Audio",
+            Self::GenderMismatch => "Voce o sesso errato (M/F)",
             Self::CutOrGlitch => "Audio tagliato / Glitch",
             Self::TextMismatch => "Testo e Voce non corrispondono",
             Self::LuaError => "Errore Lua / AddOn Crash",
@@ -49,10 +53,14 @@ impl BugCategory {
 
     pub fn from_str_lenient(s: &str) -> Self {
         let lower = s.to_lowercase();
-        if lower.contains("pronun") || lower.contains("accent") {
+        if lower.contains("mancant") || lower.contains("assente") || lower.contains("non doppiata") || lower.contains("manca") {
+            Self::MissingVoice
+        } else if lower.contains("pronun") || lower.contains("accent") {
             Self::Pronunciation
         } else if lower.contains("volum") || lower.contains("qualit") || lower.contains("basso") {
             Self::VolumeOrQuality
+        } else if lower.contains("sesso") || lower.contains("genere") || lower.contains("femmin") || lower.contains("masch") {
+            Self::GenderMismatch
         } else if lower.contains("taglia") || lower.contains("glitch") || lower.contains("tronc") {
             Self::CutOrGlitch
         } else if lower.contains("testo") || lower.contains("incongru") || lower.contains("mismatch") {
@@ -81,6 +89,7 @@ pub struct BugReport {
     pub npc_id: Option<u32>,
     pub dialogue_title: Option<String>,
     pub dialogue_text: Option<String>,
+    pub attachment_path: Option<String>,
     pub timestamp_epoch: u64,
 }
 
@@ -152,6 +161,31 @@ impl BugReport {
             }
         }
 
+        if let Some(ref path) = self.attachment_path {
+            if !path.trim().is_empty() {
+                let filename = std::path::Path::new(path)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy();
+                let lower = path.to_lowercase();
+                let is_image = lower.ends_with(".png")
+                    || lower.ends_with(".jpg")
+                    || lower.ends_with(".jpeg")
+                    || lower.ends_with(".gif")
+                    || lower.ends_with(".bmp")
+                    || lower.ends_with(".webp");
+
+                md.push_str("\n## Allegato Multimediale (Screenshot / Video)\n");
+                md.push_str(&format!("- **File**: `{}`\n", filename));
+                md.push_str(&format!("- **Percorso locale**: `{}`\n", path.trim()));
+                if is_image {
+                    md.push_str("💡 **Suggerimento**: L'immagine è stata copiata automaticamente negli appunti! **Premi CTRL+V qui sotto per incollarla direttamente nell'Issue**, oppure trascina il file nella casella.\n");
+                } else {
+                    md.push_str("💡 **Suggerimento**: Trascina direttamente questo file video nella casella sottostante per allegarlo all'Issue.\n");
+                }
+            }
+        }
+
         md.push_str("\n---\n*Generato automaticamente da VivaVoce Launcher Native (Rust)*\n");
         md
     }
@@ -178,6 +212,7 @@ mod tests {
             npc_id: Some(16013),
             dialogue_title: Some("Il destino di Ironforge".to_string()),
             dialogue_text: Some("Benvenuto viaggiatore!".to_string()),
+            attachment_path: Some("C:\\Screenshots\\ironforge_npc.png".to_string()),
             timestamp_epoch: 1730928000,
         };
 
@@ -185,6 +220,7 @@ mod tests {
         assert!(md.contains("# [Audio] Pronuncia ed enfasi: Il destino di Ironforge"));
         assert!(md.contains("Sounds/16/16013_q123_4.ogg"));
         assert!(md.contains("16013"));
+        assert!(md.contains("ironforge_npc.png"));
     }
 
     #[test]
@@ -204,6 +240,7 @@ mod tests {
             npc_id: None,
             dialogue_title: None,
             dialogue_text: None,
+            attachment_path: None,
             timestamp_epoch: 1730928000,
         };
 
@@ -211,5 +248,19 @@ mod tests {
         assert!(md.contains("# [Addon] Errore Lua in gioco: Crash apertura QuestLog"));
         assert!(md.contains("```lua"));
         assert!(md.contains("Passaggi per Riprodurre"));
+    }
+
+    #[test]
+    fn test_gender_mismatch_category() {
+        let cat = BugCategory::from_str_lenient("Sesso o voce errata (NPC femmina con voce maschile)");
+        assert_eq!(cat, BugCategory::GenderMismatch);
+        assert_eq!(cat.as_str(), "Voce o sesso errato (M/F)");
+    }
+
+    #[test]
+    fn test_missing_voice_category() {
+        let cat = BugCategory::from_str_lenient("Voce mancante (battuta non doppiata)");
+        assert_eq!(cat, BugCategory::MissingVoice);
+        assert_eq!(cat.as_str(), "Voce mancante (non doppiata)");
     }
 }

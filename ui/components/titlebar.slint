@@ -13,7 +13,7 @@ export component TitleBar inherits Rectangle {
 
     // Draggable window area covering the non-button space
     drag-touch := TouchArea {
-        width: parent.width - 120px;
+        width: parent.width - 128px;
         height: parent.height;
         x: 0;
         y: 0;
@@ -28,18 +28,18 @@ export component TitleBar inherits Rectangle {
 
     HorizontalLayout {
         padding-left: 14px;
-        padding-right: 12px;
+        padding-right: 8px;
         alignment: end;
 
         // Window Controls (Right side: Minimize, Maximize/Restore, Close)
         HorizontalLayout {
-            spacing: 4px;
+            spacing: 2px;
             alignment: end;
 
             // Minimize Button
             Rectangle {
-                width: 30px;
-                height: 26px;
+                width: 36px;
+                height: 30px;
                 y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-xs;
                 background: min-touch.has-hover ? (min-touch.pressed ? #1c2333 : #141a26) : transparent;
@@ -65,8 +65,8 @@ export component TitleBar inherits Rectangle {
 
             // Maximize / Restore Button
             Rectangle {
-                width: 30px;
-                height: 26px;
+                width: 36px;
+                height: 30px;
                 y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-xs;
                 background: max-touch.has-hover ? (max-touch.pressed ? #1c2333 : #141a26) : transparent;
@@ -92,8 +92,8 @@ export component TitleBar inherits Rectangle {
 
             // Close Button
             Rectangle {
-                width: 30px;
-                height: 26px;
+                width: 36px;
+                height: 30px;
                 y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-xs;
                 background: close-touch.has-hover ? (close-touch.pressed ? #7f1d1d : #ef444422) : transparent;

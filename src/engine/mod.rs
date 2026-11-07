@@ -8,6 +8,7 @@ pub mod scanner;
 pub mod downloader;
 pub mod extractor;
 pub mod uninstaller;
+pub mod launcher_updater;
 
 pub use manifest::{normalize_relative_path, FileEntry, LocalState, PackageChunk, RemoteManifest};
 pub use scanner::{hash_file_blake3, scan_delta, DeltaScanResult, VIVAVOCE_MANAGED_MODULES};
@@ -18,4 +19,8 @@ pub use extractor::{
 pub use uninstaller::{
     calculate_dir_size, detect_installed_modules, safe_remove_dir_all, uninstall_addons_only,
     uninstall_vivavoce, UninstallResult,
+};
+pub use launcher_updater::{
+    apply_self_update, fetch_latest_release, find_platform_asset, is_newer_version,
+    restart_launcher, ReleaseAsset, ReleaseInfo, LAUNCHER_RELEASES_API_URL,
 };

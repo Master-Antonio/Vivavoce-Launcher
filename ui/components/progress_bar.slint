@@ -29,10 +29,10 @@ export component ProgressBar inherits VerticalLayout {
         }
     }
 
-    // Progress Bar Track
+    // Progress Bar Track (Slim pill modern design)
     Rectangle {
-        height: 8px;
-        border-radius: Theme.radius-xs;
+        height: 6px;
+        border-radius: Theme.radius-pill;
         background: Theme.bg-inset;
         border-width: 1px;
         border-color: root.is-active ? Theme.border-gold-subtle : Theme.border-normal;
@@ -46,10 +46,10 @@ export component ProgressBar inherits VerticalLayout {
             y: 0;
             height: parent.height;
             width: Math.max(0px, Math.min(parent.width, parent.width * root.progress));
-            border-radius: Theme.radius-xs;
+            border-radius: Theme.radius-pill;
             background: Theme.progress-fill;
 
-            animate width { duration: 120ms; easing: ease-out; }
+            animate width { duration: 160ms; easing: ease-out; }
         }
     }
 

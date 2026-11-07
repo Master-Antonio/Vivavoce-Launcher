@@ -59,6 +59,7 @@ export component StatusBadge inherits Rectangle {
                 height: 7px;
                 border-radius: 3.5px;
                 background: root.badge-color;
+                animate background { duration: Theme.transition-normal; easing: ease-out; }
             }
         }
 
@@ -70,6 +71,7 @@ export component StatusBadge inherits Rectangle {
                 color: root.badge-color;
                 font-size: 12px;
                 font-weight: 500;
+                animate color { duration: Theme.transition-normal; easing: ease-out; }
             }
         }
     }

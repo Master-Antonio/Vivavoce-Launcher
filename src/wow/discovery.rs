@@ -130,54 +130,97 @@ impl WowInstallation {
 
     /// Returns the exact game client folder for the primary flavor.
     /// E.g. if root is `A:\Blizzard\World of Warcraft` and flavor is `Forever`,
-    /// this returns `A:\Blizzard\World of Warcraft\_forever_`.
+    /// this returns `A:\Blizzard\World of Warcraft\_forever_` (or `forever`).
     #[must_use]
     pub fn game_client_path(&self) -> PathBuf {
+        let root = resolve_candidate_root(&self.root_path);
         let flavor = self.primary_flavor.unwrap_or(WowFlavor::Forever);
-        if let Some(name) = self.root_path.file_name().and_then(|n| n.to_str()) {
+        if let Some(name) = root.file_name().and_then(|n| n.to_str()) {
             if let Some(existing_flavor) = WowFlavor::from_dir_name(name) {
                 if existing_flavor == flavor {
-                    return self.root_path.clone();
+                    return root;
                 }
             }
         }
-        let flavor_dir = self.root_path.join(flavor.as_dir_name());
-        if flavor_dir.exists() {
-            flavor_dir
-        } else {
-            self.root_path.clone()
+        let flavor_dir_underscored = root.join(flavor.as_dir_name());
+        if flavor_dir_underscored.exists() {
+            return flavor_dir_underscored;
         }
+        let plain_name = match flavor {
+            WowFlavor::Forever => "forever",
+            WowFlavor::ClassicEra => "classic_era",
+            WowFlavor::Classic => "classic",
+            WowFlavor::Retail => "retail",
+        };
+        let flavor_dir_plain = root.join(plain_name);
+        if flavor_dir_plain.exists() {
+            return flavor_dir_plain;
+        }
+        root
     }
 }
 
+/// Resolves a candidate directory by automatically unwrapping trailing `Interface` or `Interface/AddOns`
+/// if the user selected those directly.
+#[must_use]
+pub fn resolve_candidate_root(path: &Path) -> PathBuf {
+    let current = path.to_path_buf();
+    if let Some(name) = current.file_name().and_then(|n| n.to_str()) {
+        if name.eq_ignore_ascii_case("AddOns") {
+            if let Some(parent) = current.parent() {
+                if parent.file_name().and_then(|n| n.to_str()).map_or(false, |p| p.eq_ignore_ascii_case("Interface")) {
+                    if let Some(grandparent) = parent.parent() {
+                        return grandparent.to_path_buf();
+                    }
+                }
+            }
+        } else if name.eq_ignore_ascii_case("Interface") {
+            if let Some(parent) = current.parent() {
+                return parent.to_path_buf();
+            }
+        }
+    }
+    current
+}
+
 /// Validates that `path` is a valid WoW root or flavor folder, returning available flavors.
-pub fn validate_wow_root(path: &Path) -> Result<Vec<WowFlavor>> {
+pub fn validate_wow_root(raw_path: &Path) -> Result<Vec<WowFlavor>> {
+    let path = resolve_candidate_root(raw_path);
+
     if !path.exists() {
         return Err(WowError::InvalidInstallation {
-            path: path.to_path_buf(),
+            path: raw_path.to_path_buf(),
             reason: "Directory does not exist".to_string(),
         });
     }
 
     if !path.is_dir() {
         return Err(WowError::InvalidInstallation {
-            path: path.to_path_buf(),
+            path: raw_path.to_path_buf(),
             reason: "Path is not a directory".to_string(),
         });
     }
 
-    // Case 1: Check if the user passed a flavor directory directly (e.g. `.../_forever_`)
+    // Case 1: Check if the user passed a flavor directory directly (e.g. `.../_forever_` or `.../forever`)
     if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
         if let Some(flavor) = WowFlavor::from_dir_name(dir_name) {
             return Ok(vec![flavor]);
         }
     }
 
-    // Case 2: Standard root directory, scan subdirectories for flavors
+    // Case 2: Standard root directory, scan subdirectories for flavors (both `_forever_` and plain `forever`)
     let mut found_flavors = Vec::new();
     for flavor in WowFlavor::ALL {
-        let flavor_dir = path.join(flavor.as_dir_name());
-        if flavor_dir.is_dir() {
+        let flavor_dir_underscored = path.join(flavor.as_dir_name());
+        let plain_name = match flavor {
+            WowFlavor::Forever => "forever",
+            WowFlavor::ClassicEra => "classic_era",
+            WowFlavor::Classic => "classic",
+            WowFlavor::Retail => "retail",
+        };
+        let flavor_dir_plain = path.join(plain_name);
+
+        if flavor_dir_underscored.is_dir() || flavor_dir_plain.is_dir() {
             found_flavors.push(flavor);
         }
     }
@@ -187,38 +230,66 @@ pub fn validate_wow_root(path: &Path) -> Result<Vec<WowFlavor>> {
         return Ok(found_flavors);
     }
 
-    // Case 3: Directory has WoW files (e.g. Wow.exe, Data) but no flavor subfolders yet
+    // Case 3: Directory has WoW files (e.g. Wow.exe, World of Warcraft.app, Data, Interface)
     let has_wow_exe = path.join("Wow.exe").exists()
         || path.join("WowClassic.exe").exists()
         || path.join("World of Warcraft Launcher.exe").exists();
+    let has_mac_app = path.join("World of Warcraft.app").exists()
+        || path.join("WoW.app").exists()
+        || path.join("World of Warcraft-64.app").exists()
+        || path.join("World of Warcraft Classic.app").exists();
     let has_data = path.join("Data").is_dir();
     let has_interface = path.join("Interface").is_dir();
 
-    if has_wow_exe || (has_data && has_interface) {
-        // Assume default Forever client if Interface or WoW binaries are in root
+    if has_wow_exe || has_mac_app || (has_data && has_interface) || has_interface {
+        // Assume default Forever client if Interface, Mac app or WoW binaries are in root
         return Ok(vec![WowFlavor::Forever]);
     }
 
-    Err(WowError::NoFlavorFound(path.to_path_buf()))
+    Err(WowError::NoFlavorFound(raw_path.to_path_buf()))
 }
 
 /// Builds the AddOns directory path for a given WoW root and flavor:
 /// `<wow_root>/<flavor>/Interface/AddOns`
 #[must_use]
 pub fn get_addons_path(wow_root: &Path, flavor: WowFlavor) -> PathBuf {
-    // If the path already points to a flavor folder (e.g. `A:\WoW\_forever_`), don't nest it again
-    if let Some(name) = wow_root.file_name().and_then(|n| n.to_str()) {
+    let root = resolve_candidate_root(wow_root);
+
+    // If the path already points to a flavor folder (e.g. `forever` or `_forever_`), don't nest it again
+    if let Some(name) = root.file_name().and_then(|n| n.to_str()) {
         if let Some(existing_flavor) = WowFlavor::from_dir_name(name) {
             if existing_flavor == flavor {
-                return wow_root.join("Interface").join("AddOns");
+                return root.join("Interface").join("AddOns");
             }
         }
     }
 
-    wow_root
-        .join(flavor.as_dir_name())
-        .join("Interface")
-        .join("AddOns")
+    // Check if `_forever_` exists
+    let underscored = root.join(flavor.as_dir_name());
+    if underscored.exists() {
+        return underscored.join("Interface").join("AddOns");
+    }
+
+    // Check if plain folder name (e.g. `forever`) exists
+    let plain_name = match flavor {
+        WowFlavor::Forever => "forever",
+        WowFlavor::ClassicEra => "classic_era",
+        WowFlavor::Classic => "classic",
+        WowFlavor::Retail => "retail",
+    };
+    let plain_dir = root.join(plain_name);
+    if plain_dir.exists() {
+        return plain_dir.join("Interface").join("AddOns");
+    }
+
+    // If root directly contains `Interface` (typical on classic 1.12.1 Mac & PC clients)
+    let direct_interface = root.join("Interface");
+    if direct_interface.exists() {
+        return direct_interface.join("AddOns");
+    }
+
+    // Fallback default
+    underscored.join("Interface").join("AddOns")
 }
 
 /// Validates that an AddOns path exists or can be accessed.
@@ -386,13 +457,23 @@ fn scan_windows_registry() -> Vec<PathBuf> {
 /// Scans Battle.net Agent `product.db` for WoW paths.
 fn scan_bnet_product_db() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
+    let mut product_db_paths = Vec::new();
 
-    let product_db_paths = [
-        PathBuf::from("C:\\ProgramData\\Battle.net\\Agent\\product.db"),
-        std::env::var("ProgramData")
-            .map(|pd| PathBuf::from(pd).join("Battle.net\\Agent\\product.db"))
-            .unwrap_or_default(),
-    ];
+    #[cfg(target_os = "windows")]
+    {
+        product_db_paths.push(PathBuf::from("C:\\ProgramData\\Battle.net\\Agent\\product.db"));
+        if let Ok(pd) = std::env::var("ProgramData") {
+            product_db_paths.push(PathBuf::from(pd).join("Battle.net\\Agent\\product.db"));
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        product_db_paths.push(PathBuf::from("/Users/Shared/Battle.net/Agent/product.db"));
+        if let Ok(home) = std::env::var("HOME") {
+            product_db_paths.push(PathBuf::from(home).join("Library/Application Support/Battle.net/Agent/product.db"));
+        }
+    }
 
     for db_path in product_db_paths {
         if db_path.exists() && db_path.is_file() {
@@ -409,46 +490,32 @@ fn scan_bnet_product_db() -> Vec<PathBuf> {
 /// Scans a byte slice (from Battle.net `product.db`) extracting valid WoW root directory paths.
 pub fn parse_product_db_bytes(bytes: &[u8]) -> Vec<PathBuf> {
     let mut paths = Vec::new();
-
-    // Fast scan for ASCII/UTF-8 path fragments containing "World of Warcraft"
     let content = String::from_utf8_lossy(bytes);
+    let lower_content = content.to_ascii_lowercase();
 
-    // Look for Windows drive pattern `[A-Za-z]:[\\/]`
     let mut search_idx = 0;
-    while let Some(drive_idx) = content[search_idx..].find(':') {
-        let abs_idx = search_idx + drive_idx;
-        if abs_idx >= 1 {
-            let drive_char = content.as_bytes()[abs_idx - 1];
-            if drive_char.is_ascii_alphabetic() {
-                // Candidate start is `abs_idx - 1`
-                let start = abs_idx - 1;
-                // Find end of token (control character, null, quote, newline)
-                let slice = &content[start..];
-                let mut end = 0;
-                for (byte_i, b) in slice.bytes().enumerate() {
-                    if b < 0x20 || b == b'"' || b == b'\'' || b == 0 {
-                        end = byte_i;
-                        break;
-                    }
-                }
-                if end == 0 {
-                    end = slice.len();
-                }
+    while let Some(wow_rel_idx) = lower_content[search_idx..].find("world of warcraft") {
+        let wow_idx = search_idx + wow_rel_idx;
+        let wow_end = wow_idx + "world of warcraft".len();
 
-                let raw_candidate = &slice[..end];
-                // Check if candidate mentions "World of Warcraft"
-                let lower = raw_candidate.to_ascii_lowercase();
-                if let Some(wow_idx) = lower.find("world of warcraft") {
-                    let wow_len = "world of warcraft".len();
-                    let trimmed_path = raw_candidate[..wow_idx + wow_len].trim();
-                    let candidate_path = PathBuf::from(trimmed_path);
-                    if candidate_path.exists() && candidate_path.is_dir() {
-                        paths.push(candidate_path);
-                    }
-                }
+        // Trace backward to find the beginning of the path (Windows drive letter or Unix root /)
+        let bytes_slice = content.as_bytes();
+        let mut start_idx = wow_idx;
+        while start_idx > 0 {
+            let b = bytes_slice[start_idx - 1];
+            if b < 0x20 || b == b'"' || b == b'\'' || b == 0 {
+                break;
             }
+            start_idx -= 1;
         }
-        search_idx = abs_idx + 1;
+
+        let raw_path = content[start_idx..wow_end].trim();
+        let candidate = PathBuf::from(raw_path);
+        if candidate.exists() && candidate.is_dir() {
+            paths.push(candidate);
+        }
+
+        search_idx = wow_end;
     }
 
     paths.sort();
@@ -456,48 +523,91 @@ pub fn parse_product_db_bytes(bytes: &[u8]) -> Vec<PathBuf> {
     paths
 }
 
-/// Scans well-known fallback directories for WoW installations.
+/// Scans well-known fallback directories for WoW installations across Windows and macOS.
 fn scan_common_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
 
-    let static_paths = [
-        "A:\\Blizzard\\World of Warcraft",
-        "C:\\Program Files (x86)\\World of Warcraft",
-        "C:\\Program Files\\World of Warcraft",
-        "C:\\World of Warcraft",
-        "C:\\Games\\World of Warcraft",
-        "D:\\World of Warcraft",
-        "D:\\Games\\World of Warcraft",
-        "D:\\Blizzard\\World of Warcraft",
-        "E:\\World of Warcraft",
-        "E:\\Games\\World of Warcraft",
-        "E:\\Blizzard\\World of Warcraft",
-        "F:\\World of Warcraft",
-        "F:\\Games\\World of Warcraft",
-        "K:\\WoW",
-    ];
+    #[cfg(target_os = "windows")]
+    {
+        let static_paths = [
+            "A:\\Blizzard\\World of Warcraft",
+            "C:\\Program Files (x86)\\World of Warcraft",
+            "C:\\Program Files\\World of Warcraft",
+            "C:\\World of Warcraft",
+            "C:\\Games\\World of Warcraft",
+            "D:\\World of Warcraft",
+            "D:\\Games\\World of Warcraft",
+            "D:\\Blizzard\\World of Warcraft",
+            "E:\\World of Warcraft",
+            "E:\\Games\\World of Warcraft",
+            "E:\\Blizzard\\World of Warcraft",
+            "F:\\World of Warcraft",
+            "F:\\Games\\World of Warcraft",
+            "K:\\WoW",
+        ];
 
-    for path_str in static_paths {
-        let p = PathBuf::from(path_str);
-        if p.exists() && p.is_dir() {
-            paths.push(p);
+        for path_str in static_paths {
+            let p = PathBuf::from(path_str);
+            if p.exists() && p.is_dir() {
+                paths.push(p);
+            }
+        }
+
+        // Also scan common drive letters for typical root variations
+        let drives = ['C', 'D', 'E', 'F', 'G', 'A', 'K'];
+        let folders = [
+            "World of Warcraft",
+            "Games\\World of Warcraft",
+            "Blizzard\\World of Warcraft",
+            "Battle.net\\World of Warcraft",
+        ];
+
+        for drive in drives {
+            for folder in folders {
+                let candidate = PathBuf::from(format!("{}:\\{}", drive, folder));
+                if candidate.exists() && candidate.is_dir() {
+                    paths.push(candidate);
+                }
+            }
         }
     }
 
-    // Also scan common drive letters for typical root variations
-    let drives = ['C', 'D', 'E', 'F', 'G', 'A', 'K'];
-    let folders = [
-        "World of Warcraft",
-        "Games\\World of Warcraft",
-        "Blizzard\\World of Warcraft",
-        "Battle.net\\World of Warcraft",
-    ];
+    #[cfg(target_os = "macos")]
+    {
+        let mac_paths = [
+            "/Applications/World of Warcraft",
+            "/Applications/World of Warcraft/forever",
+            "/Applications/World of Warcraft/_forever_",
+            "/Applications/World of Warcraft Classic",
+            "/Applications/World of Warcraft: Forever",
+            "/Applications/WoW",
+            "/Applications/WoW Forever",
+            "/Applications/World of Warcraft 1.12.1",
+            "/Users/Shared/World of Warcraft",
+            "/Users/Shared/World of Warcraft/forever",
+        ];
 
-    for drive in drives {
-        for folder in folders {
-            let candidate = PathBuf::from(format!("{}:\\{}", drive, folder));
-            if candidate.exists() && candidate.is_dir() {
-                paths.push(candidate);
+        for path_str in mac_paths {
+            let p = PathBuf::from(path_str);
+            if p.exists() && p.is_dir() {
+                paths.push(p);
+            }
+        }
+
+        if let Ok(home) = std::env::var("HOME") {
+            let user_paths = [
+                format!("{}/Applications/World of Warcraft", home),
+                format!("{}/Applications/World of Warcraft/forever", home),
+                format!("{}/Applications/WoW", home),
+                format!("{}/Games/World of Warcraft", home),
+                format!("{}/Games/World of Warcraft/forever", home),
+                format!("{}/WoW", home),
+            ];
+            for path_str in user_paths {
+                let p = PathBuf::from(path_str);
+                if p.exists() && p.is_dir() {
+                    paths.push(p);
+                }
             }
         }
     }
@@ -629,5 +739,45 @@ mod tests {
             assert!(!inst.flavors.is_empty());
             println!("Found installation: {:?}", inst);
         }
+    }
+
+    #[test]
+    fn test_resolve_candidate_root_interface_and_addons() {
+        let root = PathBuf::from("/Applications/World of Warcraft/forever");
+        let with_interface = root.join("Interface");
+        let with_addons = root.join("Interface").join("AddOns");
+
+        assert_eq!(resolve_candidate_root(&root), root);
+        assert_eq!(resolve_candidate_root(&with_interface), root);
+        assert_eq!(resolve_candidate_root(&with_addons), root);
+    }
+
+    #[test]
+    fn test_mac_plain_forever_and_app_bundle() {
+        let temp_dir = std::env::temp_dir().join(format!("vv_test_mac_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+
+        // Simulate Mac path layout: root has "forever" folder (no underscores)
+        let forever_folder = temp_dir.join("forever");
+        std::fs::create_dir_all(forever_folder.join("Interface").join("AddOns")).unwrap();
+        // Create dummy World of Warcraft.app bundle
+        std::fs::create_dir_all(forever_folder.join("World of Warcraft.app")).unwrap();
+
+        // 1. Validating root detects Forever flavor via "forever" subfolder
+        let flavors = validate_wow_root(&temp_dir).expect("Should detect forever subfolder");
+        assert_eq!(flavors, vec![WowFlavor::Forever]);
+
+        // 2. get_addons_path points to `forever/Interface/AddOns`
+        let addons = get_addons_path(&temp_dir, WowFlavor::Forever);
+        assert_eq!(addons, forever_folder.join("Interface").join("AddOns"));
+
+        // 3. User selects `.../forever/Interface` directly -> unwraps and detects
+        let direct_interface = forever_folder.join("Interface");
+        let flavors_from_interface = validate_wow_root(&direct_interface).expect("Should unwrap Interface");
+        assert_eq!(flavors_from_interface, vec![WowFlavor::Forever]);
+        let addons_from_interface = get_addons_path(&direct_interface, WowFlavor::Forever);
+        assert_eq!(addons_from_interface, forever_folder.join("Interface").join("AddOns"));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }

@@ -21,12 +21,13 @@ export component PackageCard inherits Rectangle {
     // Real native PNG AddOn Icon from textures
     private property <image> package-icon:
         root.package-data.id == "vivavoce-core" || root.package-data.id == "vivavoce_core" ? @image-url("../assets/core.png") :
+        (root.package-data.id == "vivavoce-sounds" || root.package-data.id == "vivavoce_sounds" ? @image-url("../assets/core.png") :
         (root.package-data.id == "vivavoce-quests" || root.package-data.id == "vivavoce_quests" ? @image-url("../assets/quests.png") :
         (root.package-data.id == "vivavoce-books" || root.package-data.id == "vivavoce_books" ? @image-url("../assets/books.png") :
         (root.package-data.id == "vivavoce-codex" || root.package-data.id == "vivavoce_codex" ? @image-url("../assets/codex.png") :
         (root.package-data.id == "vivavoce-zones" || root.package-data.id == "vivavoce_zones" ? @image-url("../assets/zones.png") :
         (root.package-data.id == "vivavoce-collector" || root.package-data.id == "vivavoce_collector" ? @image-url("../assets/collector.png") :
-        @image-url("../assets/logo.png"))))));
+        @image-url("../assets/logo.png")))))));
 
     height: 72px;
     background: p-touch.has-hover ? Theme.bg-card-hover : Theme.bg-card;

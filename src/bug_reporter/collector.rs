@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub enum IssueType {
     Audio,
     Addon,
+    Launcher,
 }
 
 impl IssueType {
@@ -12,6 +13,7 @@ impl IssueType {
         match self {
             Self::Audio => "Audio / Doppiaggio",
             Self::Addon => "AddOn / Tecnico",
+            Self::Launcher => "Launcher / Applicazione Desktop",
         }
     }
 
@@ -19,6 +21,7 @@ impl IssueType {
         match self {
             Self::Audio => "audio-bug",
             Self::Addon => "addon-bug",
+            Self::Launcher => "launcher-bug",
         }
     }
 }
@@ -159,6 +162,35 @@ impl BugReport {
                 md.push_str(&format!("- **Launcher**: VivaVoce Native v{} (Rust + Slint)\n", env!("CARGO_PKG_VERSION")));
                 md.push_str("- **Architettura**: 6 componenti modulari integrati\n");
             }
+            IssueType::Launcher => {
+                md.push_str(&format!("# [Launcher] {}: {}\n\n", self.category, self.title));
+                md.push_str(&format!("- **Tipo Segnalazione**: {}\n", self.issue_type.as_str()));
+                md.push_str(&format!("- **Categoria**: {}\n", self.category));
+                md.push_str(&format!("- **Data/Ora (Epoch)**: {}\n", self.timestamp_epoch));
+                md.push_str(&format!("- **Versione Launcher**: VivaVoce Native v{}\n", env!("CARGO_PKG_VERSION")));
+                md.push_str(&format!("- **Client WoW Rilevato**: {}\n", self.client_flavor));
+                md.push_str(&format!("- **Sistema Operativo**: {}\n", self.os_info));
+                md.push_str(&format!("- **Percorso Installazione**: `{}`\n\n", self.wow_path));
+
+                md.push_str("## Descrizione del Problema / Comportamento Anomalo\n");
+                if self.user_description.trim().is_empty() {
+                    md.push_str("*(Nessuna descrizione o log fornito)*\n\n");
+                } else {
+                    md.push_str(&format!("{}\n\n", self.user_description.trim()));
+                }
+
+                if let Some(ref steps) = self.repro_steps {
+                    if !steps.trim().is_empty() {
+                        md.push_str("## Passaggi per Riprodurre\n");
+                        md.push_str(&format!("{}\n\n", steps.trim()));
+                    }
+                }
+
+                md.push_str("## Informazioni sull'Ambiente Launcher\n");
+                md.push_str(&format!("- **Versione Launcher**: VivaVoce Native v{} (Slint GUI)\n", env!("CARGO_PKG_VERSION")));
+                md.push_str("- **Architettura Scanner**: BLAKE3 Parallel Delta Scanner\n");
+                md.push_str("- **Repository Destinazione**: https://github.com/Master-Antonio/Vivavoce-Launcher\n");
+            }
         }
 
         if let Some(ref path) = self.attachment_path {
@@ -248,6 +280,33 @@ mod tests {
         assert!(md.contains("# [Addon] Errore Lua in gioco: Crash apertura QuestLog"));
         assert!(md.contains("```lua"));
         assert!(md.contains("Passaggi per Riprodurre"));
+    }
+
+    #[test]
+    fn test_launcher_report_markdown() {
+        let report = BugReport {
+            issue_type: IssueType::Launcher,
+            category: "Crash o chiusura improvvisa".to_string(),
+            title: "Crash durante scansione BLAKE3".to_string(),
+            user_description: "Il launcher si chiude all'istante cliccando Verifica integrità".to_string(),
+            repro_steps: Some("1. Clicco Verifica integrità\n2. Chiusura immediata".to_string()),
+            addon_version: "1.0.0".to_string(),
+            client_flavor: "Forever 1.12.1".to_string(),
+            wow_path: "A:\\Blizzard\\World of Warcraft\\_forever_".to_string(),
+            os_info: "Windows 11 x86_64".to_string(),
+            sound_file: None,
+            quest_id: None,
+            npc_id: None,
+            dialogue_title: None,
+            dialogue_text: None,
+            attachment_path: None,
+            timestamp_epoch: 1730928000,
+        };
+
+        let md = report.to_markdown();
+        assert!(md.contains("# [Launcher] Crash o chiusura improvvisa: Crash durante scansione BLAKE3"));
+        assert!(md.contains("Vivavoce-Launcher"));
+        assert!(md.contains("BLAKE3 Parallel Delta Scanner"));
     }
 
     #[test]

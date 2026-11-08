@@ -31,8 +31,8 @@ pub struct DeltaScanResult {
     pub bytes_missing: u64,
 }
 
-/// Computes the Blake3 hash of a file using memory-mapping when possible,
-/// with fallback to buffered streaming for zero-copy maximum throughput.
+/// Computes the Blake3 hash of a file using buffered streaming for zero-copy maximum throughput
+/// and avoiding memory-mapping threadpool contention across Rayon worker threads.
 pub fn hash_file_blake3<P: AsRef<Path>>(path: P) -> std::io::Result<String> {
     let path = path.as_ref();
     let metadata = std::fs::metadata(path)?;
@@ -40,25 +40,18 @@ pub fn hash_file_blake3<P: AsRef<Path>>(path: P) -> std::io::Result<String> {
         return Ok(blake3::hash(&[]).to_hex().to_string());
     }
 
+    let file = File::open(path)?;
+    let mut reader = BufReader::with_capacity(128 * 1024, file);
+    let mut buffer = [0u8; 128 * 1024];
     let mut hasher = blake3::Hasher::new();
-    // Memory-map file for instant OS zero-copy paging
-    match hasher.update_mmap(path) {
-        Ok(_) => Ok(hasher.finalize().to_hex().to_string()),
-        Err(_) => {
-            // Robust fallback if mmap is unavailable (e.g. permissions or special mounts)
-            let file = File::open(path)?;
-            let mut reader = BufReader::with_capacity(64 * 1024, file);
-            let mut buffer = [0u8; 64 * 1024];
-            loop {
-                let n = reader.read(&mut buffer)?;
-                if n == 0 {
-                    break;
-                }
-                hasher.update(&buffer[..n]);
-            }
-            Ok(hasher.finalize().to_hex().to_string())
+    loop {
+        let n = reader.read(&mut buffer)?;
+        if n == 0 {
+            break;
         }
+        hasher.update(&buffer[..n]);
     }
+    Ok(hasher.finalize().to_hex().to_string())
 }
 
 enum FileCheckOutcome<'a> {

@@ -58,8 +58,8 @@ export component MainWindow inherits Window {
     callback start-update();
     callback start-repair();
     callback start-uninstall();
-    callback submit-bug-report(int /* type: 0=audio, 1=addon */, string /* category */, string /* title */, string /* description */, string /* extra */, string /* attachment_path */);
-    callback create-github-issue(int /* type: 0=audio, 1=addon */, string /* category */, string /* title */, string /* description */, string /* extra */, string /* attachment_path */);
+    callback submit-bug-report(int /* type: 0=audio, 1=addon, 2=launcher */, string /* category */, string /* title */, string /* description */, string /* extra */, string /* attachment_path */);
+    callback create-github-issue(int /* type: 0=audio, 1=addon, 2=launcher */, string /* category */, string /* title */, string /* description */, string /* extra */, string /* attachment_path */);
     callback select-bug-attachment();
     callback reveal-bug-attachment();
     callback select-wow-folder();

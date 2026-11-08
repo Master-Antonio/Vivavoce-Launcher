@@ -12,6 +12,7 @@ impl Submitter {
         let prefix = match report.issue_type {
             IssueType::Audio => "AudioReport",
             IssueType::Addon => "AddonReport",
+            IssueType::Launcher => "LauncherReport",
         };
         let filename = format!("VivaVoce_{}_{}.md", prefix, report.timestamp_epoch);
         let file_path = target_dir.join(filename);
@@ -147,16 +148,18 @@ impl Submitter {
 
     /// Builds a pre-filled GitHub new issue URL with labels, title and markdown body
     pub fn build_github_issue_url(report: &BugReport) -> String {
-        let tag = match report.issue_type {
-            IssueType::Audio => "Audio",
-            IssueType::Addon => "Addon",
+        let (tag, repo) = match report.issue_type {
+            IssueType::Audio => ("Audio", "Master-Antonio/Vivavoce-Releases"),
+            IssueType::Addon => ("Addon", "Master-Antonio/Vivavoce-Releases"),
+            IssueType::Launcher => ("Launcher", "Master-Antonio/Vivavoce-Launcher"),
         };
         let title = format!("[{}] {}: {}", tag, report.category, report.title);
         let label = report.issue_type.github_label();
         let body = report.to_markdown();
 
         format!(
-            "https://github.com/Master-Antonio/Vivavoce-Releases/issues/new?title={}&labels={}&body={}",
+            "https://github.com/{}/issues/new?title={}&labels={}&body={}",
+            repo,
             urlencoding::encode(&title),
             urlencoding::encode(label),
             urlencoding::encode(&body)
@@ -168,9 +171,10 @@ impl Submitter {
         report: &BugReport,
         token: &str,
     ) -> Result<String, String> {
-        let tag = match report.issue_type {
-            IssueType::Audio => "Audio",
-            IssueType::Addon => "Addon",
+        let (tag, repo) = match report.issue_type {
+            IssueType::Audio => ("Audio", "Master-Antonio/Vivavoce-Releases"),
+            IssueType::Addon => ("Addon", "Master-Antonio/Vivavoce-Releases"),
+            IssueType::Launcher => ("Launcher", "Master-Antonio/Vivavoce-Launcher"),
         };
         let title = format!("[{}] {}: {}", tag, report.category, report.title);
         let label = report.issue_type.github_label();
@@ -187,12 +191,12 @@ impl Submitter {
             "labels": [label]
         });
 
-        let url = "https://api.github.com/repos/Master-Antonio/Vivavoce-Releases/issues";
+        let url = format!("https://api.github.com/repos/{}/issues", repo);
 
         info!("Invio issue via GitHub REST API verso {}...", url);
 
         let resp = client
-            .post(url)
+            .post(&url)
             .header("User-Agent", "VivaVoceLauncher/0.1.0")
             .header("Accept", "application/vnd.github+json")
             .header("Authorization", format!("Bearer {}", token.trim()))
@@ -213,7 +217,7 @@ impl Submitter {
                 return Ok(html_url.to_string());
             }
 
-            Ok("https://github.com/Master-Antonio/Vivavoce-Releases/issues".to_string())
+            Ok(format!("https://github.com/{}/issues", repo))
         } else if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN {
             error!("GitHub API token non valido o privo di permessi");
             Err("Token GitHub non valido o privo dei permessi 'public_repo'.".to_string())
@@ -229,6 +233,7 @@ impl Submitter {
         let tag = match report.issue_type {
             IssueType::Audio => "Audio",
             IssueType::Addon => "Addon",
+            IssueType::Launcher => "Launcher",
         };
         let subject = format!("[VivaVoce {}] [{}] {}", tag, report.category, report.title);
         let body = report.to_markdown();
@@ -291,6 +296,33 @@ mod tests {
         assert!(url.starts_with("https://github.com/Master-Antonio/Vivavoce-Releases/issues/new?"));
         assert!(url.contains("labels=audio-bug"));
         assert!(url.contains("%5BAudio%5D"));
+    }
+
+    #[test]
+    fn test_build_launcher_github_issue_url() {
+        let report = BugReport {
+            issue_type: IssueType::Launcher,
+            category: "Crash o chiusura improvvisa".to_string(),
+            title: "Crash scansione".to_string(),
+            user_description: "Crash immediato".to_string(),
+            repro_steps: None,
+            addon_version: "1.0.0".to_string(),
+            client_flavor: "Forever 1.12.1".to_string(),
+            wow_path: "A:\\WoW".to_string(),
+            os_info: "Windows 11".to_string(),
+            sound_file: None,
+            quest_id: None,
+            npc_id: None,
+            dialogue_title: None,
+            dialogue_text: None,
+            attachment_path: None,
+            timestamp_epoch: 1730920000,
+        };
+
+        let url = Submitter::build_github_issue_url(&report);
+        assert!(url.starts_with("https://github.com/Master-Antonio/Vivavoce-Launcher/issues/new?"));
+        assert!(url.contains("labels=launcher-bug"));
+        assert!(url.contains("%5BLauncher%5D"));
     }
 
     #[test]

@@ -13,7 +13,7 @@ export struct DialogueEntry {
 export component BugCard inherits Rectangle {
     // Shared properties
     in-out property <[DialogueEntry]> recent-dialogues: [];
-    in-out property <int> report-type: 0; // 0 = Audio / Doppiaggio, 1 = AddOn / Tecnico
+    in-out property <int> report-type: 0; // 0 = Audio / Doppiaggio, 1 = AddOn / Tecnico, 2 = Launcher / App
     in-out property <string> submit-status-text: "";
     in-out property <string> last-created-issue-url: "";
     in-out property <bool> has-github-token: false;
@@ -33,6 +33,13 @@ export component BugCard inherits Rectangle {
     in-out property <string> addon-description: "";
     in-out property <string> addon-repro-steps: "";
 
+    // Launcher properties
+    in-out property <int> selected-launcher-category: 0;
+    in-out property <string> launcher-title: "";
+    in-out property <string> launcher-description: "";
+    in-out property <string> launcher-repro-steps: "";
+    in-out property <string> launcher-logs: "";
+
     // Attachment properties & callbacks
     in-out property <string> attachment-path: "";
     in-out property <string> attachment-filename: "";
@@ -41,7 +48,7 @@ export component BugCard inherits Rectangle {
     callback reveal-attachment();
 
     // Callbacks
-    callback create-github-issue(int /* type: 0=audio, 1=addon */, string /* category */, string /* title */, string /* description */, string /* extra_data */, string /* attachment_path */);
+    callback create-github-issue(int /* type: 0=audio, 1=addon, 2=launcher */, string /* category */, string /* title */, string /* description */, string /* extra_data */, string /* attachment_path */);
     callback export-report-md(int /* type */, string /* category */, string /* title */, string /* description */, string /* extra_data */, string /* attachment_path */);
     callback open-issue-url(string /* url */);
 
@@ -65,9 +72,19 @@ export component BugCard inherits Rectangle {
         "Altro problema tecnico"
     ];
 
+    private property <[string]> launcher-categories: [
+        "Crash o chiusura improvvisa",
+        "Verifica integrità o scansione",
+        "Download o estrazione pacchetti",
+        "Rilevamento percorso WoW",
+        "Interfaccia / Grafica Slint",
+        "Altro problema Launcher"
+    ];
+
     // Current category labels
     private property <string> current-audio-category: root.audio-categories[root.selected-audio-category];
     private property <string> current-addon-category: root.addon-categories[root.selected-addon-category];
+    private property <string> current-launcher-category: root.launcher-categories[root.selected-launcher-category];
 
     // Selected sound file
     private property <string> current-sound-file:
@@ -123,7 +140,7 @@ export component BugCard inherits Rectangle {
 
                     // Button: Audio
                     Rectangle {
-                        width: 220px;
+                        width: 170px;
                         height: 32px;
                         border-radius: Theme.radius-sm;
                         background: root.report-type == 0 ? #1c2638 : (audio-tab-touch.has-hover ? #141b28 : transparent);
@@ -156,7 +173,7 @@ export component BugCard inherits Rectangle {
                             VerticalLayout {
                                 alignment: center;
                                 Text {
-                                    text: "Problema Audio / Voci";
+                                    text: "Audio / Voci";
                                     color: root.report-type == 0 ? Theme.text-primary : #949db0;
                                     font-size: 13px;
                                     font-weight: root.report-type == 0 ? 600 : 400;
@@ -167,7 +184,7 @@ export component BugCard inherits Rectangle {
 
                     // Button: AddOn / Tecnico
                     Rectangle {
-                        width: 220px;
+                        width: 170px;
                         height: 32px;
                         border-radius: Theme.radius-sm;
                         background: root.report-type == 1 ? #1c2638 : (addon-tab-touch.has-hover ? #141b28 : transparent);
@@ -200,10 +217,54 @@ export component BugCard inherits Rectangle {
                             VerticalLayout {
                                 alignment: center;
                                 Text {
-                                    text: "Problema AddOn / Tecnico";
+                                    text: "AddOn di Gioco";
                                     color: root.report-type == 1 ? Theme.text-primary : #949db0;
                                     font-size: 13px;
                                     font-weight: root.report-type == 1 ? 600 : 400;
+                                }
+                            }
+                        }
+                    }
+
+                    // Button: Launcher / App
+                    Rectangle {
+                        width: 170px;
+                        height: 32px;
+                        border-radius: Theme.radius-sm;
+                        background: root.report-type == 2 ? #1c2638 : (launcher-tab-touch.has-hover ? #141b28 : transparent);
+                        border-width: 1px;
+                        border-color: root.report-type == 2 ? Theme.border-gold-normal : transparent;
+
+                        animate background { duration: Theme.transition-fast; easing: ease-out; }
+                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                        launcher-tab-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.report-type = 2; }
+                        }
+
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: 8px;
+
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    width: 15px;
+                                    height: 15px;
+                                    source: @image-url("../assets/icons/dashboard.svg");
+                                    colorize: root.report-type == 2 ? Theme.gold-light : #8a94a6;
+                                    image-fit: contain;
+                                }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: "Launcher / App";
+                                    color: root.report-type == 2 ? Theme.text-primary : #949db0;
+                                    font-size: 13px;
+                                    font-weight: root.report-type == 2 ? 600 : 400;
                                 }
                             }
                         }
@@ -216,7 +277,9 @@ export component BugCard inherits Rectangle {
         Text {
             text: root.report-type == 0 ?
                 "Segnala errori di pronuncia, battute tagliate, volume non bilanciato o discrepanze tra audio recitato e sottotitoli." :
-                "Segnala errori Lua di gioco, anomalie nei menu o impostazioni, problemi nel download dei pacchetti o crash.";
+                (root.report-type == 1 ?
+                    "Segnala errori Lua di gioco, anomalie nei menu o impostazioni o crash del client di gioco." :
+                    "Segnala crash del launcher, errori durante verifica integrità, problemi di download o rilevamento WoW.");
             color: Theme.text-secondary;
             font-size: 13px;
         }
@@ -1067,6 +1130,326 @@ export component BugCard inherits Rectangle {
         }
 
         // =====================================================================
+        // MODE 2: SEGNALAZIONE LAUNCHER / APP
+        // =====================================================================
+        if (root.report-type == 2) : VerticalLayout {
+            spacing: 12px;
+            alignment: start;
+
+            // Section 1: Launcher Category Pills
+            VerticalLayout {
+                spacing: 6px;
+
+                Text {
+                    text: "Categoria del problema del Launcher";
+                    color: Theme.text-primary;
+                    font-size: 13px;
+                    font-weight: 600;
+                }
+
+                VerticalLayout {
+                    spacing: 8px;
+
+                    // Row 1: 3 pills
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: start;
+
+                        Rectangle {
+                            height: 32px;
+                            border-radius: Theme.radius-pill;
+                            background: root.selected-launcher-category == 0 ? #c89b3c22 : (lp0.has-hover ? #182030 : Theme.bg-card);
+                            border-width: 1px;
+                            border-color: root.selected-launcher-category == 0 ? Theme.border-gold-normal : Theme.border-normal;
+                            animate background { duration: Theme.transition-fast; easing: ease-out; }
+                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+                            lp0 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-launcher-category = 0; } }
+                            HorizontalLayout {
+                                padding-left: 14px; padding-right: 14px; alignment: center;
+                                Text { text: "Crash o chiusura improvvisa"; color: root.selected-launcher-category == 0 ? Theme.gold-light : (lp0.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-launcher-category == 0 ? 600 : 400; vertical-alignment: center; }
+                            }
+                        }
+
+                        Rectangle {
+                            height: 32px;
+                            border-radius: Theme.radius-pill;
+                            background: root.selected-launcher-category == 1 ? #c89b3c22 : (lp1.has-hover ? #182030 : Theme.bg-card);
+                            border-width: 1px;
+                            border-color: root.selected-launcher-category == 1 ? Theme.border-gold-normal : Theme.border-normal;
+                            animate background { duration: Theme.transition-fast; easing: ease-out; }
+                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+                            lp1 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-launcher-category = 1; } }
+                            HorizontalLayout {
+                                padding-left: 14px; padding-right: 14px; alignment: center;
+                                Text { text: "Verifica integrità o scansione"; color: root.selected-launcher-category == 1 ? Theme.gold-light : (lp1.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-launcher-category == 1 ? 600 : 400; vertical-alignment: center; }
+                            }
+                        }
+
+                        Rectangle {
+                            height: 32px;
+                            border-radius: Theme.radius-pill;
+                            background: root.selected-launcher-category == 2 ? #c89b3c22 : (lp2.has-hover ? #182030 : Theme.bg-card);
+                            border-width: 1px;
+                            border-color: root.selected-launcher-category == 2 ? Theme.border-gold-normal : Theme.border-normal;
+                            animate background { duration: Theme.transition-fast; easing: ease-out; }
+                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+                            lp2 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-launcher-category = 2; } }
+                            HorizontalLayout {
+                                padding-left: 14px; padding-right: 14px; alignment: center;
+                                Text { text: "Download o estrazione pacchetti"; color: root.selected-launcher-category == 2 ? Theme.gold-light : (lp2.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-launcher-category == 2 ? 600 : 400; vertical-alignment: center; }
+                            }
+                        }
+                    }
+
+                    // Row 2: 3 pills
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: start;
+
+                        Rectangle {
+                            height: 32px;
+                            border-radius: Theme.radius-pill;
+                            background: root.selected-launcher-category == 3 ? #c89b3c22 : (lp3.has-hover ? #182030 : Theme.bg-card);
+                            border-width: 1px;
+                            border-color: root.selected-launcher-category == 3 ? Theme.border-gold-normal : Theme.border-normal;
+                            animate background { duration: Theme.transition-fast; easing: ease-out; }
+                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+                            lp3 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-launcher-category = 3; } }
+                            HorizontalLayout {
+                                padding-left: 14px; padding-right: 14px; alignment: center;
+                                Text { text: "Rilevamento percorso WoW"; color: root.selected-launcher-category == 3 ? Theme.gold-light : (lp3.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-launcher-category == 3 ? 600 : 400; vertical-alignment: center; }
+                            }
+                        }
+
+                        Rectangle {
+                            height: 32px;
+                            border-radius: Theme.radius-pill;
+                            background: root.selected-launcher-category == 4 ? #c89b3c22 : (lp4.has-hover ? #182030 : Theme.bg-card);
+                            border-width: 1px;
+                            border-color: root.selected-launcher-category == 4 ? Theme.border-gold-normal : Theme.border-normal;
+                            animate background { duration: Theme.transition-fast; easing: ease-out; }
+                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+                            lp4 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-launcher-category = 4; } }
+                            HorizontalLayout {
+                                padding-left: 14px; padding-right: 14px; alignment: center;
+                                Text { text: "Interfaccia / Grafica Slint"; color: root.selected-launcher-category == 4 ? Theme.gold-light : (lp4.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-launcher-category == 4 ? 600 : 400; vertical-alignment: center; }
+                            }
+                        }
+
+                        Rectangle {
+                            height: 32px;
+                            border-radius: Theme.radius-pill;
+                            background: root.selected-launcher-category == 5 ? #c89b3c22 : (lp5.has-hover ? #182030 : Theme.bg-card);
+                            border-width: 1px;
+                            border-color: root.selected-launcher-category == 5 ? Theme.border-gold-normal : Theme.border-normal;
+                            animate background { duration: Theme.transition-fast; easing: ease-out; }
+                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+                            lp5 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-launcher-category = 5; } }
+                            HorizontalLayout {
+                                padding-left: 14px; padding-right: 14px; alignment: center;
+                                Text { text: "Altro problema Launcher"; color: root.selected-launcher-category == 5 ? Theme.gold-light : (lp5.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-launcher-category == 5 ? 600 : 400; vertical-alignment: center; }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Section 2: Titolo o Sintesi Launcher
+            VerticalLayout {
+                spacing: 6px;
+
+                Text {
+                    text: "Sintesi o titolo del problema del Launcher";
+                    color: Theme.text-primary;
+                    font-size: 13px;
+                    font-weight: 600;
+                }
+
+                Rectangle {
+                    height: 38px;
+                    background: Theme.bg-input;
+                    border-radius: Theme.radius-sm;
+                    border-width: 1px;
+                    border-color: launcher-title-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
+
+                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                    title-l-touch := TouchArea {
+                        mouse-cursor: text;
+                        clicked => { launcher-title-input.focus(); }
+                    }
+
+                    if (root.launcher-title == "" && !launcher-title-input.has-focus) : Text {
+                        x: 12px;
+                        y: 11px;
+                        text: "es: Crash improvviso cliccando 'Verifica integrità'";
+                        color: Theme.text-muted;
+                        font-size: 12px;
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        alignment: stretch;
+
+                        launcher-title-input := TextInput {
+                            text <=> root.launcher-title;
+                            color: Theme.text-primary;
+                            font-size: 13px;
+                            single-line: true;
+                            horizontal-alignment: left;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // Section 3: Descrizione del Problema
+            VerticalLayout {
+                spacing: 6px;
+
+                Text {
+                    text: "Descrizione dettagliata del malfunzionamento o errore";
+                    color: Theme.text-primary;
+                    font-size: 13px;
+                    font-weight: 600;
+                }
+
+                Rectangle {
+                    height: 80px;
+                    background: Theme.bg-input;
+                    border-radius: Theme.radius-md;
+                    border-width: 1px;
+                    border-color: launcher-desc-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
+
+                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                    desc-l-touch := TouchArea {
+                        mouse-cursor: text;
+                        clicked => { launcher-desc-input.focus(); }
+                    }
+
+                    if (root.launcher-description == "" && !launcher-desc-input.has-focus) : Text {
+                        x: 12px;
+                        y: 11px;
+                        text: "Descrivi cosa stavi facendo e cosa è accaduto (comportamento inatteso, freeze, ecc.)";
+                        color: Theme.text-muted;
+                        font-size: 12px;
+                    }
+
+                    VerticalLayout {
+                        padding: 10px;
+                        launcher-desc-input := TextInput {
+                            text <=> root.launcher-description;
+                            color: Theme.text-primary;
+                            font-size: 12px;
+                            single-line: false;
+                            wrap: word-wrap;
+                            horizontal-alignment: left;
+                        }
+                    }
+                }
+            }
+
+            // Section 4: Passaggi per riprodurre (opzionale)
+            VerticalLayout {
+                spacing: 6px;
+
+                Text {
+                    text: "Passaggi per riprodurre (opzionale)";
+                    color: Theme.text-primary;
+                    font-size: 13px;
+                    font-weight: 600;
+                }
+
+                Rectangle {
+                    height: 38px;
+                    background: Theme.bg-input;
+                    border-radius: Theme.radius-sm;
+                    border-width: 1px;
+                    border-color: launcher-repro-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
+
+                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                    repro-l-touch := TouchArea {
+                        mouse-cursor: text;
+                        clicked => { launcher-repro-input.focus(); }
+                    }
+
+                    if (root.launcher-repro-steps == "" && !launcher-repro-input.has-focus) : Text {
+                        x: 12px;
+                        y: 11px;
+                        text: "es: 1. Avvio il launcher, 2. Clicco Verifica integrità, 3. Chiusura immediata";
+                        color: Theme.text-muted;
+                        font-size: 12px;
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        alignment: stretch;
+
+                        launcher-repro-input := TextInput {
+                            text <=> root.launcher-repro-steps;
+                            color: Theme.text-primary;
+                            font-size: 13px;
+                            single-line: true;
+                            horizontal-alignment: left;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // Section 5: Log / Messaggio di errore (opzionale)
+            VerticalLayout {
+                spacing: 6px;
+
+                Text {
+                    text: "Log console o messaggio di errore (opzionale)";
+                    color: Theme.text-primary;
+                    font-size: 13px;
+                    font-weight: 600;
+                }
+
+                Rectangle {
+                    height: 60px;
+                    background: Theme.bg-input;
+                    border-radius: Theme.radius-sm;
+                    border-width: 1px;
+                    border-color: launcher-logs-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
+
+                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                    logs-l-touch := TouchArea {
+                        mouse-cursor: text;
+                        clicked => { launcher-logs-input.focus(); }
+                    }
+
+                    if (root.launcher-logs == "" && !launcher-logs-input.has-focus) : Text {
+                        x: 12px;
+                        y: 11px;
+                        text: "Incolla qui output di terminale, stack trace o codice di uscita...";
+                        color: Theme.text-muted;
+                        font-size: 12px;
+                    }
+
+                    VerticalLayout {
+                        padding: 8px;
+                        launcher-logs-input := TextInput {
+                            text <=> root.launcher-logs;
+                            color: Theme.text-primary;
+                            font-size: 11px;
+                            single-line: false;
+                            wrap: word-wrap;
+                            horizontal-alignment: left;
+                        }
+                    }
+                }
+            }
+        }
+
+        // =====================================================================
         // SECTION: ALLEGATO MULTIMEDIALE (Screenshot o Video)
         // =====================================================================
         VerticalLayout {
@@ -1356,7 +1739,7 @@ export component BugCard inherits Rectangle {
                         alignment: center;
 
                         Text {
-                            text: root.report-type == 0 ? "Target:" : "Ambiente:";
+                            text: root.report-type == 0 ? "Target:" : (root.report-type == 1 ? "Ambiente:" : "Repository:");
                             color: Theme.text-muted;
                             font-size: 11px;
                             font-weight: 500;
@@ -1365,7 +1748,7 @@ export component BugCard inherits Rectangle {
                         Text {
                             text: root.report-type == 0 ?
                                 (root.current-sound-file != "" ? root.current-sound-file : "Segnalazione generale") :
-                                "WoW Forever (1.12.1) · AddOn v1.0.0";
+                                (root.report-type == 1 ? "WoW Forever (1.12.1) · AddOn v1.0.0" : "Master-Antonio/Vivavoce-Launcher");
                             color: Theme.gold-light;
                             font-size: 11px;
                             overflow: elide;
@@ -1394,13 +1777,22 @@ export component BugCard inherits Rectangle {
                                 root.current-sound-file,
                                 root.attachment-path
                             );
-                        } else {
+                        } else if (root.report-type == 1) {
                             root.export-report-md(
                                 1,
                                 root.current-addon-category,
                                 root.addon-title != "" ? root.addon-title : "Problema AddOn",
                                 root.addon-description,
                                 root.addon-repro-steps,
+                                root.attachment-path
+                            );
+                        } else {
+                            root.export-report-md(
+                                2,
+                                root.current-launcher-category,
+                                root.launcher-title != "" ? root.launcher-title : "Problema Launcher",
+                                root.launcher-description,
+                                root.launcher-repro-steps + (root.launcher-logs != "" ? "\n---LOGS---\n" + root.launcher-logs : ""),
                                 root.attachment-path
                             );
                         }
@@ -1421,13 +1813,22 @@ export component BugCard inherits Rectangle {
                                 root.current-sound-file,
                                 root.attachment-path
                             );
-                        } else {
+                        } else if (root.report-type == 1) {
                             root.create-github-issue(
                                 1,
                                 root.current-addon-category,
                                 root.addon-title != "" ? root.addon-title : "Problema AddOn",
                                 root.addon-description,
                                 root.addon-repro-steps,
+                                root.attachment-path
+                            );
+                        } else {
+                            root.create-github-issue(
+                                2,
+                                root.current-launcher-category,
+                                root.launcher-title != "" ? root.launcher-title : "Problema Launcher",
+                                root.launcher-description,
+                                root.launcher-repro-steps + (root.launcher-logs != "" ? "\n---LOGS---\n" + root.launcher-logs : ""),
                                 root.attachment-path
                             );
                         }

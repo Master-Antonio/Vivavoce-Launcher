@@ -208,22 +208,31 @@ where
     // Swap executable
     #[cfg(target_os = "windows")]
     {
-        let old_exe = exe_dir.join("vivavoce-launcher.exe.old");
+        let pid = std::process::id();
+        let stem = current_exe.file_stem().and_then(|s| s.to_str()).unwrap_or("vivavoce-launcher");
+        let old_exe = exe_dir.join(format!("{}.old", stem));
+        let pid_old_exe = exe_dir.join(format!("{}.{}.old", stem, pid));
         let _ = std::fs::remove_file(&old_exe);
 
         // Rename running exe to .old (Windows allows renaming running binaries in-place)
-        std::fs::rename(&current_exe, &old_exe)
-            .map_err(|e| format!("Impossibile rinominare l'eseguibile corrente: {}", e))?;
+        let backup_path = if std::fs::rename(&current_exe, &old_exe).is_ok() {
+            old_exe
+        } else {
+            let _ = std::fs::remove_file(&pid_old_exe);
+            std::fs::rename(&current_exe, &pid_old_exe)
+                .map_err(|e| format!("Impossibile rinominare l'eseguibile corrente: {}", e))?;
+            pid_old_exe
+        };
 
         // Move the downloaded binary into place
         if let Err(e) = std::fs::rename(&temp_download, &current_exe) {
             // Rollback if rename fails
-            let _ = std::fs::rename(&old_exe, &current_exe);
+            let _ = std::fs::rename(&backup_path, &current_exe);
             return Err(format!("Sostituzione eseguibile fallita: {}", e));
         }
 
-        // Clean up .old if possible
-        let _ = std::fs::remove_file(&old_exe);
+        // Clean up backup if possible
+        let _ = std::fs::remove_file(&backup_path);
     }
 
     #[cfg(target_os = "macos")]

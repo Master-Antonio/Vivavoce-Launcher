@@ -48,13 +48,19 @@ async fn main() -> anyhow::Result<()> {
     // Clean up leftover .old executable from previous self-update
     if let Ok(current_exe) = std::env::current_exe() {
         if let Some(exe_dir) = current_exe.parent() {
-            let old_exe = exe_dir.join("vivavoce-launcher.exe.old");
-            if old_exe.exists() {
-                let _ = std::fs::remove_file(old_exe);
-            }
-            let old_mac = exe_dir.join("vivavoce-launcher.old");
-            if old_mac.exists() {
-                let _ = std::fs::remove_file(old_mac);
+            if let Ok(entries) = std::fs::read_dir(exe_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                        if ext.eq_ignore_ascii_case("old") || ext.eq_ignore_ascii_case("tmp") {
+                            let _ = std::fs::remove_file(path);
+                        }
+                    } else if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        if name.contains(".old") || name.ends_with(".tmp") {
+                            let _ = std::fs::remove_file(path);
+                        }
+                    }
+                }
             }
         }
     }

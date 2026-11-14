@@ -59,7 +59,7 @@ impl Downloader {
     /// Creates a new Downloader with sensible default timeouts and user agent.
     pub fn new() -> Self {
         let client = reqwest::Client::builder()
-            .user_agent("VivaVoceLauncher/0.1.0")
+            .user_agent(concat!("VivaVoceLauncher/", env!("CARGO_PKG_VERSION")))
             .pool_max_idle_per_host(4)
             .build()
             .unwrap_or_default();

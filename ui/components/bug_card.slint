@@ -10,6 +10,100 @@ export struct DialogueEntry {
     text: string,
 }
 
+// =============================================================================
+// SUB-COMPONENTS FOR CLEAN SPACIOUS FORM ARCHITECTURE
+// =============================================================================
+
+component CategoryChip inherits Rectangle {
+    in-out property <string> text;
+    in-out property <bool> selected: false;
+    callback clicked();
+
+    height: 32px;
+    border-radius: Theme.radius-pill;
+    background: root.selected ? Theme.brand-primary : (chip-touch.has-hover ? #1c2333 : #0a0d13);
+    border-width: 1px;
+    border-color: root.selected ? Theme.brand-primary : (chip-touch.has-hover ? #3d4d6b : Theme.border-normal);
+    animate background { duration: Theme.transition-fast; easing: ease-out; }
+    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+    chip-touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        alignment: center;
+
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: root.text;
+                color: root.selected ? #ffffff : (chip-touch.has-hover ? Theme.text-primary : Theme.text-secondary);
+                font-size: Theme.font-size-sm;
+                font-weight: root.selected ? 600 : 400;
+                vertical-alignment: center;
+                animate color { duration: Theme.transition-fast; }
+            }
+        }
+    }
+}
+
+component FormHeader inherits HorizontalLayout {
+    in-out property <string> label: "";
+    in-out property <bool> show-required: false;
+    in-out property <bool> is-filled: false;
+
+    spacing: 8px;
+    alignment: start;
+
+    VerticalLayout {
+        alignment: center;
+        Text {
+            text: root.label;
+            color: Theme.text-primary;
+            font-size: Theme.font-size-base;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+
+    if (root.show-required) : VerticalLayout {
+        alignment: center;
+        Rectangle {
+            height: 20px;
+            border-radius: Theme.radius-pill;
+            background: root.is-filled ? #23a55a18 : #f23f4318;
+            border-width: 1px;
+            border-color: root.is-filled ? #23a55a50 : #f23f4360;
+            animate background { duration: Theme.transition-fast; }
+            animate border-color { duration: Theme.transition-fast; }
+
+            HorizontalLayout {
+                padding-left: 8px;
+                padding-right: 8px;
+                alignment: center;
+                VerticalLayout {
+                    alignment: center;
+                    Text {
+                        text: root.is-filled ? "✓ Inserito" : "* Obbligatorio";
+                        color: root.is-filled ? #23a55a : #f87171;
+                        font-size: Theme.font-size-xs;
+                        font-weight: 700;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// =============================================================================
+// MAIN BUG CARD COMPONENT
+// =============================================================================
+
 export component BugCard inherits Rectangle {
     // Shared properties
     in-out property <[DialogueEntry]> recent-dialogues: [];
@@ -86,6 +180,21 @@ export component BugCard inherits Rectangle {
     private property <string> current-addon-category: root.addon-categories[root.selected-addon-category];
     private property <string> current-launcher-category: root.launcher-categories[root.selected-launcher-category];
 
+    // Form validation logic & required field check
+    private property <bool> is-audio-valid:
+        (root.selected-dialogue-index >= 0) ||
+        (root.audio-quest-title != "" && root.audio-description != "");
+
+    private property <bool> is-addon-valid:
+        root.addon-title != "" && root.addon-description != "";
+
+    private property <bool> is-launcher-valid:
+        root.launcher-title != "" && root.launcher-description != "";
+
+    private property <bool> is-form-valid:
+        root.report-type == 0 ? root.is-audio-valid :
+        (root.report-type == 1 ? root.is-addon-valid : root.is-launcher-valid);
+
     // Selected sound file
     private property <string> current-sound-file:
         (root.selected-dialogue-index >= 0 && root.selected-dialogue-index < root.recent-dialogues.length) ?
@@ -116,1621 +225,71 @@ export component BugCard inherits Rectangle {
 
     VerticalLayout {
         width: 100%;
-        padding: 18px;
-        spacing: 14px;
+        padding-left: 24px;
+        padding-right: 24px;
+        padding-top: 24px;
+        padding-bottom: 24px;
+        spacing: 18px;
         alignment: start;
 
         // =====================================================================
-        // HEADER: MODE SELECTOR (Emil Kowalski Segmented Control)
-        // =====================================================================
-        HorizontalLayout {
-            alignment: start;
-
-            // Segmented Pill Control for Audio vs AddOn
-            Rectangle {
-                height: 40px;
-                border-radius: Theme.radius-md;
-                background: #0d111a;
-                border-width: 1px;
-                border-color: Theme.border-subtle;
-
-                HorizontalLayout {
-                    padding: 3px;
-                    spacing: 6px;
-
-                    // Button: Audio
-                    Rectangle {
-                        width: 170px;
-                        height: 32px;
-                        border-radius: Theme.radius-sm;
-                        background: root.report-type == 0 ? #1c2638 : (audio-tab-touch.has-hover ? #141b28 : transparent);
-                        border-width: 1px;
-                        border-color: root.report-type == 0 ? Theme.border-gold-normal : transparent;
-
-                        animate background { duration: Theme.transition-fast; easing: ease-out; }
-                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                        audio-tab-touch := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.report-type = 0; }
-                        }
-
-                        HorizontalLayout {
-                            alignment: center;
-                            spacing: 8px;
-
-                            VerticalLayout {
-                                alignment: center;
-                                Image {
-                                    width: 15px;
-                                    height: 15px;
-                                    source: @image-url("../assets/icons/headphones.svg");
-                                    colorize: root.report-type == 0 ? Theme.gold-light : #8a94a6;
-                                    image-fit: contain;
-                                }
-                            }
-
-                            VerticalLayout {
-                                alignment: center;
-                                Text {
-                                    text: "Audio / Voci";
-                                    color: root.report-type == 0 ? Theme.text-primary : #949db0;
-                                    font-size: 13px;
-                                    font-weight: root.report-type == 0 ? 600 : 400;
-                                }
-                            }
-                        }
-                    }
-
-                    // Button: AddOn / Tecnico
-                    Rectangle {
-                        width: 170px;
-                        height: 32px;
-                        border-radius: Theme.radius-sm;
-                        background: root.report-type == 1 ? #1c2638 : (addon-tab-touch.has-hover ? #141b28 : transparent);
-                        border-width: 1px;
-                        border-color: root.report-type == 1 ? Theme.border-gold-normal : transparent;
-
-                        animate background { duration: Theme.transition-fast; easing: ease-out; }
-                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                        addon-tab-touch := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.report-type = 1; }
-                        }
-
-                        HorizontalLayout {
-                            alignment: center;
-                            spacing: 8px;
-
-                            VerticalLayout {
-                                alignment: center;
-                                Image {
-                                    width: 15px;
-                                    height: 15px;
-                                    source: @image-url("../assets/icons/wrench.svg");
-                                    colorize: root.report-type == 1 ? Theme.gold-light : #8a94a6;
-                                    image-fit: contain;
-                                }
-                            }
-
-                            VerticalLayout {
-                                alignment: center;
-                                Text {
-                                    text: "AddOn di Gioco";
-                                    color: root.report-type == 1 ? Theme.text-primary : #949db0;
-                                    font-size: 13px;
-                                    font-weight: root.report-type == 1 ? 600 : 400;
-                                }
-                            }
-                        }
-                    }
-
-                    // Button: Launcher / App
-                    Rectangle {
-                        width: 170px;
-                        height: 32px;
-                        border-radius: Theme.radius-sm;
-                        background: root.report-type == 2 ? #1c2638 : (launcher-tab-touch.has-hover ? #141b28 : transparent);
-                        border-width: 1px;
-                        border-color: root.report-type == 2 ? Theme.border-gold-normal : transparent;
-
-                        animate background { duration: Theme.transition-fast; easing: ease-out; }
-                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                        launcher-tab-touch := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.report-type = 2; }
-                        }
-
-                        HorizontalLayout {
-                            alignment: center;
-                            spacing: 8px;
-
-                            VerticalLayout {
-                                alignment: center;
-                                Image {
-                                    width: 15px;
-                                    height: 15px;
-                                    source: @image-url("../assets/icons/dashboard.svg");
-                                    colorize: root.report-type == 2 ? Theme.gold-light : #8a94a6;
-                                    image-fit: contain;
-                                }
-                            }
-
-                            VerticalLayout {
-                                alignment: center;
-                                Text {
-                                    text: "Launcher / App";
-                                    color: root.report-type == 2 ? Theme.text-primary : #949db0;
-                                    font-size: 13px;
-                                    font-weight: root.report-type == 2 ? 600 : 400;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Subtitle Description
-        Text {
-            text: root.report-type == 0 ?
-                "Segnala errori di pronuncia, battute tagliate, volume non bilanciato o discrepanze tra audio recitato e sottotitoli." :
-                (root.report-type == 1 ?
-                    "Segnala errori Lua di gioco, anomalie nei menu o impostazioni o crash del client di gioco." :
-                    "Segnala crash del launcher, errori durante verifica integrità, problemi di download o rilevamento WoW.");
-            color: Theme.text-secondary;
-            font-size: 13px;
-        }
-
-        // =====================================================================
-        // MODE 0: SEGNALAZIONE AUDIO
-        // =====================================================================
-        if (root.report-type == 0) : VerticalLayout {
-            spacing: 12px;
-            alignment: start;
-
-            // Section 1: Dialoghi Recenti
-            VerticalLayout {
-                spacing: 6px;
-
-                Text {
-                    text: "Dialoghi recenti registrati in WoW Forever";
-                    color: Theme.text-primary;
-                    font-size: 13px;
-                    font-weight: 600;
-                }
-
-                Rectangle {
-                    height: root.recent-dialogues.length == 0 ? 84px : 124px;
-                    background: Theme.bg-inset;
-                    border-radius: Theme.radius-md;
-                    border-width: 1px;
-                    border-color: Theme.border-subtle;
-                    clip: true;
-
-                    // Empty state
-                    if (root.recent-dialogues.length == 0) : Rectangle {
-                        HorizontalLayout {
-                            padding-left: 18px;
-                            padding-right: 18px;
-                            alignment: start;
-                            spacing: 14px;
-
-                            VerticalLayout {
-                                alignment: center;
-                                Rectangle {
-                                    width: 38px;
-                                    height: 38px;
-                                    border-radius: Theme.radius-sm;
-                                    background: #121622;
-                                    border-width: 1px;
-                                    border-color: Theme.border-subtle;
-
-                                    Image {
-                                        width: 18px;
-                                        height: 18px;
-                                        x: (parent.width - self.width) / 2;
-                                        y: (parent.height - self.height) / 2;
-                                        source: @image-url("../assets/icons/headphones.svg");
-                                        colorize: Theme.gold-primary;
-                                        image-fit: contain;
-                                    }
-                                }
-                            }
-
-                            VerticalLayout {
-                                alignment: center;
-                                spacing: 3px;
-
-                                Text {
-                                    text: "Nessun dialogo recente in memoria";
-                                    color: Theme.text-primary;
-                                    font-size: 13px;
-                                    font-weight: 500;
-                                }
-                                Text {
-                                    text: "Avvia WoW Forever con VivaVoce per registrare i dialoghi ascoltati, oppure descrivi l'anomalia sotto.";
-                                    color: Theme.text-muted;
-                                    font-size: 12px;
-                                }
-                            }
-                        }
-                    }
-
-                    // Populated dialogues
-                    if (root.recent-dialogues.length > 0) : ScrollView {
-                        VerticalLayout {
-                            spacing: 4px;
-                            padding: 6px;
-
-                            for item[idx] in root.recent-dialogues : Rectangle {
-                                height: 54px;
-                                background: root.selected-dialogue-index == idx ? Theme.bg-card-selected : (row-touch.has-hover ? Theme.bg-card-hover : Theme.bg-card);
-                                border-width: 1px;
-                                border-color: root.selected-dialogue-index == idx ? Theme.border-gold-normal : Theme.border-subtle;
-                                border-radius: Theme.radius-sm;
-
-                                animate background { duration: Theme.transition-fast; easing: ease-out; }
-                                animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                                row-touch := TouchArea {
-                                    mouse-cursor: pointer;
-                                    clicked => { root.selected-dialogue-index = idx; }
-                                }
-
-                                HorizontalLayout {
-                                    padding-left: 12px;
-                                    padding-right: 12px;
-                                    alignment: space-between;
-
-                                    VerticalLayout {
-                                        horizontal-stretch: 1;
-                                        spacing: 2px;
-                                        alignment: center;
-
-                                        HorizontalLayout {
-                                            spacing: 7px;
-
-                                            Rectangle {
-                                                height: 20px;
-                                                background: #c89b3c18;
-                                                border-radius: Theme.radius-xs;
-                                                border-width: 1px;
-                                                border-color: #c89b3c33;
-
-                                                HorizontalLayout {
-                                                    padding-left: 7px;
-                                                    padding-right: 7px;
-                                                    alignment: center;
-                                                    Text {
-                                                        text: item.npc-name != "" ? item.npc-name : "NPC sconosciuto";
-                                                        color: Theme.gold-light;
-                                                        font-size: 11px;
-                                                        font-weight: 500;
-                                                        vertical-alignment: center;
-                                                    }
-                                                }
-                                            }
-
-                                            if (item.quest-id > 0) : Rectangle {
-                                                height: 20px;
-                                                background: #38bdf814;
-                                                border-radius: Theme.radius-xs;
-                                                border-width: 1px;
-                                                border-color: #38bdf833;
-
-                                                HorizontalLayout {
-                                                    padding-left: 7px;
-                                                    padding-right: 7px;
-                                                    alignment: center;
-                                                    Text {
-                                                        text: "Quest #" + item.quest-id;
-                                                        color: Theme.status-info;
-                                                        font-size: 11px;
-                                                        font-weight: 500;
-                                                        vertical-alignment: center;
-                                                    }
-                                                }
-                                            }
-
-                                            Text {
-                                                text: item.sound-file;
-                                                color: Theme.text-secondary;
-                                                font-size: 11px;
-                                                vertical-alignment: center;
-                                            }
-                                        }
-
-                                        Text {
-                                            text: "\"" + item.text + "\"";
-                                            color: Theme.text-primary;
-                                            font-size: 12px;
-                                            overflow: elide;
-                                        }
-                                    }
-
-                                    VerticalLayout {
-                                        alignment: center;
-                                        spacing: 4px;
-
-                                        Text {
-                                            text: item.timestamp;
-                                            color: Theme.text-muted;
-                                            font-size: 11px;
-                                            horizontal-alignment: right;
-                                        }
-
-                                        Rectangle {
-                                            width: 82px;
-                                            height: 22px;
-                                            border-radius: Theme.radius-xs;
-                                            background: root.selected-dialogue-index == idx ? Theme.btn-primary-bg : transparent;
-                                            border-width: 1px;
-                                            border-color: root.selected-dialogue-index == idx ? Theme.btn-primary-bg : Theme.border-normal;
-
-                                            Text {
-                                                text: root.selected-dialogue-index == idx ? "Selezionato" : "Seleziona";
-                                                color: root.selected-dialogue-index == idx ? Theme.btn-primary-text : Theme.text-secondary;
-                                                font-size: 11px;
-                                                font-weight: 500;
-                                                horizontal-alignment: center;
-                                                vertical-alignment: center;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Section 2: Audio Category Pills (2 rows of 3 pills)
-            VerticalLayout {
-                spacing: 8px;
-
-                Text {
-                    text: "Categoria problema audio";
-                    color: Theme.text-primary;
-                    font-size: 13px;
-                    font-weight: 600;
-                }
-
-                // Row 1 (Categories 0, 1, 2, 3)
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: start;
-
-                    // 0: Voce mancante
-                    Rectangle {
-                        height: 32px;
-                        border-radius: Theme.radius-pill;
-                        background: root.selected-audio-category == 0 ? #c89b3c22 : (au0.has-hover ? #182030 : Theme.bg-card);
-                        border-width: 1px;
-                        border-color: root.selected-audio-category == 0 ? Theme.border-gold-normal : Theme.border-normal;
-                        animate background { duration: Theme.transition-fast; easing: ease-out; }
-                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                        au0 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-audio-category = 0; } }
-                        HorizontalLayout {
-                            padding-left: 14px; padding-right: 14px; alignment: center;
-                            Text { text: "Voce mancante"; color: root.selected-audio-category == 0 ? Theme.gold-light : (au0.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-audio-category == 0 ? 600 : 400; vertical-alignment: center; }
-                        }
-                    }
-
-                    // 1: Pronuncia ed enfasi
-                    Rectangle {
-                        height: 32px;
-                        border-radius: Theme.radius-pill;
-                        background: root.selected-audio-category == 1 ? #c89b3c22 : (au1.has-hover ? #182030 : Theme.bg-card);
-                        border-width: 1px;
-                        border-color: root.selected-audio-category == 1 ? Theme.border-gold-normal : Theme.border-normal;
-                        animate background { duration: Theme.transition-fast; easing: ease-out; }
-                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                        au1 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-audio-category = 1; } }
-                        HorizontalLayout {
-                            padding-left: 14px; padding-right: 14px; alignment: center;
-                            Text { text: "Pronuncia ed enfasi"; color: root.selected-audio-category == 1 ? Theme.gold-light : (au1.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-audio-category == 1 ? 600 : 400; vertical-alignment: center; }
-                        }
-                    }
-
-                    // 2: Volume o qualità
-                    Rectangle {
-                        height: 32px;
-                        border-radius: Theme.radius-pill;
-                        background: root.selected-audio-category == 2 ? #c89b3c22 : (au2.has-hover ? #182030 : Theme.bg-card);
-                        border-width: 1px;
-                        border-color: root.selected-audio-category == 2 ? Theme.border-gold-normal : Theme.border-normal;
-                        animate background { duration: Theme.transition-fast; easing: ease-out; }
-                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                        au2 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-audio-category = 2; } }
-                        HorizontalLayout {
-                            padding-left: 14px; padding-right: 14px; alignment: center;
-                            Text { text: "Volume o qualità"; color: root.selected-audio-category == 2 ? Theme.gold-light : (au2.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-audio-category == 2 ? 600 : 400; vertical-alignment: center; }
-                        }
-                    }
-
-                    // 3: Sesso o voce errata (NPC femmina che parla maschio o viceversa)
-                    Rectangle {
-                        height: 32px;
-                        border-radius: Theme.radius-pill;
-                        background: root.selected-audio-category == 3 ? #c89b3c22 : (au3.has-hover ? #182030 : Theme.bg-card);
-                        border-width: 1px;
-                        border-color: root.selected-audio-category == 3 ? Theme.border-gold-normal : Theme.border-normal;
-                        animate background { duration: Theme.transition-fast; easing: ease-out; }
-                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                        au3 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-audio-category = 3; } }
-                        HorizontalLayout {
-                            padding-left: 14px; padding-right: 14px; alignment: center;
-                            Text { text: "Sesso o voce errata"; color: root.selected-audio-category == 3 ? Theme.gold-light : (au3.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-audio-category == 3 ? 600 : 400; vertical-alignment: center; }
-                        }
-                    }
-                }
-
-                // Row 2 (Categories 4, 5, 6)
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: start;
-
-                    // 4: Audio tagliato o glitch
-                    Rectangle {
-                        height: 32px;
-                        border-radius: Theme.radius-pill;
-                        background: root.selected-audio-category == 4 ? #c89b3c22 : (au4.has-hover ? #182030 : Theme.bg-card);
-                        border-width: 1px;
-                        border-color: root.selected-audio-category == 4 ? Theme.border-gold-normal : Theme.border-normal;
-                        animate background { duration: Theme.transition-fast; easing: ease-out; }
-                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                        au4 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-audio-category = 4; } }
-                        HorizontalLayout {
-                            padding-left: 14px; padding-right: 14px; alignment: center;
-                            Text { text: "Audio tagliato o glitch"; color: root.selected-audio-category == 4 ? Theme.gold-light : (au4.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-audio-category == 4 ? 600 : 400; vertical-alignment: center; }
-                        }
-                    }
-
-                    // 5: Testo non corrispondente
-                    Rectangle {
-                        height: 32px;
-                        border-radius: Theme.radius-pill;
-                        background: root.selected-audio-category == 5 ? #c89b3c22 : (au5.has-hover ? #182030 : Theme.bg-card);
-                        border-width: 1px;
-                        border-color: root.selected-audio-category == 5 ? Theme.border-gold-normal : Theme.border-normal;
-                        animate background { duration: Theme.transition-fast; easing: ease-out; }
-                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                        au5 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-audio-category = 5; } }
-                        HorizontalLayout {
-                            padding-left: 14px; padding-right: 14px; alignment: center;
-                            Text { text: "Testo non corrispondente"; color: root.selected-audio-category == 5 ? Theme.gold-light : (au5.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-audio-category == 5 ? 600 : 400; vertical-alignment: center; }
-                        }
-                    }
-
-                    // 6: Altro su audio
-                    Rectangle {
-                        height: 32px;
-                        border-radius: Theme.radius-pill;
-                        background: root.selected-audio-category == 6 ? #c89b3c22 : (au6.has-hover ? #182030 : Theme.bg-card);
-                        border-width: 1px;
-                        border-color: root.selected-audio-category == 6 ? Theme.border-gold-normal : Theme.border-normal;
-                        animate background { duration: Theme.transition-fast; easing: ease-out; }
-                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                        au6 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-audio-category = 6; } }
-                        HorizontalLayout {
-                            padding-left: 14px; padding-right: 14px; alignment: center;
-                            Text { text: "Altro su audio"; color: root.selected-audio-category == 6 ? Theme.gold-light : (au6.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-audio-category == 6 ? 600 : 400; vertical-alignment: center; }
-                        }
-                    }
-                }
-            }
-
-            // Sezione specifica per "Voce mancante" (ID, Quest e Testo a schermo)
-            if (root.selected-audio-category == 0) : VerticalLayout {
-                spacing: 10px;
-
-                // Hint banner su come ottenere ID e dati in-game
-                Rectangle {
-                    border-radius: Theme.radius-sm;
-                    background: #c89b3c10;
-                    border-width: 1px;
-                    border-color: #c89b3c33;
-
-                    HorizontalLayout {
-                        padding: 10px;
-                        spacing: 10px;
-
-                        VerticalLayout {
-                            alignment: center;
-                            Image {
-                                width: 16px;
-                                height: 16px;
-                                source: @image-url("../assets/icons/shield-check.svg");
-                                colorize: Theme.gold-light;
-                                image-fit: contain;
-                            }
-                        }
-
-                        Text {
-                            text: "Come trovare i dati: nel gioco puoi digitare /vvq in chat con la finestra aperta per copiare ID e testo. Altrimenti, inserisci qui sotto il nome della quest e dell'NPC.";
-                            color: Theme.gold-light;
-                            font-size: 11px;
-                            wrap: word-wrap;
-                            horizontal-stretch: 1;
-                        }
-                    }
-                }
-
-                // Grid: Titolo Quest / NPC + ID
-                HorizontalLayout {
-                    spacing: 10px;
-
-                    // Titolo Quest o NPC
-                    VerticalLayout {
-                        spacing: 4px;
-                        horizontal-stretch: 2;
-
-                        Text {
-                            text: "Titolo Quest o Nome NPC *";
-                            color: Theme.text-primary;
-                            font-size: 12px;
-                            font-weight: 600;
-                        }
-
-                        Rectangle {
-                            height: 38px;
-                            background: Theme.bg-input;
-                            border-radius: Theme.radius-sm;
-                            border-width: 1px;
-                            border-color: quest-title-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
-                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                            TouchArea {
-                                mouse-cursor: text;
-                                clicked => { quest-title-input.focus(); }
-                            }
-
-                            if (root.audio-quest-title == "" && !quest-title-input.has-focus) : Text {
-                                x: 12px;
-                                y: 11px;
-                                text: "es: La miniera di Fargodeep, o Maresciallo Dughan...";
-                                color: Theme.text-muted;
-                                font-size: 12px;
-                            }
-
-                            HorizontalLayout {
-                                padding-left: 12px;
-                                padding-right: 12px;
-                                quest-title-input := TextInput {
-                                    text <=> root.audio-quest-title;
-                                    color: Theme.text-primary;
-                                    font-size: 13px;
-                                    single-line: true;
-                                    vertical-alignment: center;
-                                }
-                            }
-                        }
-                    }
-
-                    // ID Quest o NPC (opzionale)
-                    VerticalLayout {
-                        spacing: 4px;
-                        horizontal-stretch: 1;
-
-                        Text {
-                            text: "ID Quest / NPC (opzionale)";
-                            color: Theme.text-primary;
-                            font-size: 12px;
-                            font-weight: 600;
-                        }
-
-                        Rectangle {
-                            height: 38px;
-                            background: Theme.bg-input;
-                            border-radius: Theme.radius-sm;
-                            border-width: 1px;
-                            border-color: quest-id-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
-                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                            TouchArea {
-                                mouse-cursor: text;
-                                clicked => { quest-id-input.focus(); }
-                            }
-
-                            if (root.audio-quest-id == "" && !quest-id-input.has-focus) : Text {
-                                x: 12px;
-                                y: 11px;
-                                text: "es: 40 (o link db)";
-                                color: Theme.text-muted;
-                                font-size: 12px;
-                            }
-
-                            HorizontalLayout {
-                                padding-left: 12px;
-                                padding-right: 12px;
-                                quest-id-input := TextInput {
-                                    text <=> root.audio-quest-id;
-                                    color: Theme.text-primary;
-                                    font-size: 13px;
-                                    single-line: true;
-                                    vertical-alignment: center;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Testo a schermo non doppiato (opzionale)
-                VerticalLayout {
-                    spacing: 4px;
-
-                    Text {
-                        text: "Testo a schermo non doppiato (opzionale)";
-                        color: Theme.text-primary;
-                        font-size: 12px;
-                        font-weight: 600;
-                    }
-
-                    Rectangle {
-                        height: 60px;
-                        background: Theme.bg-input;
-                        border-radius: Theme.radius-sm;
-                        border-width: 1px;
-                        border-color: dialogue-text-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
-                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                        TouchArea {
-                            mouse-cursor: text;
-                            clicked => { dialogue-text-input.focus(); }
-                        }
-
-                        if (root.audio-dialogue-text == "" && !dialogue-text-input.has-focus) : Text {
-                            x: 12px;
-                            y: 11px;
-                            text: "Incolla qui il testo in gioco, oppure la busta copiata con /vvq...";
-                            color: Theme.text-muted;
-                            font-size: 12px;
-                        }
-
-                        VerticalLayout {
-                            padding: 10px;
-                            dialogue-text-input := TextInput {
-                                text <=> root.audio-dialogue-text;
-                                color: Theme.text-primary;
-                                font-size: 12px;
-                                single-line: false;
-                                wrap: word-wrap;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Section 3: Audio Description
-            VerticalLayout {
-                spacing: 6px;
-
-                Text {
-                    text: root.selected-audio-category == 0 ? "Note aggiuntive o contesto" : "Dettagli anomalia o suggerimento";
-                    color: Theme.text-primary;
-                    font-size: 13px;
-                    font-weight: 600;
-                }
-
-                Rectangle {
-                    height: root.selected-audio-category == 0 ? 56px : 76px;
-                    background: Theme.bg-input;
-                    border-radius: Theme.radius-md;
-                    border-width: 1px;
-                    border-color: audio-desc-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
-
-                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                    audio-touch := TouchArea {
-                        mouse-cursor: text;
-                        clicked => { audio-desc-input.focus(); }
-                    }
-
-                    if (root.audio-description == "" && !audio-desc-input.has-focus) : Text {
-                        x: 12px;
-                        y: 11px;
-                        text: root.selected-audio-category == 0 ?
-                            "es: NPC non parla quando accetto la quest, nessun audio viene riprodotto..." :
-                            (root.selected-audio-category == 3 ?
-                                "es: NPC femminile con voce maschile (o viceversa), pitch non coerente..." :
-                                "Descrivi l'anomalia (es: accento errato sulla parola 'Ironforge', audio interrotto a metà frase...)");
-                        color: Theme.text-muted;
-                        font-size: 12px;
-                    }
-
-                    VerticalLayout {
-                        padding: 10px;
-                        audio-desc-input := TextInput {
-                            text <=> root.audio-description;
-                            color: Theme.text-primary;
-                            font-size: 13px;
-                            single-line: false;
-                            wrap: word-wrap;
-                            horizontal-alignment: left;
-                        }
-                    }
-                }
-            }
-        }
-
-        // =====================================================================
-        // MODE 1: SEGNALAZIONE ADDON / TECNICO
-        // =====================================================================
-        if (root.report-type == 1) : VerticalLayout {
-            spacing: 12px;
-            alignment: start;
-
-            // Section 1: AddOn Category Pills
-            VerticalLayout {
-                spacing: 6px;
-
-                Text {
-                    text: "Categoria del problema tecnico";
-                    color: Theme.text-primary;
-                    font-size: 13px;
-                    font-weight: 600;
-                }
-
-                VerticalLayout {
-                    spacing: 8px;
-
-                    // Row 1: 3 pills
-                    HorizontalLayout {
-                        spacing: 8px;
-                        alignment: start;
-
-                        Rectangle {
-                            height: 32px;
-                            border-radius: Theme.radius-pill;
-                            background: root.selected-addon-category == 0 ? #c89b3c22 : (ap0.has-hover ? #182030 : Theme.bg-card);
-                            border-width: 1px;
-                            border-color: root.selected-addon-category == 0 ? Theme.border-gold-normal : Theme.border-normal;
-                            animate background { duration: Theme.transition-fast; easing: ease-out; }
-                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                            ap0 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-addon-category = 0; } }
-                            HorizontalLayout {
-                                padding-left: 14px; padding-right: 14px; alignment: center;
-                                Text { text: "Errore Lua in gioco"; color: root.selected-addon-category == 0 ? Theme.gold-light : (ap0.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-addon-category == 0 ? 600 : 400; vertical-alignment: center; }
-                            }
-                        }
-
-                        Rectangle {
-                            height: 32px;
-                            border-radius: Theme.radius-pill;
-                            background: root.selected-addon-category == 1 ? #c89b3c22 : (ap1.has-hover ? #182030 : Theme.bg-card);
-                            border-width: 1px;
-                            border-color: root.selected-addon-category == 1 ? Theme.border-gold-normal : Theme.border-normal;
-                            animate background { duration: Theme.transition-fast; easing: ease-out; }
-                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                            ap1 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-addon-category = 1; } }
-                            HorizontalLayout {
-                                padding-left: 14px; padding-right: 14px; alignment: center;
-                                Text { text: "Installazione / Moduli"; color: root.selected-addon-category == 1 ? Theme.gold-light : (ap1.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-addon-category == 1 ? 600 : 400; vertical-alignment: center; }
-                            }
-                        }
-
-                        Rectangle {
-                            height: 32px;
-                            border-radius: Theme.radius-pill;
-                            background: root.selected-addon-category == 2 ? #c89b3c22 : (ap2.has-hover ? #182030 : Theme.bg-card);
-                            border-width: 1px;
-                            border-color: root.selected-addon-category == 2 ? Theme.border-gold-normal : Theme.border-normal;
-                            animate background { duration: Theme.transition-fast; easing: ease-out; }
-                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                            ap2 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-addon-category = 2; } }
-                            HorizontalLayout {
-                                padding-left: 14px; padding-right: 14px; alignment: center;
-                                Text { text: "Rilevamento Client WoW"; color: root.selected-addon-category == 2 ? Theme.gold-light : (ap2.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-addon-category == 2 ? 600 : 400; vertical-alignment: center; }
-                            }
-                        }
-                    }
-
-                    // Row 2: 3 pills
-                    HorizontalLayout {
-                        spacing: 8px;
-                        alignment: start;
-
-                        Rectangle {
-                            height: 32px;
-                            border-radius: Theme.radius-pill;
-                            background: root.selected-addon-category == 3 ? #c89b3c22 : (ap3.has-hover ? #182030 : Theme.bg-card);
-                            border-width: 1px;
-                            border-color: root.selected-addon-category == 3 ? Theme.border-gold-normal : Theme.border-normal;
-                            animate background { duration: Theme.transition-fast; easing: ease-out; }
-                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                            ap3 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-addon-category = 3; } }
-                            HorizontalLayout {
-                                padding-left: 14px; padding-right: 14px; alignment: center;
-                                Text { text: "Interfaccia / Opzioni AddOn"; color: root.selected-addon-category == 3 ? Theme.gold-light : (ap3.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-addon-category == 3 ? 600 : 400; vertical-alignment: center; }
-                            }
-                        }
-
-                        Rectangle {
-                            height: 32px;
-                            border-radius: Theme.radius-pill;
-                            background: root.selected-addon-category == 4 ? #c89b3c22 : (ap4.has-hover ? #182030 : Theme.bg-card);
-                            border-width: 1px;
-                            border-color: root.selected-addon-category == 4 ? Theme.border-gold-normal : Theme.border-normal;
-                            animate background { duration: Theme.transition-fast; easing: ease-out; }
-                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                            ap4 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-addon-category = 4; } }
-                            HorizontalLayout {
-                                padding-left: 14px; padding-right: 14px; alignment: center;
-                                Text { text: "Crash o blocco del gioco"; color: root.selected-addon-category == 4 ? Theme.gold-light : (ap4.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-addon-category == 4 ? 600 : 400; vertical-alignment: center; }
-                            }
-                        }
-
-                        Rectangle {
-                            height: 32px;
-                            border-radius: Theme.radius-pill;
-                            background: root.selected-addon-category == 5 ? #c89b3c22 : (ap5.has-hover ? #182030 : Theme.bg-card);
-                            border-width: 1px;
-                            border-color: root.selected-addon-category == 5 ? Theme.border-gold-normal : Theme.border-normal;
-                            animate background { duration: Theme.transition-fast; easing: ease-out; }
-                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                            ap5 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-addon-category = 5; } }
-                            HorizontalLayout {
-                                padding-left: 14px; padding-right: 14px; alignment: center;
-                                Text { text: "Altro problema"; color: root.selected-addon-category == 5 ? Theme.gold-light : (ap5.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-addon-category == 5 ? 600 : 400; vertical-alignment: center; }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Section 2: Titolo o Sintesi AddOn
-            VerticalLayout {
-                spacing: 6px;
-
-                Text {
-                    text: "Sintesi o titolo del problema";
-                    color: Theme.text-primary;
-                    font-size: 13px;
-                    font-weight: 600;
-                }
-
-                Rectangle {
-                    height: 38px;
-                    background: Theme.bg-input;
-                    border-radius: Theme.radius-sm;
-                    border-width: 1px;
-                    border-color: addon-title-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
-
-                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                    title-touch := TouchArea {
-                        mouse-cursor: text;
-                        clicked => { addon-title-input.focus(); }
-                    }
-
-                    if (root.addon-title == "" && !addon-title-input.has-focus) : Text {
-                        x: 12px;
-                        y: 11px;
-                        text: "es: Errore Lua all'apertura del quest log di Ironforge";
-                        color: Theme.text-muted;
-                        font-size: 12px;
-                    }
-
-                    HorizontalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
-                        alignment: stretch;
-
-                        addon-title-input := TextInput {
-                            text <=> root.addon-title;
-                            color: Theme.text-primary;
-                            font-size: 13px;
-                            single-line: true;
-                            horizontal-alignment: left;
-                            vertical-alignment: center;
-                        }
-                    }
-                }
-            }
-
-            // Section 3: Errore Lua / Descrizione
-            VerticalLayout {
-                spacing: 6px;
-
-                Text {
-                    text: "Messaggio di errore Lua o comportamento anomalo";
-                    color: Theme.text-primary;
-                    font-size: 13px;
-                    font-weight: 600;
-                }
-
-                Rectangle {
-                    height: 80px;
-                    background: Theme.bg-input;
-                    border-radius: Theme.radius-md;
-                    border-width: 1px;
-                    border-color: addon-desc-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
-
-                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                    desc-touch := TouchArea {
-                        mouse-cursor: text;
-                        clicked => { addon-desc-input.focus(); }
-                    }
-
-                    if (root.addon-description == "" && !addon-desc-input.has-focus) : Text {
-                        x: 12px;
-                        y: 11px;
-                        text: "Incolla qui l'errore Lua (Interface/AddOns/VivaVoce...) oppure descrivi il malfunzionamento";
-                        color: Theme.text-muted;
-                        font-size: 12px;
-                    }
-
-                    VerticalLayout {
-                        padding: 10px;
-                        addon-desc-input := TextInput {
-                            text <=> root.addon-description;
-                            color: Theme.text-primary;
-                            font-size: 12px;
-                            single-line: false;
-                            wrap: word-wrap;
-                            horizontal-alignment: left;
-                        }
-                    }
-                }
-            }
-
-            // Section 4: Passaggi per riprodurre (opzionale)
-            VerticalLayout {
-                spacing: 6px;
-
-                Text {
-                    text: "Passaggi per riprodurre (opzionale)";
-                    color: Theme.text-primary;
-                    font-size: 13px;
-                    font-weight: 600;
-                }
-
-                Rectangle {
-                    height: 38px;
-                    background: Theme.bg-input;
-                    border-radius: Theme.radius-sm;
-                    border-width: 1px;
-                    border-color: repro-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
-
-                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                    repro-touch := TouchArea {
-                        mouse-cursor: text;
-                        clicked => { repro-input.focus(); }
-                    }
-
-                    if (root.addon-repro-steps == "" && !repro-input.has-focus) : Text {
-                        x: 12px;
-                        y: 11px;
-                        text: "es: 1. Parlo con il gossip NPC, 2. Si chiude la finestra, 3. Compare l'errore";
-                        color: Theme.text-muted;
-                        font-size: 12px;
-                    }
-
-                    HorizontalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
-                        alignment: stretch;
-
-                        repro-input := TextInput {
-                            text <=> root.addon-repro-steps;
-                            color: Theme.text-primary;
-                            font-size: 13px;
-                            single-line: true;
-                            horizontal-alignment: left;
-                            vertical-alignment: center;
-                        }
-                    }
-                }
-            }
-        }
-
-        // =====================================================================
-        // MODE 2: SEGNALAZIONE LAUNCHER / APP
-        // =====================================================================
-        if (root.report-type == 2) : VerticalLayout {
-            spacing: 12px;
-            alignment: start;
-
-            // Section 1: Launcher Category Pills
-            VerticalLayout {
-                spacing: 6px;
-
-                Text {
-                    text: "Categoria del problema del Launcher";
-                    color: Theme.text-primary;
-                    font-size: 13px;
-                    font-weight: 600;
-                }
-
-                VerticalLayout {
-                    spacing: 8px;
-
-                    // Row 1: 3 pills
-                    HorizontalLayout {
-                        spacing: 8px;
-                        alignment: start;
-
-                        Rectangle {
-                            height: 32px;
-                            border-radius: Theme.radius-pill;
-                            background: root.selected-launcher-category == 0 ? #c89b3c22 : (lp0.has-hover ? #182030 : Theme.bg-card);
-                            border-width: 1px;
-                            border-color: root.selected-launcher-category == 0 ? Theme.border-gold-normal : Theme.border-normal;
-                            animate background { duration: Theme.transition-fast; easing: ease-out; }
-                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                            lp0 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-launcher-category = 0; } }
-                            HorizontalLayout {
-                                padding-left: 14px; padding-right: 14px; alignment: center;
-                                Text { text: "Crash o chiusura improvvisa"; color: root.selected-launcher-category == 0 ? Theme.gold-light : (lp0.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-launcher-category == 0 ? 600 : 400; vertical-alignment: center; }
-                            }
-                        }
-
-                        Rectangle {
-                            height: 32px;
-                            border-radius: Theme.radius-pill;
-                            background: root.selected-launcher-category == 1 ? #c89b3c22 : (lp1.has-hover ? #182030 : Theme.bg-card);
-                            border-width: 1px;
-                            border-color: root.selected-launcher-category == 1 ? Theme.border-gold-normal : Theme.border-normal;
-                            animate background { duration: Theme.transition-fast; easing: ease-out; }
-                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                            lp1 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-launcher-category = 1; } }
-                            HorizontalLayout {
-                                padding-left: 14px; padding-right: 14px; alignment: center;
-                                Text { text: "Verifica integrità o scansione"; color: root.selected-launcher-category == 1 ? Theme.gold-light : (lp1.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-launcher-category == 1 ? 600 : 400; vertical-alignment: center; }
-                            }
-                        }
-
-                        Rectangle {
-                            height: 32px;
-                            border-radius: Theme.radius-pill;
-                            background: root.selected-launcher-category == 2 ? #c89b3c22 : (lp2.has-hover ? #182030 : Theme.bg-card);
-                            border-width: 1px;
-                            border-color: root.selected-launcher-category == 2 ? Theme.border-gold-normal : Theme.border-normal;
-                            animate background { duration: Theme.transition-fast; easing: ease-out; }
-                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                            lp2 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-launcher-category = 2; } }
-                            HorizontalLayout {
-                                padding-left: 14px; padding-right: 14px; alignment: center;
-                                Text { text: "Download o estrazione pacchetti"; color: root.selected-launcher-category == 2 ? Theme.gold-light : (lp2.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-launcher-category == 2 ? 600 : 400; vertical-alignment: center; }
-                            }
-                        }
-                    }
-
-                    // Row 2: 3 pills
-                    HorizontalLayout {
-                        spacing: 8px;
-                        alignment: start;
-
-                        Rectangle {
-                            height: 32px;
-                            border-radius: Theme.radius-pill;
-                            background: root.selected-launcher-category == 3 ? #c89b3c22 : (lp3.has-hover ? #182030 : Theme.bg-card);
-                            border-width: 1px;
-                            border-color: root.selected-launcher-category == 3 ? Theme.border-gold-normal : Theme.border-normal;
-                            animate background { duration: Theme.transition-fast; easing: ease-out; }
-                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                            lp3 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-launcher-category = 3; } }
-                            HorizontalLayout {
-                                padding-left: 14px; padding-right: 14px; alignment: center;
-                                Text { text: "Rilevamento percorso WoW"; color: root.selected-launcher-category == 3 ? Theme.gold-light : (lp3.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-launcher-category == 3 ? 600 : 400; vertical-alignment: center; }
-                            }
-                        }
-
-                        Rectangle {
-                            height: 32px;
-                            border-radius: Theme.radius-pill;
-                            background: root.selected-launcher-category == 4 ? #c89b3c22 : (lp4.has-hover ? #182030 : Theme.bg-card);
-                            border-width: 1px;
-                            border-color: root.selected-launcher-category == 4 ? Theme.border-gold-normal : Theme.border-normal;
-                            animate background { duration: Theme.transition-fast; easing: ease-out; }
-                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                            lp4 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-launcher-category = 4; } }
-                            HorizontalLayout {
-                                padding-left: 14px; padding-right: 14px; alignment: center;
-                                Text { text: "Interfaccia / Grafica Slint"; color: root.selected-launcher-category == 4 ? Theme.gold-light : (lp4.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-launcher-category == 4 ? 600 : 400; vertical-alignment: center; }
-                            }
-                        }
-
-                        Rectangle {
-                            height: 32px;
-                            border-radius: Theme.radius-pill;
-                            background: root.selected-launcher-category == 5 ? #c89b3c22 : (lp5.has-hover ? #182030 : Theme.bg-card);
-                            border-width: 1px;
-                            border-color: root.selected-launcher-category == 5 ? Theme.border-gold-normal : Theme.border-normal;
-                            animate background { duration: Theme.transition-fast; easing: ease-out; }
-                            animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                            lp5 := TouchArea { mouse-cursor: pointer; clicked => { root.selected-launcher-category = 5; } }
-                            HorizontalLayout {
-                                padding-left: 14px; padding-right: 14px; alignment: center;
-                                Text { text: "Altro problema Launcher"; color: root.selected-launcher-category == 5 ? Theme.gold-light : (lp5.has-hover ? Theme.text-primary : Theme.text-secondary); font-size: 12px; font-weight: root.selected-launcher-category == 5 ? 600 : 400; vertical-alignment: center; }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Section 2: Titolo o Sintesi Launcher
-            VerticalLayout {
-                spacing: 6px;
-
-                Text {
-                    text: "Sintesi o titolo del problema del Launcher";
-                    color: Theme.text-primary;
-                    font-size: 13px;
-                    font-weight: 600;
-                }
-
-                Rectangle {
-                    height: 38px;
-                    background: Theme.bg-input;
-                    border-radius: Theme.radius-sm;
-                    border-width: 1px;
-                    border-color: launcher-title-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
-
-                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                    title-l-touch := TouchArea {
-                        mouse-cursor: text;
-                        clicked => { launcher-title-input.focus(); }
-                    }
-
-                    if (root.launcher-title == "" && !launcher-title-input.has-focus) : Text {
-                        x: 12px;
-                        y: 11px;
-                        text: "es: Crash improvviso cliccando 'Verifica integrità'";
-                        color: Theme.text-muted;
-                        font-size: 12px;
-                    }
-
-                    HorizontalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
-                        alignment: stretch;
-
-                        launcher-title-input := TextInput {
-                            text <=> root.launcher-title;
-                            color: Theme.text-primary;
-                            font-size: 13px;
-                            single-line: true;
-                            horizontal-alignment: left;
-                            vertical-alignment: center;
-                        }
-                    }
-                }
-            }
-
-            // Section 3: Descrizione del Problema
-            VerticalLayout {
-                spacing: 6px;
-
-                Text {
-                    text: "Descrizione dettagliata del malfunzionamento o errore";
-                    color: Theme.text-primary;
-                    font-size: 13px;
-                    font-weight: 600;
-                }
-
-                Rectangle {
-                    height: 80px;
-                    background: Theme.bg-input;
-                    border-radius: Theme.radius-md;
-                    border-width: 1px;
-                    border-color: launcher-desc-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
-
-                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                    desc-l-touch := TouchArea {
-                        mouse-cursor: text;
-                        clicked => { launcher-desc-input.focus(); }
-                    }
-
-                    if (root.launcher-description == "" && !launcher-desc-input.has-focus) : Text {
-                        x: 12px;
-                        y: 11px;
-                        text: "Descrivi cosa stavi facendo e cosa è accaduto (comportamento inatteso, freeze, ecc.)";
-                        color: Theme.text-muted;
-                        font-size: 12px;
-                    }
-
-                    VerticalLayout {
-                        padding: 10px;
-                        launcher-desc-input := TextInput {
-                            text <=> root.launcher-description;
-                            color: Theme.text-primary;
-                            font-size: 12px;
-                            single-line: false;
-                            wrap: word-wrap;
-                            horizontal-alignment: left;
-                        }
-                    }
-                }
-            }
-
-            // Section 4: Passaggi per riprodurre (opzionale)
-            VerticalLayout {
-                spacing: 6px;
-
-                Text {
-                    text: "Passaggi per riprodurre (opzionale)";
-                    color: Theme.text-primary;
-                    font-size: 13px;
-                    font-weight: 600;
-                }
-
-                Rectangle {
-                    height: 38px;
-                    background: Theme.bg-input;
-                    border-radius: Theme.radius-sm;
-                    border-width: 1px;
-                    border-color: launcher-repro-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
-
-                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                    repro-l-touch := TouchArea {
-                        mouse-cursor: text;
-                        clicked => { launcher-repro-input.focus(); }
-                    }
-
-                    if (root.launcher-repro-steps == "" && !launcher-repro-input.has-focus) : Text {
-                        x: 12px;
-                        y: 11px;
-                        text: "es: 1. Avvio il launcher, 2. Clicco Verifica integrità, 3. Chiusura immediata";
-                        color: Theme.text-muted;
-                        font-size: 12px;
-                    }
-
-                    HorizontalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
-                        alignment: stretch;
-
-                        launcher-repro-input := TextInput {
-                            text <=> root.launcher-repro-steps;
-                            color: Theme.text-primary;
-                            font-size: 13px;
-                            single-line: true;
-                            horizontal-alignment: left;
-                            vertical-alignment: center;
-                        }
-                    }
-                }
-            }
-
-            // Section 5: Log / Messaggio di errore (opzionale)
-            VerticalLayout {
-                spacing: 6px;
-
-                Text {
-                    text: "Log console o messaggio di errore (opzionale)";
-                    color: Theme.text-primary;
-                    font-size: 13px;
-                    font-weight: 600;
-                }
-
-                Rectangle {
-                    height: 60px;
-                    background: Theme.bg-input;
-                    border-radius: Theme.radius-sm;
-                    border-width: 1px;
-                    border-color: launcher-logs-input.has-focus ? Theme.border-gold-normal : Theme.border-normal;
-
-                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-
-                    logs-l-touch := TouchArea {
-                        mouse-cursor: text;
-                        clicked => { launcher-logs-input.focus(); }
-                    }
-
-                    if (root.launcher-logs == "" && !launcher-logs-input.has-focus) : Text {
-                        x: 12px;
-                        y: 11px;
-                        text: "Incolla qui output di terminale, stack trace o codice di uscita...";
-                        color: Theme.text-muted;
-                        font-size: 12px;
-                    }
-
-                    VerticalLayout {
-                        padding: 8px;
-                        launcher-logs-input := TextInput {
-                            text <=> root.launcher-logs;
-                            color: Theme.text-primary;
-                            font-size: 11px;
-                            single-line: false;
-                            wrap: word-wrap;
-                            horizontal-alignment: left;
-                        }
-                    }
-                }
-            }
-        }
-
-        // =====================================================================
-        // SECTION: ALLEGATO MULTIMEDIALE (Screenshot o Video)
-        // =====================================================================
-        VerticalLayout {
-            spacing: 6px;
-
-            HorizontalLayout {
-                alignment: space-between;
-
-                Text {
-                    text: "Screenshot o Video di prova (opzionale)";
-                    color: Theme.text-primary;
-                    font-size: 13px;
-                    font-weight: 600;
-                    vertical-alignment: center;
-                }
-
-                if (root.attachment-path != "") : Text {
-                    text: "1 file pronto";
-                    color: Theme.gold-light;
-                    font-size: 11px;
-                    font-weight: 500;
-                    vertical-alignment: center;
-                }
-            }
-
-            if (root.attachment-path == "") : Rectangle {
-                height: 44px;
-                background: Theme.bg-input;
-                border-radius: Theme.radius-sm;
-                border-width: 1px;
-                border-color: attach-drop-area.has-hover ? Theme.border-gold-normal : Theme.border-normal;
-                animate border-color { duration: Theme.transition-fast; easing: ease-out; }
-                animate background { duration: Theme.transition-fast; easing: ease-out; }
-
-                attach-drop-area := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { root.select-attachment(); }
-                }
-
-                HorizontalLayout {
-                    padding-left: 14px;
-                    padding-right: 14px;
-                    alignment: space-between;
-
-                    HorizontalLayout {
-                        spacing: 10px;
-                        alignment: start;
-
-                        VerticalLayout {
-                            alignment: center;
-                            Image {
-                                width: 16px;
-                                height: 16px;
-                                source: @image-url("../assets/icons/image.svg");
-                                colorize: attach-drop-area.has-hover ? Theme.gold-light : Theme.text-muted;
-                                image-fit: contain;
-                                animate colorize { duration: Theme.transition-fast; easing: ease-out; }
-                            }
-                        }
-
-                        VerticalLayout {
-                            alignment: center;
-                            Text {
-                                text: "Allega screenshot o registrazione video (.png, .jpg, .mp4, .webm...)";
-                                color: attach-drop-area.has-hover ? Theme.text-primary : Theme.text-secondary;
-                                font-size: 12px;
-                                vertical-alignment: center;
-                            }
-                        }
-                    }
-
-                    HorizontalLayout {
-                        alignment: end;
-                        VerticalLayout {
-                            alignment: center;
-                            SecondaryButton {
-                                text: "Sfoglia file…";
-                                icon: @image-url("../assets/icons/folder-open.svg");
-                                custom-height: 28px;
-                                clicked => { root.select-attachment(); }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (root.attachment-path != "") : Rectangle {
-                height: 48px;
-                background: #101622;
-                border-radius: Theme.radius-sm;
-                border-width: 1px;
-                border-color: Theme.border-gold-normal;
-                clip: true;
-
-                HorizontalLayout {
-                    padding-left: 12px;
-                    padding-right: 12px;
-                    alignment: space-between;
-
-                    HorizontalLayout {
-                        spacing: 10px;
-                        alignment: start;
-                        horizontal-stretch: 1;
-
-                        VerticalLayout {
-                            alignment: center;
-                            Rectangle {
-                                width: 28px;
-                                height: 28px;
-                                border-radius: Theme.radius-xs;
-                                background: #c89b3c22;
-                                border-width: 1px;
-                                border-color: #c89b3c44;
-
-                                Image {
-                                    width: 15px;
-                                    height: 15px;
-                                    source: @image-url("../assets/icons/image.svg");
-                                    colorize: Theme.gold-light;
-                                    image-fit: contain;
-                                    x: (parent.width - self.width) / 2;
-                                    y: (parent.height - self.height) / 2;
-                                }
-                            }
-                        }
-
-                        VerticalLayout {
-                            alignment: center;
-                            spacing: 2px;
-                            horizontal-stretch: 1;
-
-                            Text {
-                                text: root.attachment-filename != "" ? root.attachment-filename : root.attachment-path;
-                                color: Theme.text-primary;
-                                font-size: 12px;
-                                font-weight: 600;
-                                overflow: elide;
-                            }
-
-                            Text {
-                                text: "File pronto · Copiato negli appunti per incolla rapido (CTRL+V)";
-                                color: Theme.gold-muted;
-                                font-size: 11px;
-                                overflow: elide;
-                            }
-                        }
-                    }
-
-                    HorizontalLayout {
-                        spacing: 8px;
-                        alignment: end;
-
-                        VerticalLayout {
-                            alignment: center;
-                            SecondaryButton {
-                                text: "Apri cartella ↗";
-                                custom-height: 28px;
-                                clicked => { root.reveal-attachment(); }
-                            }
-                        }
-
-                        VerticalLayout {
-                            alignment: center;
-                            SecondaryButton {
-                                text: "Cambia";
-                                custom-height: 28px;
-                                clicked => { root.select-attachment(); }
-                            }
-                        }
-
-                        VerticalLayout {
-                            alignment: center;
-                            Rectangle {
-                                width: 28px;
-                                height: 28px;
-                                border-radius: Theme.radius-xs;
-                                background: remove-touch.has-hover ? #ef444433 : #ef444415;
-                                border-width: 1px;
-                                border-color: remove-touch.has-hover ? #ef444488 : #ef444433;
-                                animate background { duration: Theme.transition-fast; easing: ease-out; }
-
-                                remove-touch := TouchArea {
-                                    mouse-cursor: pointer;
-                                    clicked => { root.remove-attachment(); }
-                                }
-
-                                Image {
-                                    width: 12px;
-                                    height: 12px;
-                                    source: @image-url("../assets/icons/x.svg");
-                                    colorize: #ef4444;
-                                    image-fit: contain;
-                                    x: (parent.width - self.width) / 2;
-                                    y: (parent.height - self.height) / 2;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // =====================================================================
-        // SUCCESS & NOTIFICATION BANNER (Dedicated row to prevent button shift)
-        // =====================================================================
-        if (root.submit-status-text != "") : Rectangle {
-            height: 38px;
-            border-radius: Theme.radius-sm;
-            background: #22c55e14;
-            border-width: 1px;
-            border-color: #22c55e44;
-            clip: true;
-
-            HorizontalLayout {
-                padding-left: 14px;
-                padding-right: 14px;
-                alignment: space-between;
-
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: start;
-                    horizontal-stretch: 1;
-
-                    VerticalLayout {
-                        alignment: center;
-                        Image {
-                            width: 15px;
-                            height: 15px;
-                            source: @image-url("../assets/icons/check.svg");
-                            colorize: Theme.status-success;
-                            image-fit: contain;
-                        }
-                    }
-
-                    VerticalLayout {
-                        alignment: center;
-                        horizontal-stretch: 1;
-                        Text {
-                            text: root.submit-status-text;
-                            color: Theme.status-success;
-                            font-size: 12px;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                            overflow: elide;
-                        }
-                    }
-                }
-
-                if (root.last-created-issue-url != "") : HorizontalLayout {
-                    alignment: end;
-                    VerticalLayout {
-                        alignment: center;
-                        SecondaryButton {
-                            text: "Apri Issue creata ↗";
-                            custom-height: 26px;
-                            clicked => { root.open-issue-url(root.last-created-issue-url); }
-                        }
-                    }
-                }
-            }
-        }
-
-        // =====================================================================
-        // BOTTOM ACTION ROW (Badge & Action Buttons)
+        // 1. HEADER: TITOLO DI RILIEVO & SOTTOTITOLO
         // =====================================================================
         HorizontalLayout {
             alignment: space-between;
 
-            // Left Meta Badge
             HorizontalLayout {
-                spacing: 8px;
+                spacing: 12px;
                 alignment: start;
 
-                // Target badge
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 40px;
+                        height: 40px;
+                        border-radius: Theme.radius-pill;
+                        background: Theme.status-info-bg;
+                        border-width: 1px;
+                        border-color: Theme.border-blurple-subtle;
+
+                        Image {
+                            source: @image-url("../assets/icons/bug.svg");
+                            width: 20px;
+                            height: 20px;
+                            colorize: Theme.brand-primary;
+                            image-fit: contain;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+                }
+
+                VerticalLayout {
+                    spacing: 3px;
+                    alignment: center;
+                    Text {
+                        text: "Segnalazione & Feedback";
+                        color: #ffffff;
+                        font-size: Theme.font-size-xl;
+                        font-weight: 700;
+                    }
+                    Text {
+                        text: "Aiutaci a perfezionare VivaVoce segnalando audio mancante, pronunce o bug tecnici";
+                        color: Theme.text-secondary;
+                        font-size: Theme.font-size-sm;
+                    }
+                }
+            }
+
+            // GitHub direct integration badge
+            VerticalLayout {
+                alignment: center;
                 Rectangle {
-                    height: 32px;
-                    y: (parent.height - self.height) / 2;
-                    border-radius: Theme.radius-xs;
-                    background: #11151f;
+                    height: 28px;
+                    border-radius: Theme.radius-pill;
+                    background: root.has-github-token ? #23a55a18 : #1e2535;
                     border-width: 1px;
-                    border-color: Theme.border-subtle;
+                    border-color: root.has-github-token ? #23a55a40 : #323f57;
 
                     HorizontalLayout {
                         padding-left: 10px;
@@ -1738,99 +297,1665 @@ export component BugCard inherits Rectangle {
                         spacing: 6px;
                         alignment: center;
 
-                        Text {
-                            text: root.report-type == 0 ? "Target:" : (root.report-type == 1 ? "Ambiente:" : "Repository:");
-                            color: Theme.text-muted;
-                            font-size: 11px;
-                            font-weight: 500;
-                            vertical-alignment: center;
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 6px;
+                                height: 6px;
+                                border-radius: 3px;
+                                background: root.has-github-token ? #23a55a : #6d7380;
+                            }
                         }
+
+                        VerticalLayout {
+                            alignment: center;
+                            Text {
+                                text: root.has-github-token ? "GitHub Token Connesso" : "Invio Diretto / Export .md";
+                                color: root.has-github-token ? #23a55a : Theme.text-secondary;
+                                font-size: Theme.font-size-xs;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // =====================================================================
+        // 2. SEGMENTED PILL CONTROLLER A 3 MODALITÀ (DISCORD / AAA GAMING)
+        // =====================================================================
+        Rectangle {
+            height: 48px;
+            border-radius: Theme.radius-pill;
+            background: #0a0d13;
+            border-width: 1px;
+            border-color: Theme.border-normal;
+
+            HorizontalLayout {
+                padding: 4px;
+                spacing: 4px;
+
+                // Mode 0: Audio / Doppiaggio
+                Rectangle {
+                    horizontal-stretch: 1;
+                    border-radius: Theme.radius-pill;
+                    background: root.report-type == 0 ? Theme.brand-primary : (audio-tab-touch.has-hover ? #1c2333 : transparent);
+                    animate background { duration: Theme.transition-fast; easing: ease-out; }
+
+                    audio-tab-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.report-type = 0; }
+                    }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                width: 16px;
+                                height: 16px;
+                                source: @image-url("../assets/icons/mic.svg");
+                                colorize: root.report-type == 0 ? #ffffff : (audio-tab-touch.has-hover ? #f2f3f5 : #949ba4);
+                                image-fit: contain;
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            Text {
+                                text: "Audio / Doppiaggio";
+                                color: root.report-type == 0 ? #ffffff : (audio-tab-touch.has-hover ? #f2f3f5 : #949ba4);
+                                font-size: Theme.font-size-base;
+                                font-weight: root.report-type == 0 ? 700 : 500;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                // Mode 1: AddOn / Tecnico
+                Rectangle {
+                    horizontal-stretch: 1;
+                    border-radius: Theme.radius-pill;
+                    background: root.report-type == 1 ? Theme.brand-primary : (addon-tab-touch.has-hover ? #1c2333 : transparent);
+                    animate background { duration: Theme.transition-fast; easing: ease-out; }
+
+                    addon-tab-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.report-type = 1; }
+                    }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                width: 16px;
+                                height: 16px;
+                                source: @image-url("../assets/icons/package.svg");
+                                colorize: root.report-type == 1 ? #ffffff : (addon-tab-touch.has-hover ? #f2f3f5 : #949ba4);
+                                image-fit: contain;
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            Text {
+                                text: "AddOn / Tecnico";
+                                color: root.report-type == 1 ? #ffffff : (addon-tab-touch.has-hover ? #f2f3f5 : #949ba4);
+                                font-size: Theme.font-size-base;
+                                font-weight: root.report-type == 1 ? 700 : 500;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                // Mode 2: Launcher / App
+                Rectangle {
+                    horizontal-stretch: 1;
+                    border-radius: Theme.radius-pill;
+                    background: root.report-type == 2 ? Theme.brand-primary : (launcher-tab-touch.has-hover ? #1c2333 : transparent);
+                    animate background { duration: Theme.transition-fast; easing: ease-out; }
+
+                    launcher-tab-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.report-type = 2; }
+                    }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                width: 16px;
+                                height: 16px;
+                                source: @image-url("../assets/icons/wrench.svg");
+                                colorize: root.report-type == 2 ? #ffffff : (launcher-tab-touch.has-hover ? #f2f3f5 : #949ba4);
+                                image-fit: contain;
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            Text {
+                                text: "Launcher / App";
+                                color: root.report-type == 2 ? #ffffff : (launcher-tab-touch.has-hover ? #f2f3f5 : #949ba4);
+                                font-size: Theme.font-size-base;
+                                font-weight: root.report-type == 2 ? 700 : 500;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // =====================================================================
+        // 3. SPLIT DECK (DUE COLONNE: LEFT CONTEXT + RIGHT ACTION)
+        // =====================================================================
+        HorizontalLayout {
+            width: 100%;
+            spacing: 20px;
+
+            // =================================================================
+            // COLONNA SINISTRA: CONTESTO, TELEMETRIA & DIALOGHI RECENTI
+            // =================================================================
+            VerticalLayout {
+                width: 350px;
+                spacing: 16px;
+                alignment: start;
+
+                // CARD 1: DIALOGHI RECENTI (MODE 0)
+                if (root.report-type == 0) : VerticalLayout {
+                    spacing: 8px;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
+
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    width: 16px;
+                                    height: 16px;
+                                    source: @image-url("../assets/icons/headphones.svg");
+                                    colorize: Theme.brand-light;
+                                    image-fit: contain;
+                                }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: "Dialoghi Recenti Catturati";
+                                    color: #ffffff;
+                                    font-size: Theme.font-size-base;
+                                    font-weight: 700;
+                                }
+                            }
+                        }
+
+                        if (root.recent-dialogues.length > 0) : Rectangle {
+                            height: 22px;
+                            border-radius: Theme.radius-pill;
+                            background: Theme.status-info-bg;
+                            border-width: 1px;
+                            border-color: Theme.border-blurple-subtle;
+
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                alignment: center;
+                                Text {
+                                    text: root.recent-dialogues.length + " battute";
+                                    color: Theme.brand-light;
+                                    font-size: Theme.font-size-xs;
+                                    font-weight: 600;
+                                }
+                            }
+                        }
+                    }
+
+                    // Se non ci sono dialoghi: Empty state compatto e pulito
+                    if (root.recent-dialogues.length == 0) : Rectangle {
+                        height: 150px;
+                        background: #0a0d13;
+                        border-radius: Theme.radius-md;
+                        border-width: 1px;
+                        border-color: Theme.border-normal;
+                        clip: true;
+
+                        VerticalLayout {
+                            padding: 16px;
+                            alignment: center;
+                            spacing: 10px;
+
+                            HorizontalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 40px;
+                                    height: 40px;
+                                    border-radius: 20px;
+                                    background: Theme.status-info-bg;
+                                    border-width: 1px;
+                                    border-color: Theme.border-blurple-subtle;
+
+                                    Image {
+                                        width: 18px;
+                                        height: 18px;
+                                        source: @image-url("../assets/icons/headphones.svg");
+                                        colorize: Theme.brand-light;
+                                        image-fit: contain;
+                                        x: (parent.width - self.width) / 2;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 2px;
+
+                                Text {
+                                    text: "Nessun dialogo catturato di recente";
+                                    color: #ffffff;
+                                    font-size: Theme.font-size-sm;
+                                    font-weight: 600;
+                                    horizontal-alignment: center;
+                                }
+
+                                Text {
+                                    text: "I dialoghi ascoltati in WoW appariranno qui";
+                                    color: Theme.text-muted;
+                                    font-size: Theme.font-size-xs;
+                                    horizontal-alignment: center;
+                                }
+                            }
+
+                            HorizontalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    height: 24px;
+                                    border-radius: Theme.radius-pill;
+                                    background: #161b26;
+                                    border-width: 1px;
+                                    border-color: #283347;
+
+                                    HorizontalLayout {
+                                        padding-left: 10px;
+                                        padding-right: 10px;
+                                        spacing: 6px;
+                                        alignment: center;
+
+                                        VerticalLayout {
+                                            alignment: center;
+                                            Image {
+                                                width: 12px;
+                                                height: 12px;
+                                                source: @image-url("../assets/icons/zap.svg");
+                                                colorize: Theme.brand-light;
+                                                image-fit: contain;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+
+                                        VerticalLayout {
+                                            alignment: center;
+                                            Text {
+                                                text: "Usa /vvq in gioco per copiare il dialogo";
+                                                color: Theme.text-secondary;
+                                                font-size: Theme.font-size-xs;
+                                                font-weight: 500;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Se presenti dialoghi: Lista scorrevole interattiva
+                    if (root.recent-dialogues.length > 0) : Rectangle {
+                        height: 330px;
+                        background: #0a0d13;
+                        border-radius: Theme.radius-md;
+                        border-width: 1px;
+                        border-color: Theme.border-normal;
+                        clip: true;
+
+                        ScrollView {
+                            VerticalLayout {
+                                spacing: 6px;
+                                padding: 8px;
+
+                                for item[idx] in root.recent-dialogues : Rectangle {
+                                    height: 66px;
+                                    background: root.selected-dialogue-index == idx ? #222b3d : (item-touch.has-hover ? #1c2333 : #161b26);
+                                    border-width: 1px;
+                                    border-color: root.selected-dialogue-index == idx ? Theme.brand-primary : (item-touch.has-hover ? #323f57 : #1f2737);
+                                    border-radius: Theme.radius-sm;
+
+                                    animate background { duration: Theme.transition-fast; easing: ease-out; }
+                                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                                    item-touch := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => {
+                                            if (root.selected-dialogue-index == idx) {
+                                                root.selected-dialogue-index = -1;
+                                            } else {
+                                                root.selected-dialogue-index = idx;
+                                            }
+                                        }
+                                    }
+
+                                    HorizontalLayout {
+                                        padding-left: 10px;
+                                        padding-right: 10px;
+                                        alignment: space-between;
+
+                                        if (root.selected-dialogue-index == idx) : VerticalLayout {
+                                            alignment: center;
+                                            Rectangle {
+                                                width: 3px;
+                                                height: 46px;
+                                                border-radius: 1.5px;
+                                                background: Theme.brand-primary;
+                                            }
+                                        }
+
+                                        VerticalLayout {
+                                            horizontal-stretch: 1;
+                                            alignment: center;
+                                            spacing: 3px;
+                                            padding-left: root.selected-dialogue-index == idx ? 8px : 0px;
+
+                                            HorizontalLayout {
+                                                alignment: space-between;
+                                                Text {
+                                                    text: item.npc-name != "" ? item.npc-name : "NPC Sconosciuto";
+                                                    color: root.selected-dialogue-index == idx ? #ffffff : #e2e8f0;
+                                                    font-size: Theme.font-size-sm;
+                                                    font-weight: 700;
+                                                }
+                                                Text {
+                                                    text: item.timestamp != "" ? item.timestamp : "";
+                                                    color: Theme.text-muted;
+                                                    font-size: Theme.font-size-xs;
+                                                }
+                                            }
+
+                                            Text {
+                                                text: item.text != "" ? item.text : item.sound-file;
+                                                color: root.selected-dialogue-index == idx ? Theme.text-primary : Theme.text-secondary;
+                                                font-size: Theme.font-size-xs;
+                                                overflow: elide;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // CARD 1 (VARIANTE MODE 1): TELEMETRIA ADDON
+                if (root.report-type == 1) : VerticalLayout {
+                    spacing: 8px;
+
+                    Text {
+                        text: "Telemetria AddOn & Moduli";
+                        color: #ffffff;
+                        font-size: Theme.font-size-base;
+                        font-weight: 700;
+                    }
+
+                    Rectangle {
+                        background: #0a0d13;
+                        border-radius: Theme.radius-md;
+                        border-width: 1px;
+                        border-color: Theme.border-normal;
+
+                        VerticalLayout {
+                            padding: 14px;
+                            spacing: 8px;
+
+                            HorizontalLayout {
+                                alignment: space-between;
+                                Text { text: "Stato Moduli VivaVoce:"; color: Theme.text-secondary; font-size: Theme.font-size-sm; }
+                                Text { text: "6 / 6 Installati"; color: #23a55a; font-size: Theme.font-size-sm; font-weight: 600; }
+                            }
+
+                            HorizontalLayout {
+                                alignment: space-between;
+                                Text { text: "Verifica BLAKE3:"; color: Theme.text-secondary; font-size: Theme.font-size-sm; }
+                                Text { text: "Integro & Convalidato"; color: Theme.brand-light; font-size: Theme.font-size-sm; font-weight: 600; }
+                            }
+
+                            HorizontalLayout {
+                                alignment: space-between;
+                                Text { text: "Ambiente Lua:"; color: Theme.text-secondary; font-size: Theme.font-size-sm; }
+                                Text { text: "WoW 3.3.5a / 1.12"; color: #ffffff; font-size: Theme.font-size-sm; }
+                            }
+                        }
+                    }
+                }
+
+                // CARD 1 (VARIANTE MODE 2): TELEMETRIA LAUNCHER
+                if (root.report-type == 2) : VerticalLayout {
+                    spacing: 8px;
+
+                    Text {
+                        text: "Specifiche VivaVoce Launcher";
+                        color: #ffffff;
+                        font-size: Theme.font-size-base;
+                        font-weight: 700;
+                    }
+
+                    Rectangle {
+                        background: #0a0d13;
+                        border-radius: Theme.radius-md;
+                        border-width: 1px;
+                        border-color: Theme.border-normal;
+
+                        VerticalLayout {
+                            padding: 14px;
+                            spacing: 8px;
+
+                            HorizontalLayout {
+                                alignment: space-between;
+                                Text { text: "Versione Launcher:"; color: Theme.text-secondary; font-size: Theme.font-size-sm; }
+                                Text { text: "v0.5.0 (Skia Native)"; color: Theme.brand-light; font-size: Theme.font-size-sm; font-weight: 600; }
+                            }
+
+                            HorizontalLayout {
+                                alignment: space-between;
+                                Text { text: "Sistema Operativo:"; color: Theme.text-secondary; font-size: Theme.font-size-sm; }
+                                Text { text: "Windows x86_64"; color: #ffffff; font-size: Theme.font-size-sm; }
+                            }
+
+                            HorizontalLayout {
+                                alignment: space-between;
+                                Text { text: "Motore Grafico:"; color: Theme.text-secondary; font-size: Theme.font-size-sm; }
+                                Text { text: "Slint + Skia GPU"; color: #ffffff; font-size: Theme.font-size-sm; }
+                            }
+                        }
+                    }
+                }
+
+                // CARD 2: DATI AMBIENTALI & CLIENT (TUTTE LE MODALITÀ)
+                Rectangle {
+                    background: #0a0d13;
+                    border-radius: Theme.radius-md;
+                    border-width: 1px;
+                    border-color: Theme.border-normal;
+
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 8px;
+
                         Text {
-                            text: root.report-type == 0 ?
-                                (root.current-sound-file != "" ? root.current-sound-file : "Segnalazione generale") :
-                                (root.report-type == 1 ? "WoW Forever (1.12.1) · AddOn v1.0.0" : "Master-Antonio/Vivavoce-Launcher");
-                            color: Theme.gold-light;
-                            font-size: 11px;
-                            overflow: elide;
-                            vertical-alignment: center;
+                            text: "Dati Ambientali & Diagnostica";
+                            color: #ffffff;
+                            font-size: Theme.font-size-sm;
+                            font-weight: 700;
+                        }
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            Text { text: "Client WoW:"; color: Theme.text-secondary; font-size: Theme.font-size-xs; }
+                            Text { text: "WoW Forever (3.3.5a)"; color: #ffffff; font-size: Theme.font-size-xs; }
+                        }
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            Text { text: "Formato Audio:"; color: Theme.text-secondary; font-size: Theme.font-size-xs; }
+                            Text { text: "OGG Vorbis 48 kHz"; color: #ffffff; font-size: Theme.font-size-xs; }
+                        }
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            Text { text: "Autenticazione:"; color: Theme.text-secondary; font-size: Theme.font-size-xs; }
+                            Text {
+                                text: root.has-github-token ? "GitHub Personal Token" : "Anonimo / Markdown";
+                                color: root.has-github-token ? #23a55a : Theme.text-muted;
+                                font-size: Theme.font-size-xs;
+                            }
                         }
                     }
                 }
             }
 
-            // Right Action Buttons Pair
-            HorizontalLayout {
-                spacing: 10px;
-                alignment: end;
+            // =================================================================
+            // COLONNA DESTRA: FORM ATTIVO CON GENEROSA SPAZIATURA E RESPIRO
+            // =================================================================
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: 18px;
+                alignment: start;
 
-                SecondaryButton {
-                    text: "Esporta Markdown (.md)";
-                    icon: @image-url("../assets/icons/file-text.svg");
-                    custom-height: 38px;
-                    clicked => {
-                        if (root.report-type == 0) {
-                            root.export-report-md(
-                                0,
-                                root.current-audio-category,
-                                root.current-dialogue-title,
-                                root.audio-effective-description,
-                                root.current-sound-file,
-                                root.attachment-path
-                            );
-                        } else if (root.report-type == 1) {
-                            root.export-report-md(
-                                1,
-                                root.current-addon-category,
-                                root.addon-title != "" ? root.addon-title : "Problema AddOn",
-                                root.addon-description,
-                                root.addon-repro-steps,
-                                root.attachment-path
-                            );
-                        } else {
-                            root.export-report-md(
-                                2,
-                                root.current-launcher-category,
-                                root.launcher-title != "" ? root.launcher-title : "Problema Launcher",
-                                root.launcher-description,
-                                root.launcher-repro-steps + (root.launcher-logs != "" ? "\n---LOGS---\n" + root.launcher-logs : ""),
-                                root.attachment-path
-                            );
+                // =============================================================
+                // SELEZIONA CATEGORIA (PILLS CON ALTEZZA 32PX E CENTRATURA ASSE Y)
+                // =============================================================
+                VerticalLayout {
+                    spacing: 8px;
+
+                    FormHeader {
+                        label: "1. Seleziona Categoria del Problema";
+                        show-required: true;
+                        is-filled: true;
+                    }
+
+                    // Mode 0: Audio Categories (7 pills in 3 rows)
+                    if (root.report-type == 0) : VerticalLayout {
+                        spacing: 8px;
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
+
+                            CategoryChip {
+                                text: "Voce mancante";
+                                selected: root.selected-audio-category == 0;
+                                clicked => { root.selected-audio-category = 0; }
+                            }
+                            CategoryChip {
+                                text: "Pronuncia ed enfasi";
+                                selected: root.selected-audio-category == 1;
+                                clicked => { root.selected-audio-category = 1; }
+                            }
+                            CategoryChip {
+                                text: "Volume o qualità";
+                                selected: root.selected-audio-category == 2;
+                                clicked => { root.selected-audio-category = 2; }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
+
+                            CategoryChip {
+                                text: "Sesso o voce errata";
+                                selected: root.selected-audio-category == 3;
+                                clicked => { root.selected-audio-category = 3; }
+                            }
+                            CategoryChip {
+                                text: "Audio tagliato o glitch";
+                                selected: root.selected-audio-category == 4;
+                                clicked => { root.selected-audio-category = 4; }
+                            }
+                            CategoryChip {
+                                text: "Testo non corrispondente";
+                                selected: root.selected-audio-category == 5;
+                                clicked => { root.selected-audio-category = 5; }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
+
+                            CategoryChip {
+                                text: "Altro su audio";
+                                selected: root.selected-audio-category == 6;
+                                clicked => { root.selected-audio-category = 6; }
+                            }
+                        }
+                    }
+
+                    // Mode 1: AddOn Categories
+                    if (root.report-type == 1) : VerticalLayout {
+                        spacing: 8px;
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
+
+                            CategoryChip {
+                                text: "Errore Lua in gioco";
+                                selected: root.selected-addon-category == 0;
+                                clicked => { root.selected-addon-category = 0; }
+                            }
+                            CategoryChip {
+                                text: "Installazione / Moduli";
+                                selected: root.selected-addon-category == 1;
+                                clicked => { root.selected-addon-category = 1; }
+                            }
+                            CategoryChip {
+                                text: "Rilevamento Client WoW";
+                                selected: root.selected-addon-category == 2;
+                                clicked => { root.selected-addon-category = 2; }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
+
+                            CategoryChip {
+                                text: "Interfaccia / Opzioni AddOn";
+                                selected: root.selected-addon-category == 3;
+                                clicked => { root.selected-addon-category = 3; }
+                            }
+                            CategoryChip {
+                                text: "Crash o blocco del gioco";
+                                selected: root.selected-addon-category == 4;
+                                clicked => { root.selected-addon-category = 4; }
+                            }
+                            CategoryChip {
+                                text: "Altro problema tecnico";
+                                selected: root.selected-addon-category == 5;
+                                clicked => { root.selected-addon-category = 5; }
+                            }
+                        }
+                    }
+
+                    // Mode 2: Launcher Categories
+                    if (root.report-type == 2) : VerticalLayout {
+                        spacing: 8px;
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
+
+                            CategoryChip {
+                                text: "Crash o chiusura improvvisa";
+                                selected: root.selected-launcher-category == 0;
+                                clicked => { root.selected-launcher-category = 0; }
+                            }
+                            CategoryChip {
+                                text: "Verifica integrità o scansione";
+                                selected: root.selected-launcher-category == 1;
+                                clicked => { root.selected-launcher-category = 1; }
+                            }
+                            CategoryChip {
+                                text: "Download o estrazione pacchetti";
+                                selected: root.selected-launcher-category == 2;
+                                clicked => { root.selected-launcher-category = 2; }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
+
+                            CategoryChip {
+                                text: "Rilevamento percorso WoW";
+                                selected: root.selected-launcher-category == 3;
+                                clicked => { root.selected-launcher-category = 3; }
+                            }
+                            CategoryChip {
+                                text: "Interfaccia / Grafica Slint";
+                                selected: root.selected-launcher-category == 4;
+                                clicked => { root.selected-launcher-category = 4; }
+                            }
+                            CategoryChip {
+                                text: "Altro problema Launcher";
+                                selected: root.selected-launcher-category == 5;
+                                clicked => { root.selected-launcher-category = 5; }
+                            }
                         }
                     }
                 }
 
-                PrimaryButton {
-                    text: root.has-github-token ? "Crea Issue su GitHub (API)" : "Crea Issue su GitHub";
-                    icon: @image-url("../assets/icons/github.svg");
-                    custom-height: 38px;
-                    clicked => {
-                        if (root.report-type == 0) {
-                            root.create-github-issue(
-                                0,
-                                root.current-audio-category,
-                                root.current-dialogue-title,
-                                root.audio-effective-description,
-                                root.current-sound-file,
-                                root.attachment-path
-                            );
-                        } else if (root.report-type == 1) {
-                            root.create-github-issue(
-                                1,
-                                root.current-addon-category,
-                                root.addon-title != "" ? root.addon-title : "Problema AddOn",
-                                root.addon-description,
-                                root.addon-repro-steps,
-                                root.attachment-path
-                            );
-                        } else {
-                            root.create-github-issue(
-                                2,
-                                root.current-launcher-category,
-                                root.launcher-title != "" ? root.launcher-title : "Problema Launcher",
-                                root.launcher-description,
-                                root.launcher-repro-steps + (root.launcher-logs != "" ? "\n---LOGS---\n" + root.launcher-logs : ""),
-                                root.attachment-path
-                            );
+                // =============================================================
+                // 2. INFORMAZIONI E DETTAGLI (INPUT GENEROSE 42PX & MULTILINE)
+                // =============================================================
+                VerticalLayout {
+                    spacing: 14px;
+
+                    // MODE 0: AUDIO INPUTS
+                    if (root.report-type == 0) : VerticalLayout {
+                        spacing: 14px;
+
+                        // Se Voce mancante: Quest / NPC fields
+                        if (root.selected-audio-category == 0) : VerticalLayout {
+                            spacing: 14px;
+
+                            HorizontalLayout {
+                                spacing: 12px;
+
+                                // Titolo Quest o NPC
+                                VerticalLayout {
+                                    spacing: 6px;
+                                    horizontal-stretch: 2;
+
+                                    FormHeader {
+                                        label: "Titolo Quest o Nome NPC";
+                                        show-required: true;
+                                        is-filled: root.audio-quest-title != "";
+                                    }
+
+                                    Rectangle {
+                                        height: 42px;
+                                        background: #0a0d13;
+                                        border-radius: Theme.radius-md;
+                                        border-width: 1px;
+                                        border-color: quest-title-input.has-focus ? Theme.brand-primary : (root.audio-quest-title == "" ? #f23f4360 : Theme.border-normal);
+                                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                                        TouchArea {
+                                            mouse-cursor: text;
+                                            clicked => { quest-title-input.focus(); }
+                                        }
+
+                                        if (root.audio-quest-title == "" && !quest-title-input.has-focus) : VerticalLayout {
+                                            padding-left: 14px;
+                                            padding-right: 14px;
+                                            alignment: center;
+                                            Text {
+                                                text: "es: La miniera di Fargodeep, o Maresciallo Dughan...";
+                                                color: Theme.text-muted;
+                                                font-size: Theme.font-size-sm;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+
+                                        HorizontalLayout {
+                                            padding-left: 14px;
+                                            padding-right: 14px;
+                                            quest-title-input := TextInput {
+                                                text <=> root.audio-quest-title;
+                                                color: Theme.text-primary;
+                                                font-size: Theme.font-size-sm;
+                                                single-line: true;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // ID Quest o NPC
+                                VerticalLayout {
+                                    spacing: 6px;
+                                    horizontal-stretch: 1;
+
+                                    FormHeader {
+                                        label: "ID Quest (opzionale)";
+                                    }
+
+                                    Rectangle {
+                                        height: 42px;
+                                        background: #0a0d13;
+                                        border-radius: Theme.radius-md;
+                                        border-width: 1px;
+                                        border-color: quest-id-input.has-focus ? Theme.brand-primary : Theme.border-normal;
+                                        animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                                        TouchArea {
+                                            mouse-cursor: text;
+                                            clicked => { quest-id-input.focus(); }
+                                        }
+
+                                        if (root.audio-quest-id == "" && !quest-id-input.has-focus) : VerticalLayout {
+                                            padding-left: 14px;
+                                            padding-right: 14px;
+                                            alignment: center;
+                                            Text {
+                                                text: "es: 40";
+                                                color: Theme.text-muted;
+                                                font-size: Theme.font-size-sm;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+
+                                        HorizontalLayout {
+                                            padding-left: 14px;
+                                            padding-right: 14px;
+                                            quest-id-input := TextInput {
+                                                text <=> root.audio-quest-id;
+                                                color: Theme.text-primary;
+                                                font-size: Theme.font-size-sm;
+                                                single-line: true;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Testo a schermo non doppiato
+                            VerticalLayout {
+                                spacing: 6px;
+
+                                FormHeader {
+                                    label: "Testo a schermo non doppiato (opzionale)";
+                                }
+
+                                Rectangle {
+                                    height: 60px;
+                                    background: #0a0d13;
+                                    border-radius: Theme.radius-md;
+                                    border-width: 1px;
+                                    border-color: dialogue-text-input.has-focus ? Theme.brand-primary : Theme.border-normal;
+                                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                                    TouchArea {
+                                        mouse-cursor: text;
+                                        clicked => { dialogue-text-input.focus(); }
+                                    }
+
+                                    if (root.audio-dialogue-text == "" && !dialogue-text-input.has-focus) : Text {
+                                        x: 14px;
+                                        y: 12px;
+                                        text: "Incolla il testo mostrato in gioco dal pannello quest...";
+                                        color: Theme.text-muted;
+                                        font-size: Theme.font-size-sm;
+                                    }
+
+                                    VerticalLayout {
+                                        padding: 10px;
+                                        dialogue-text-input := TextInput {
+                                            text <=> root.audio-dialogue-text;
+                                            color: Theme.text-primary;
+                                            font-size: Theme.font-size-sm;
+                                            single-line: false;
+                                            wrap: word-wrap;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Altre categorie audio (Pronuncia, Volume, Sesso/Voce...)
+                        if (root.selected-audio-category != 0) : HorizontalLayout {
+                            spacing: 12px;
+
+                            VerticalLayout {
+                                spacing: 6px;
+                                horizontal-stretch: 2;
+
+                                FormHeader {
+                                    label: "Nome Quest o NPC (opzionale)";
+                                }
+
+                                Rectangle {
+                                    height: 42px;
+                                    background: #0a0d13;
+                                    border-radius: Theme.radius-md;
+                                    border-width: 1px;
+                                    border-color: general-quest-input.has-focus ? Theme.brand-primary : Theme.border-normal;
+                                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                                    TouchArea { mouse-cursor: text; clicked => { general-quest-input.focus(); } }
+
+                                    if (root.audio-quest-title == "" && !general-quest-input.has-focus) : VerticalLayout {
+                                        padding-left: 14px;
+                                        padding-right: 14px;
+                                        alignment: center;
+                                        Text {
+                                            text: "es: Maresciallo Dughan, o titolo quest...";
+                                            color: Theme.text-muted;
+                                            font-size: Theme.font-size-sm;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+
+                                    HorizontalLayout {
+                                        padding-left: 14px;
+                                        padding-right: 14px;
+                                        general-quest-input := TextInput {
+                                            text <=> root.audio-quest-title;
+                                            color: Theme.text-primary;
+                                            font-size: Theme.font-size-sm;
+                                            single-line: true;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+
+                            VerticalLayout {
+                                spacing: 6px;
+                                horizontal-stretch: 1;
+
+                                FormHeader {
+                                    label: "File Sonoro (opzionale)";
+                                }
+
+                                Rectangle {
+                                    height: 42px;
+                                    background: #0a0d13;
+                                    border-radius: Theme.radius-md;
+                                    border-width: 1px;
+                                    border-color: manual-sound-input.has-focus ? Theme.brand-primary : Theme.border-normal;
+                                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                                    TouchArea { mouse-cursor: text; clicked => { manual-sound-input.focus(); } }
+
+                                    if (root.manual-sound-file == "" && !manual-sound-input.has-focus) : VerticalLayout {
+                                        padding-left: 14px;
+                                        padding-right: 14px;
+                                        alignment: center;
+                                        Text {
+                                            text: "es: sound_123.mp3";
+                                            color: Theme.text-muted;
+                                            font-size: Theme.font-size-sm;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+
+                                    HorizontalLayout {
+                                        padding-left: 14px;
+                                        padding-right: 14px;
+                                        manual-sound-input := TextInput {
+                                            text <=> root.manual-sound-file;
+                                            color: Theme.text-primary;
+                                            font-size: Theme.font-size-sm;
+                                            single-line: true;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Dettagli anomalia o note di contesto
+                        VerticalLayout {
+                            spacing: 6px;
+
+                            FormHeader {
+                                label: root.selected-audio-category == 0 ? "Note di contesto o dettagli aggiuntivi" : "Dettagli anomalia o suggerimento di correzione";
+                                show-required: true;
+                                is-filled: root.audio-description != "";
+                            }
+
+                            Rectangle {
+                                height: 80px;
+                                background: #0a0d13;
+                                border-radius: Theme.radius-md;
+                                border-width: 1px;
+                                border-color: audio-desc-input.has-focus ? Theme.brand-primary : (root.audio-description == "" ? #f23f4360 : Theme.border-normal);
+                                animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                                TouchArea { mouse-cursor: text; clicked => { audio-desc-input.focus(); } }
+
+                                if (root.audio-description == "" && !audio-desc-input.has-focus) : Text {
+                                    x: 14px;
+                                    y: 12px;
+                                    text: root.selected-audio-category == 0 ?
+                                        "es: L'NPC non riproduce l'audio quando accetto la quest, finestra di dialogo muta..." :
+                                        (root.selected-audio-category == 3 ?
+                                            "es: NPC femmina che parla con voce maschile, pitch errato..." :
+                                            "Descrivi l'anomalia (es: enfasi innaturale su una parola, volume troppo basso...)");
+                                    color: Theme.text-muted;
+                                    font-size: Theme.font-size-sm;
+                                }
+
+                                VerticalLayout {
+                                    padding: 10px;
+                                    audio-desc-input := TextInput {
+                                        text <=> root.audio-description;
+                                        color: Theme.text-primary;
+                                        font-size: Theme.font-size-sm;
+                                        single-line: false;
+                                        wrap: word-wrap;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // MODE 1: ADDON INPUTS
+                    if (root.report-type == 1) : VerticalLayout {
+                        spacing: 14px;
+
+                        // Titolo o sintesi AddOn
+                        VerticalLayout {
+                            spacing: 6px;
+
+                            FormHeader {
+                                label: "Sintesi o titolo del problema";
+                                show-required: true;
+                                is-filled: root.addon-title != "";
+                            }
+
+                            Rectangle {
+                                height: 42px;
+                                background: #0a0d13;
+                                border-radius: Theme.radius-md;
+                                border-width: 1px;
+                                border-color: addon-title-input.has-focus ? Theme.brand-primary : (root.addon-title == "" ? #f23f4360 : Theme.border-normal);
+                                animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                                TouchArea { mouse-cursor: text; clicked => { addon-title-input.focus(); } }
+
+                                if (root.addon-title == "" && !addon-title-input.has-focus) : VerticalLayout {
+                                    padding-left: 14px;
+                                    padding-right: 14px;
+                                    alignment: center;
+                                    Text {
+                                        text: "es: Errore Lua all'apertura del quest log";
+                                        color: Theme.text-muted;
+                                        font-size: Theme.font-size-sm;
+                                        vertical-alignment: center;
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 14px;
+                                    padding-right: 14px;
+                                    addon-title-input := TextInput {
+                                        text <=> root.addon-title;
+                                        color: Theme.text-primary;
+                                        font-size: Theme.font-size-sm;
+                                        single-line: true;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Messaggio di errore o descrizione AddOn
+                        VerticalLayout {
+                            spacing: 6px;
+
+                            FormHeader {
+                                label: "Messaggio di errore Lua o comportamento anomalo";
+                                show-required: true;
+                                is-filled: root.addon-description != "";
+                            }
+
+                            Rectangle {
+                                height: 84px;
+                                background: #0a0d13;
+                                border-radius: Theme.radius-md;
+                                border-width: 1px;
+                                border-color: addon-desc-input.has-focus ? Theme.brand-primary : (root.addon-description == "" ? #f23f4360 : Theme.border-normal);
+                                animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                                TouchArea { mouse-cursor: text; clicked => { addon-desc-input.focus(); } }
+
+                                if (root.addon-description == "" && !addon-desc-input.has-focus) : Text {
+                                    x: 14px;
+                                    y: 12px;
+                                    text: "Incolla qui l'errore Lua (Interface/AddOns/VivaVoce...) oppure descrivi il malfunzionamento";
+                                    color: Theme.text-muted;
+                                    font-size: Theme.font-size-sm;
+                                }
+
+                                VerticalLayout {
+                                    padding: 10px;
+                                    addon-desc-input := TextInput {
+                                        text <=> root.addon-description;
+                                        color: Theme.text-primary;
+                                        font-size: Theme.font-size-sm;
+                                        single-line: false;
+                                        wrap: word-wrap;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Passaggi per riprodurre
+                        VerticalLayout {
+                            spacing: 6px;
+
+                            FormHeader {
+                                label: "Passaggi per riprodurre (opzionale)";
+                            }
+
+                            Rectangle {
+                                height: 42px;
+                                background: #0a0d13;
+                                border-radius: Theme.radius-md;
+                                border-width: 1px;
+                                border-color: repro-input.has-focus ? Theme.brand-primary : Theme.border-normal;
+                                animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                                TouchArea { mouse-cursor: text; clicked => { repro-input.focus(); } }
+
+                                if (root.addon-repro-steps == "" && !repro-input.has-focus) : VerticalLayout {
+                                    padding-left: 14px;
+                                    padding-right: 14px;
+                                    alignment: center;
+                                    Text {
+                                        text: "es: 1. Parlo con il gossip NPC, 2. Si chiude la finestra, 3. Compare l'errore";
+                                        color: Theme.text-muted;
+                                        font-size: Theme.font-size-sm;
+                                        vertical-alignment: center;
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 14px;
+                                    padding-right: 14px;
+                                    repro-input := TextInput {
+                                        text <=> root.addon-repro-steps;
+                                        color: Theme.text-primary;
+                                        font-size: Theme.font-size-sm;
+                                        single-line: true;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // MODE 2: LAUNCHER INPUTS
+                    if (root.report-type == 2) : VerticalLayout {
+                        spacing: 14px;
+
+                        // Titolo Launcher
+                        VerticalLayout {
+                            spacing: 6px;
+
+                            FormHeader {
+                                label: "Sintesi o titolo del problema del Launcher";
+                                show-required: true;
+                                is-filled: root.launcher-title != "";
+                            }
+
+                            Rectangle {
+                                height: 42px;
+                                background: #0a0d13;
+                                border-radius: Theme.radius-md;
+                                border-width: 1px;
+                                border-color: launcher-title-input.has-focus ? Theme.brand-primary : (root.launcher-title == "" ? #f23f4360 : Theme.border-normal);
+                                animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                                TouchArea { mouse-cursor: text; clicked => { launcher-title-input.focus(); } }
+
+                                if (root.launcher-title == "" && !launcher-title-input.has-focus) : VerticalLayout {
+                                    padding-left: 14px;
+                                    padding-right: 14px;
+                                    alignment: center;
+                                    Text {
+                                        text: "es: Crash improvviso cliccando 'Verifica integrità'";
+                                        color: Theme.text-muted;
+                                        font-size: Theme.font-size-sm;
+                                        vertical-alignment: center;
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    padding-left: 14px;
+                                    padding-right: 14px;
+                                    launcher-title-input := TextInput {
+                                        text <=> root.launcher-title;
+                                        color: Theme.text-primary;
+                                        font-size: Theme.font-size-sm;
+                                        single-line: true;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Descrizione Launcher
+                        VerticalLayout {
+                            spacing: 6px;
+
+                            FormHeader {
+                                label: "Descrizione dettagliata del malfunzionamento";
+                                show-required: true;
+                                is-filled: root.launcher-description != "";
+                            }
+
+                            Rectangle {
+                                height: 80px;
+                                background: #0a0d13;
+                                border-radius: Theme.radius-md;
+                                border-width: 1px;
+                                border-color: launcher-desc-input.has-focus ? Theme.brand-primary : (root.launcher-description == "" ? #f23f4360 : Theme.border-normal);
+                                animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                                TouchArea { mouse-cursor: text; clicked => { launcher-desc-input.focus(); } }
+
+                                if (root.launcher-description == "" && !launcher-desc-input.has-focus) : Text {
+                                    x: 14px;
+                                    y: 12px;
+                                    text: "Descrivi cosa stavi facendo e cosa è accaduto (comportamento inatteso, freeze, ecc.)";
+                                    color: Theme.text-muted;
+                                    font-size: Theme.font-size-sm;
+                                }
+
+                                VerticalLayout {
+                                    padding: 10px;
+                                    launcher-desc-input := TextInput {
+                                        text <=> root.launcher-description;
+                                        color: Theme.text-primary;
+                                        font-size: Theme.font-size-sm;
+                                        single-line: false;
+                                        wrap: word-wrap;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Passaggi riproduzione + log in orizzontale
+                        HorizontalLayout {
+                            spacing: 12px;
+
+                            VerticalLayout {
+                                spacing: 6px;
+                                horizontal-stretch: 1;
+
+                                FormHeader {
+                                    label: "Passaggi per riprodurre (opzionale)";
+                                }
+
+                                Rectangle {
+                                    height: 42px;
+                                    background: #0a0d13;
+                                    border-radius: Theme.radius-md;
+                                    border-width: 1px;
+                                    border-color: launcher-repro-input.has-focus ? Theme.brand-primary : Theme.border-normal;
+                                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                                    TouchArea { mouse-cursor: text; clicked => { launcher-repro-input.focus(); } }
+
+                                    if (root.launcher-repro-steps == "" && !launcher-repro-input.has-focus) : VerticalLayout {
+                                        padding-left: 14px;
+                                        padding-right: 14px;
+                                        alignment: center;
+                                        Text {
+                                            text: "es: Clicco Verifica, poi Download...";
+                                            color: Theme.text-muted;
+                                            font-size: Theme.font-size-sm;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+
+                                    HorizontalLayout {
+                                        padding-left: 14px;
+                                        padding-right: 14px;
+                                        launcher-repro-input := TextInput {
+                                            text <=> root.launcher-repro-steps;
+                                            color: Theme.text-primary;
+                                            font-size: Theme.font-size-sm;
+                                            single-line: true;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+
+                            VerticalLayout {
+                                spacing: 6px;
+                                horizontal-stretch: 1;
+
+                                FormHeader {
+                                    label: "Log console / output errore";
+                                }
+
+                                Rectangle {
+                                    height: 42px;
+                                    background: #0a0d13;
+                                    border-radius: Theme.radius-md;
+                                    border-width: 1px;
+                                    border-color: launcher-logs-input.has-focus ? Theme.brand-primary : Theme.border-normal;
+                                    animate border-color { duration: Theme.transition-fast; easing: ease-out; }
+
+                                    TouchArea { mouse-cursor: text; clicked => { launcher-logs-input.focus(); } }
+
+                                    if (root.launcher-logs == "" && !launcher-logs-input.has-focus) : VerticalLayout {
+                                        padding-left: 14px;
+                                        padding-right: 14px;
+                                        alignment: center;
+                                        Text {
+                                            text: "es: panic: connection refused...";
+                                            color: Theme.text-muted;
+                                            font-size: Theme.font-size-sm;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+
+                                    HorizontalLayout {
+                                        padding-left: 14px;
+                                        padding-right: 14px;
+                                        launcher-logs-input := TextInput {
+                                            text <=> root.launcher-logs;
+                                            color: Theme.text-primary;
+                                            font-size: Theme.font-size-sm;
+                                            single-line: true;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // =============================================================
+                // 3. BOX ALLEGATO MULTIMEDIALE (SCREENSHOT / VIDEO)
+                // =============================================================
+                VerticalLayout {
+                    spacing: 8px;
+
+                    FormHeader {
+                        label: "3. Screenshot o Registrazione Video (opzionale)";
+                    }
+
+                    Rectangle {
+                        height: 58px;
+                        background: #0a0d13;
+                        border-radius: Theme.radius-md;
+                        border-width: 1px;
+                        border-color: Theme.border-normal;
+
+                        HorizontalLayout {
+                            padding-left: 16px;
+                            padding-right: 16px;
+                            alignment: space-between;
+
+                            HorizontalLayout {
+                                spacing: 12px;
+                                alignment: start;
+
+                                VerticalLayout {
+                                    alignment: center;
+                                    Rectangle {
+                                        width: 36px;
+                                        height: 36px;
+                                        border-radius: Theme.radius-pill;
+                                        background: #1e2535;
+                                        border-width: 1px;
+                                        border-color: #323f57;
+
+                                        Image {
+                                            source: @image-url("../assets/icons/image.svg");
+                                            width: 16px;
+                                            height: 16px;
+                                            colorize: root.attachment-filename != "" ? Theme.brand-light : Theme.text-secondary;
+                                            image-fit: contain;
+                                            x: (parent.width - self.width) / 2;
+                                            y: (parent.height - self.height) / 2;
+                                        }
+                                    }
+                                }
+
+                                VerticalLayout {
+                                    alignment: center;
+                                    spacing: 2px;
+
+                                    Text {
+                                        text: root.attachment-filename != "" ? root.attachment-filename : "Nessun file multimediale allegato";
+                                        color: root.attachment-filename != "" ? #ffffff : Theme.text-secondary;
+                                        font-size: Theme.font-size-sm;
+                                        font-weight: root.attachment-filename != "" ? 600 : 400;
+                                    }
+
+                                    Text {
+                                        text: root.attachment-filename != "" ? "File pronto per essere caricato su GitHub con il report" : "Formati supportati: PNG, JPG, MP4, WebM, log di gioco";
+                                        color: Theme.text-muted;
+                                        font-size: Theme.font-size-xs;
+                                    }
+                                }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                HorizontalLayout {
+                                    spacing: 8px;
+
+                                    if (root.attachment-filename != "") : Rectangle {
+                                        height: 28px;
+                                        border-radius: Theme.radius-pill;
+                                        background: att-reveal-touch.has-hover ? #283347 : #1e2535;
+                                        border-width: 1px;
+                                        border-color: att-reveal-touch.has-hover ? #495b7d : #323f57;
+                                        animate background { duration: Theme.transition-fast; }
+
+                                        att-reveal-touch := TouchArea {
+                                            mouse-cursor: pointer;
+                                            clicked => { root.reveal-attachment(); }
+                                        }
+
+                                        HorizontalLayout {
+                                            padding-left: 10px;
+                                            padding-right: 10px;
+                                            alignment: center;
+                                            VerticalLayout {
+                                                alignment: center;
+                                                Text {
+                                                    text: "Mostra in cartella";
+                                                    color: #e2e8f0;
+                                                    font-size: Theme.font-size-xs;
+                                                    font-weight: 600;
+                                                    vertical-alignment: center;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    if (root.attachment-filename != "") : Rectangle {
+                                        height: 28px;
+                                        border-radius: Theme.radius-pill;
+                                        background: att-del-touch.has-hover ? #f23f4333 : #f23f4318;
+                                        border-width: 1px;
+                                        border-color: att-del-touch.has-hover ? #f23f4380 : #f23f4340;
+                                        animate background { duration: Theme.transition-fast; }
+
+                                        att-del-touch := TouchArea {
+                                            mouse-cursor: pointer;
+                                            clicked => { root.remove-attachment(); }
+                                        }
+
+                                        HorizontalLayout {
+                                            padding-left: 10px;
+                                            padding-right: 10px;
+                                            alignment: center;
+                                            VerticalLayout {
+                                                alignment: center;
+                                                Text {
+                                                    text: "Rimuovi";
+                                                    color: #f87171;
+                                                    font-size: Theme.font-size-xs;
+                                                    font-weight: 600;
+                                                    vertical-alignment: center;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    if (root.attachment-filename == "") : SecondaryButton {
+                                        text: "Sfoglia file...";
+                                        icon: @image-url("../assets/icons/folder.svg");
+                                        custom-height: 32px;
+                                        font-size: Theme.font-size-xs;
+                                        clicked => { root.select-attachment(); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // =============================================================
+                // FEEDBACK DI STATO / NOTIFICA SUCCESS
+                // =============================================================
+                if (root.submit-status-text != "") : Rectangle {
+                    height: 40px;
+                    border-radius: Theme.radius-sm;
+                    background: #23a55a18;
+                    border-width: 1px;
+                    border-color: #23a55a50;
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        alignment: space-between;
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
+
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: @image-url("../assets/icons/check.svg");
+                                    width: 16px;
+                                    height: 16px;
+                                    colorize: #23a55a;
+                                    image-fit: contain;
+                                }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: root.submit-status-text;
+                                    color: #23a55a;
+                                    font-size: Theme.font-size-sm;
+                                    font-weight: 600;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        if (root.last-created-issue-url != "") : SecondaryButton {
+                            text: "Apri Issue su GitHub";
+                            icon: @image-url("../assets/icons/external-link.svg");
+                            custom-height: 28px;
+                            font-size: Theme.font-size-xs;
+                            clicked => { root.open-issue-url(root.last-created-issue-url); }
+                        }
+                    }
+                }
+
+                // =============================================================
+                // AVVISO VALIDAZIONE & ACTION BAR FINALE
+                // =============================================================
+                VerticalLayout {
+                    spacing: 14px;
+                    padding-top: 6px;
+
+                    // Validation status bar
+                    Rectangle {
+                        height: 34px;
+                        border-radius: Theme.radius-sm;
+                        background: root.is-form-valid ? #23a55a12 : #f23f4312;
+                        border-width: 1px;
+                        border-color: root.is-form-valid ? #23a55a33 : #f23f4333;
+
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            spacing: 8px;
+                            alignment: start;
+
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: root.is-form-valid ? @image-url("../assets/icons/check.svg") : @image-url("../assets/icons/alert-circle.svg");
+                                    width: 14px;
+                                    height: 14px;
+                                    colorize: root.is-form-valid ? #23a55a : #f87171;
+                                    image-fit: contain;
+                                }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: root.is-form-valid ?
+                                        "Tutti i campi obbligatori sono compilati. Puoi inviare la segnalazione o esportare il file." :
+                                        (root.report-type == 0 ?
+                                            "Compila i campi contrassegnati da (*) per abilitare l'invio della segnalazione audio." :
+                                            (root.report-type == 1 ?
+                                                "Inserisci Titolo e Descrizione dell'errore Lua per abilitare l'invio." :
+                                                "Inserisci Titolo e Descrizione dettagliata dell'anomalia del Launcher per abilitare l'invio."));
+                                    color: root.is-form-valid ? #23a55a : #f87171;
+                                    font-size: Theme.font-size-xs;
+                                    font-weight: 600;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    // Bottom Buttons
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        SecondaryButton {
+                            text: "Esporta .md & Copia";
+                            icon: @image-url("../assets/icons/copy.svg");
+                            custom-height: 42px;
+                            font-size: Theme.font-size-sm;
+                            clicked => {
+                                if (root.report-type == 0) {
+                                    root.export-report-md(
+                                        0,
+                                        root.current-audio-category,
+                                        root.current-dialogue-title,
+                                        root.audio-effective-description,
+                                        root.current-sound-file,
+                                        root.attachment-path
+                                    );
+                                } else if (root.report-type == 1) {
+                                    root.export-report-md(
+                                        1,
+                                        root.current-addon-category,
+                                        root.addon-title != "" ? root.addon-title : "Problema AddOn",
+                                        root.addon-description,
+                                        root.addon-repro-steps,
+                                        root.attachment-path
+                                    );
+                                } else {
+                                    root.export-report-md(
+                                        2,
+                                        root.current-launcher-category,
+                                        root.launcher-title != "" ? root.launcher-title : "Problema Launcher",
+                                        root.launcher-description,
+                                        root.launcher-repro-steps + (root.launcher-logs != "" ? "\n\nLog:\n" + root.launcher-logs : ""),
+                                        root.attachment-path
+                                    );
+                                }
+                            }
+                        }
+
+                        PrimaryButton {
+                            text: "Invia Segnalazione su GitHub";
+                            icon: @image-url("../assets/icons/bug.svg");
+                            custom-height: 42px;
+                            font-size: Theme.font-size-sm;
+                            enabled: root.is-form-valid;
+                            clicked => {
+                                if (root.report-type == 0) {
+                                    root.create-github-issue(
+                                        0,
+                                        root.current-audio-category,
+                                        root.current-dialogue-title,
+                                        root.audio-effective-description,
+                                        root.current-sound-file,
+                                        root.attachment-path
+                                    );
+                                } else if (root.report-type == 1) {
+                                    root.create-github-issue(
+                                        1,
+                                        root.current-addon-category,
+                                        root.addon-title != "" ? root.addon-title : "Problema AddOn",
+                                        root.addon-description,
+                                        root.addon-repro-steps,
+                                        root.attachment-path
+                                    );
+                                } else {
+                                    root.create-github-issue(
+                                        2,
+                                        root.current-launcher-category,
+                                        root.launcher-title != "" ? root.launcher-title : "Problema Launcher",
+                                        root.launcher-description,
+                                        root.launcher-repro-steps + (root.launcher-logs != "" ? "\n\nLog:\n" + root.launcher-logs : ""),
+                                        root.attachment-path
+                                    );
+                                }
+                            }
                         }
                     }
                 }

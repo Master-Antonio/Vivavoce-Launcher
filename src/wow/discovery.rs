@@ -46,7 +46,7 @@ impl WowFlavor {
     #[must_use]
     pub const fn display_name(&self) -> &'static str {
         match self {
-            Self::Forever => "World of Warcraft: Forever",
+            Self::Forever => "WoW Forever",
             Self::ClassicEra => "WoW Classic Era",
             Self::Classic => "WoW Classic",
             Self::Retail => "World of Warcraft Retail",
@@ -434,7 +434,7 @@ pub fn get_addons_path(wow_root: &Path, flavor: WowFlavor) -> PathBuf {
         }
     }
 
-    // If root directly contains `Interface` (typical on classic 1.12.1 Mac & PC clients)
+    // If root directly contains `Interface` (typical on WoW Forever Mac & PC clients)
     if let Some(direct_interface) = find_child_ignore_case(&root, "Interface") {
         if direct_interface.is_dir() {
             let addons_dir = find_child_ignore_case(&direct_interface, "AddOns").unwrap_or_else(|| direct_interface.join("AddOns"));
@@ -817,7 +817,6 @@ fn scan_common_paths() -> Vec<PathBuf> {
             "/Applications/World of Warcraft: Forever",
             "/Applications/WoW",
             "/Applications/WoW Forever",
-            "/Applications/World of Warcraft 1.12.1",
             "/Users/Shared/World of Warcraft",
             "/Users/Shared/World of Warcraft/forever",
         ];

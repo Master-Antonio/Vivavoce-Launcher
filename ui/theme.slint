@@ -1,93 +1,175 @@
-// VivaVoce Launcher - World of Warcraft Theme & Design Tokens
-// Design Rules: Quiet dark slate surfaces, authentic Warcraft warm brass accent,
-// unified 4px-grid spacing scale, standard corner radii, WCAG compliant contrast.
+// VivaVoce Launcher - Discord-Grade Theme & Design Tokens
+// Modern high-contrast dark theme inspired by Discord and VivaVoceWeb.
+// Canvas: #0b0e14, Panels: #161b26, Accent: Blurple #5865F2, Status: Discord Green/Yellow/Red.
 
 export global Theme {
-    // === BACKGROUND PALETTE ===
-    out property <color> bg-main: #0c0f15;
-    out property <color> bg-sidebar: #090c12;
-    out property <color> bg-panel: #11151f;
-    out property <color> bg-card: #0e121a;
-    out property <color> bg-card-hover: #141a26;
-    out property <color> bg-card-selected: #182030;
-    out property <color> bg-inset: #080a10;
-    out property <color> bg-input: #090c13;
+    // === DEEP THEMING: ACTIVE THEME STATE ===
+    // 0: Teldrassil Midnight (Blurple #5865F2, Glow #7983F5)
+    // 1: Dun Morogh Frost (Cyan/Glacial #00B4D8, Glow #48CAE4)
+    // 2: Mulgore Savannah (Amber/Sunwalker #F59E0B, Glow #FBBF24)
+    // 3: Ashenvale Emerald (Emerald/Forest #10B981, Glow #34D399)
+    in-out property <int> active-theme: 0;
 
-    // === WOW RUNIC & GOLD ACCENTS ===
-    out property <color> gold-primary: #c89b3c;
-    out property <color> gold-light: #e5c07b;
-    out property <color> gold-bright: #ffd875;
-    out property <color> gold-dark: #785a28;
-    out property <color> gold-muted: #9e7a33;
+    // === BACKGROUND SURFACES ===
+    out property <color> bg-main: #0b0e14;
+    out property <color> bg-sidebar: #0e121a;
+    out property <color> bg-panel: #161b26;
+    out property <color> bg-card: #161b26;
+    out property <color> bg-card-hover: #1c2333;
+    out property <color> bg-card-selected: #222b3d;
+    out property <color> bg-inset: #0a0d13;
+    out property <color> bg-input: #0a0d13;
 
-    // === GRADIENTS / BRUSHES (CALM & DARK - NO NEON/AI GRADIENTS) ===
-    out property <brush> main-window-gradient: @linear-gradient(180deg, #10141e 0%, #080a0f 100%);
-    out property <brush> panel-gradient: @linear-gradient(180deg, #121622 0%, #0d1018 100%);
-    out property <brush> card-gradient: @linear-gradient(180deg, #10141e 0%, #0a0d14 100%);
-    out property <brush> progress-fill-gradient: @linear-gradient(90deg, #b38628 0%, #c89b3c 100%);
+    // === DYNAMIC REACTIVE BRAND ACCENT (THEME-DRIVEN) ===
+    out property <color> brand-primary:
+        active-theme == 1 ? #00b4d8 : (
+        active-theme == 2 ? #f59e0b : (
+        active-theme == 3 ? #10b981 :
+        #5865f2));
 
-    // === BUTTON COLORS (SOLID FILLS - NO AI GRADIENTS) ===
-    out property <color> btn-primary-bg: #c89b3c;
-    out property <color> btn-primary-hover: #d8aa47;
-    out property <color> btn-primary-pressed: #b38628;
-    out property <color> btn-primary-text: #141008;
+    out property <color> brand-light:
+        active-theme == 1 ? #48cae4 : (
+        active-theme == 2 ? #fbbf24 : (
+        active-theme == 3 ? #34d399 :
+        #7983f5));
 
-    out property <color> btn-secondary-bg: #131722;
-    out property <color> btn-secondary-hover: #1c2233;
-    out property <color> btn-secondary-pressed: #0d1018;
-    out property <color> btn-secondary-border: #232c3d;
-    out property <color> btn-secondary-border-hover: #35425c;
+    out property <color> brand-hover:
+        active-theme == 1 ? #0096c7 : (
+        active-theme == 2 ? #d97706 : (
+        active-theme == 3 ? #059669 :
+        #4752c4));
 
-    out property <color> btn-danger-bg: #1c0e12;
-    out property <color> btn-danger-hover: #291419;
-    out property <color> btn-danger-pressed: #150a0d;
-    out property <color> btn-danger-border: #ef444433;
-    out property <color> btn-danger-border-hover: #ef444466;
+    out property <color> brand-pressed:
+        active-theme == 1 ? #023e8a : (
+        active-theme == 2 ? #b45309 : (
+        active-theme == 3 ? #047857 :
+        #3c45a5));
+
+    out property <color> brand-muted:
+        active-theme == 1 ? #00b4d899 : (
+        active-theme == 2 ? #f59e0b99 : (
+        active-theme == 3 ? #10b98199 :
+        #5865f299));
+
+    // Backward compatibility aliases for WoW gold tokens -> dynamic brand accent
+    out property <color> gold-primary: brand-primary;
+    out property <color> gold-light: brand-light;
+    out property <color> gold-bright: brand-light;
+    out property <color> gold-dark: brand-pressed;
+    out property <color> gold-muted: brand-muted;
+
+    // === GRADIENTS / BRUSHES (CALM & DARK DISCORD STYLE) ===
+    out property <brush> main-window-gradient: @linear-gradient(180deg, #0e121a 0%, #0b0e14 100%);
+    out property <brush> panel-gradient: @linear-gradient(180deg, #191f2c 0%, #161b26 100%);
+    out property <brush> card-gradient: @linear-gradient(180deg, #1a202d 0%, #161b26 100%);
+    out property <brush> progress-fill-gradient:
+        active-theme == 1 ? @linear-gradient(90deg, #00b4d8 0%, #48cae4 100%) : (
+        active-theme == 2 ? @linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%) : (
+        active-theme == 3 ? @linear-gradient(90deg, #10b981 0%, #34d399 100%) :
+        @linear-gradient(90deg, #5865f2 0%, #7983f5 100%)));
+
+    // === BUTTON COLORS ===
+    // Primary Button (Dynamic Brand Pill)
+    out property <color> btn-primary-bg: brand-primary;
+    out property <color> btn-primary-hover: brand-hover;
+    out property <color> btn-primary-pressed: brand-pressed;
+    out property <color> btn-primary-text: #ffffff;
+
+    // Secondary Button (Solid dark slate with subtle border)
+    out property <color> btn-secondary-bg: #1e2535;
+    out property <color> btn-secondary-hover: #283347;
+    out property <color> btn-secondary-pressed: #171e2c;
+    out property <color> btn-secondary-border: #323f57;
+    out property <color> btn-secondary-border-hover: #495b7d;
+    out property <color> btn-secondary-text: #e2e8f0;
+    out property <color> btn-secondary-text-hover: #ffffff;
+
+    // Danger Button (Discreet red outline / subtle tint)
+    out property <color> btn-danger-bg: #f23f4318;
+    out property <color> btn-danger-hover: #f23f4333;
+    out property <color> btn-danger-pressed: #f23f434d;
+    out property <color> btn-danger-border: #f23f4340;
+    out property <color> btn-danger-border-hover: #f23f4380;
     out property <color> btn-danger-text: #f87171;
+    out property <color> btn-danger-text-hover: #ffffff;
 
-    // === PROGRESS FILL ===
-    out property <color> progress-fill: #c89b3c;
-    out property <color> progress-track: #090c13;
+    // === PROGRESS FILL & TRACK ===
+    out property <color> progress-fill: brand-primary;
+    out property <color> progress-track: #0a0d13;
 
-    // === BORDERS & SEPARATORS (Hairlines at subtle opacity) ===
-    out property <color> border-subtle: #19202c;
-    out property <color> border-normal: #232c3d;
-    out property <color> border-bright: #323e54;
-    out property <color> border-gold-subtle: #c89b3c33;
-    out property <color> border-gold-normal: #c89b3c80;
+    // === BORDERS & SEPARATORS ===
+    out property <color> border-subtle: #1c2333;
+    out property <color> border-normal: #283347;
+    out property <color> border-bright: #3d4d6b;
+    out property <color> border-blurple-subtle:
+        active-theme == 1 ? #00b4d833 : (
+        active-theme == 2 ? #f59e0b33 : (
+        active-theme == 3 ? #10b98133 :
+        #5865f233));
+    out property <color> border-blurple-normal:
+        active-theme == 1 ? #00b4d880 : (
+        active-theme == 2 ? #f59e0b80 : (
+        active-theme == 3 ? #10b98180 :
+        #5865f280));
 
-    // === TYPOGRAPHY (WoW Parchment & Slate) ===
-    out property <color> text-primary: #f3eee3;      // Warm parchment white
-    out property <color> text-secondary: #949db0;    // Cool slate gray
-    out property <color> text-muted: #565d70;        // Subdued placeholder
-    out property <color> text-gold: #e5c07b;         // WoW quest text gold
-    out property <color> text-dark: #141008;         // Dark charcoal for gold button text
+    // Backward compatibility aliases
+    out property <color> border-gold-subtle: border-blurple-subtle;
+    out property <color> border-gold-normal: border-blurple-normal;
 
-    // === STATUS INDICATORS ===
-    out property <color> status-success: #34d399;
-    out property <color> status-success-bg: #10b98115;
-    out property <color> status-success-border: #10b98133;
+    // === TYPOGRAPHY (DISCORD CONTRAST PALETTE) ===
+    out property <color> text-primary: #f2f3f5;       // High-contrast clean white
+    out property <color> text-secondary: #949ba4;     // Discord muted slate
+    out property <color> text-muted: #6d7380;         // Subdued placeholder
+    out property <color> text-blurple: brand-light;   // Dynamic highlight text
+    out property <color> text-gold: brand-light;      // Backward compatibility alias
+    out property <color> text-dark: #ffffff;          // Button text contrast alias
 
-    out property <color> status-warning: #fbbf24;
-    out property <color> status-warning-bg: #f59e0b15;
-    out property <color> status-warning-border: #f59e0b33;
+    // === TYPOGRAPHY SCALE (COMFORTABLE & READABLE) ===
+    out property <length> font-size-xs: 12px;
+    out property <length> font-size-sm: 13px;
+    out property <length> font-size-base: 14px;
+    out property <length> font-size-md: 16px;
+    out property <length> font-size-lg: 18px;
+    out property <length> font-size-xl: 22px;
+    out property <length> font-size-hero: 32px;
 
-    out property <color> status-danger: #f87171;
-    out property <color> status-danger-bg: #ef444415;
-    out property <color> status-danger-border: #ef444433;
+    // === STATUS INDICATORS (DISCORD GRADE) ===
+    // Discord Green / Success
+    out property <color> status-success: #23a55a;
+    out property <color> status-success-bg: #23a55a18;
+    out property <color> status-success-border: #23a55a40;
 
-    out property <color> status-info: #38bdf8;
-    out property <color> status-info-bg: #38bdf815;
-    out property <color> status-info-border: #38bdf833;
+    // Discord Yellow / Warning
+    out property <color> status-warning: #f0b232;
+    out property <color> status-warning-bg: #f0b23218;
+    out property <color> status-warning-border: #f0b23240;
+
+    // Discord Red / Danger
+    out property <color> status-danger: #f23f43;
+    out property <color> status-danger-bg: #f23f4318;
+    out property <color> status-danger-border: #f23f4340;
+
+    // Dynamic Theme Status Info
+    out property <color> status-info: brand-primary;
+    out property <color> status-info-bg:
+        active-theme == 1 ? #00b4d818 : (
+        active-theme == 2 ? #f59e0b18 : (
+        active-theme == 3 ? #10b98118 :
+        #5865f218));
+    out property <color> status-info-border:
+        active-theme == 1 ? #00b4d840 : (
+        active-theme == 2 ? #f59e0b40 : (
+        active-theme == 3 ? #10b98140 :
+        #5865f240));
 
     // === RADII SCALE ===
     out property <length> radius-xs: 4px;
     out property <length> radius-sm: 6px;
     out property <length> radius-md: 8px;
     out property <length> radius-lg: 12px;
-    out property <length> radius-pill: 999px;
+    out property <length> radius-pill: 9999px;
 
-    // === ANIMATION TIMINGS (Snappy interface speed standards < 200ms) ===
+    // === ANIMATION TIMINGS (< 200ms snappy standard) ===
     out property <duration> transition-instant: 80ms;
     out property <duration> transition-fast: 120ms;
     out property <duration> transition-normal: 160ms;

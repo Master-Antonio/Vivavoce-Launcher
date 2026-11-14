@@ -127,7 +127,7 @@ pub async fn fetch_latest_release(api_url: &str) -> Result<ReleaseInfo, String> 
 
     let resp = client
         .get(api_url)
-        .header("User-Agent", "VivaVoce-Launcher-Updater/0.1.0")
+        .header("User-Agent", concat!("VivaVoce-Launcher-Updater/", env!("CARGO_PKG_VERSION")))
         .header("Accept", "application/vnd.github+json")
         .send()
         .await
@@ -174,7 +174,7 @@ where
 
     let mut resp = client
         .get(download_url)
-        .header("User-Agent", "VivaVoce-Launcher-Updater/0.1.0")
+        .header("User-Agent", concat!("VivaVoce-Launcher-Updater/", env!("CARGO_PKG_VERSION")))
         .send()
         .await
         .map_err(|e| format!("Download aggiornamento fallito: {}", e))?;

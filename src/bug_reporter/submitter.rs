@@ -197,7 +197,7 @@ impl Submitter {
 
         let resp = client
             .post(&url)
-            .header("User-Agent", "VivaVoceLauncher/0.1.0")
+            .header("User-Agent", concat!("VivaVoceLauncher/", env!("CARGO_PKG_VERSION")))
             .header("Accept", "application/vnd.github+json")
             .header("Authorization", format!("Bearer {}", token.trim()))
             .json(&payload)
@@ -280,7 +280,7 @@ mod tests {
             user_description: "L'accento su Stormwind è strano".to_string(),
             repro_steps: None,
             addon_version: "1.0.0".to_string(),
-            client_flavor: "Forever 1.12.1".to_string(),
+            client_flavor: "WoW Forever".to_string(),
             wow_path: "A:\\WoW".to_string(),
             os_info: "Windows 11".to_string(),
             sound_file: Some("Sounds/12/12345.ogg".to_string()),
@@ -307,7 +307,7 @@ mod tests {
             user_description: "Crash immediato".to_string(),
             repro_steps: None,
             addon_version: "1.0.0".to_string(),
-            client_flavor: "Forever 1.12.1".to_string(),
+            client_flavor: "WoW Forever".to_string(),
             wow_path: "A:\\WoW".to_string(),
             os_info: "Windows 11".to_string(),
             sound_file: None,

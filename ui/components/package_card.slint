@@ -1,5 +1,4 @@
 import { Theme } from "../theme.slint";
-import { PrimaryButton, SecondaryButton, DangerButton } from "buttons.slint";
 
 export struct PackageInfo {
     id: string,
@@ -12,6 +11,72 @@ export struct PackageInfo {
     blake3-hash: string,
 }
 
+component PillButton inherits Rectangle {
+    in-out property <string> text: "";
+    in-out property <image> icon;
+    in-out property <bool> enabled: true;
+    in-out property <color> base-bg: #5865f2;
+    in-out property <color> hover-bg: #4752c4;
+    in-out property <color> pressed-bg: #3c45a5;
+    in-out property <color> border-col: #5865f2;
+    in-out property <color> hover-border-col: #4752c4;
+    in-out property <color> text-col: #ffffff;
+    in-out property <color> hover-text-col: #ffffff;
+    in-out property <length> custom-height: 28px;
+
+    callback clicked();
+
+    height: root.custom-height;
+    border-radius: Theme.radius-pill;
+    clip: true;
+
+    background: !root.enabled ? #1e2535 : (btn-touch.has-hover ? (btn-touch.pressed ? root.pressed-bg : root.hover-bg) : root.base-bg);
+    border-width: 1px;
+    border-color: !root.enabled ? #283347 : (btn-touch.has-hover ? root.hover-border-col : root.border-col);
+
+    animate background { duration: btn-touch.pressed ? 60ms : 120ms; easing: ease-out; }
+    animate border-color { duration: btn-touch.pressed ? 60ms : 120ms; easing: ease-out; }
+
+    btn-touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        padding-top: (btn-touch.pressed && root.enabled) ? 1px : 0px;
+        alignment: center;
+        spacing: 6px;
+
+        if (root.icon.width > 0) : VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                width: 12px;
+                height: 12px;
+                colorize: !root.enabled ? #6d7380 : (btn-touch.has-hover ? root.hover-text-col : root.text-col);
+                image-fit: contain;
+                vertical-alignment: center;
+                animate colorize { duration: Theme.transition-fast; }
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: root.text;
+                color: !root.enabled ? #6d7380 : (btn-touch.has-hover ? root.hover-text-col : root.text-col);
+                font-size: 11px;
+                font-weight: 600;
+                vertical-alignment: center;
+                animate color { duration: Theme.transition-fast; }
+            }
+        }
+    }
+}
+
 export component PackageCard inherits Rectangle {
     in-out property <PackageInfo> package-data;
     in-out property <bool> is-busy: false;
@@ -21,7 +86,7 @@ export component PackageCard inherits Rectangle {
     // Real native PNG AddOn Icon from textures
     private property <image> package-icon:
         root.package-data.id == "vivavoce-core" || root.package-data.id == "vivavoce_core" ? @image-url("../assets/core.png") :
-        (root.package-data.id == "vivavoce-sounds" || root.package-data.id == "vivavoce_sounds" ? @image-url("../assets/core.png") :
+        (root.package-data.id == "vivavoce-sounds" || root.package-data.id == "vivavoce_sounds" ? @image-url("../assets/sounds.png") :
         (root.package-data.id == "vivavoce-quests" || root.package-data.id == "vivavoce_quests" ? @image-url("../assets/quests.png") :
         (root.package-data.id == "vivavoce-books" || root.package-data.id == "vivavoce_books" ? @image-url("../assets/books.png") :
         (root.package-data.id == "vivavoce-codex" || root.package-data.id == "vivavoce_codex" ? @image-url("../assets/codex.png") :
@@ -29,11 +94,12 @@ export component PackageCard inherits Rectangle {
         (root.package-data.id == "vivavoce-collector" || root.package-data.id == "vivavoce_collector" ? @image-url("../assets/collector.png") :
         @image-url("../assets/logo.png")))))));
 
-    height: 72px;
-    background: p-touch.has-hover ? Theme.bg-card-hover : Theme.bg-card;
-    border-radius: Theme.radius-md;
+    // Card orizzontale compatta ma ariosa: altezza 76px, sfondo #161b26, hover #1c2333, bordo #283347, angoli 12px
+    height: 76px;
+    background: p-touch.has-hover ? #1c2333 : #161b26;
+    border-radius: 12px;
     border-width: 1px;
-    border-color: p-touch.has-hover ? Theme.border-bright : Theme.border-normal;
+    border-color: p-touch.has-hover ? #38455e : #283347;
     clip: true;
 
     animate background { duration: Theme.transition-fast; easing: ease-out; }
@@ -44,7 +110,7 @@ export component PackageCard inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: 14px;
+        padding-left: 16px;
         padding-right: 16px;
         alignment: space-between;
 
@@ -53,15 +119,15 @@ export component PackageCard inherits Rectangle {
             spacing: 14px;
             alignment: start;
 
-            // Module Icon Box with Real WoW Texture & Subtle Rim Highlight
+            // Box texture AddOn: 48x48px, angoli 10px, sfondo #0e121a, bordo #283347
             Rectangle {
-                width: 46px;
-                height: 46px;
+                width: 48px;
+                height: 48px;
                 y: (parent.height - self.height) / 2;
-                border-radius: Theme.radius-sm;
-                background: #0d111a;
+                border-radius: 10px;
+                background: #0e121a;
                 border-width: 1px;
-                border-color: #242f42;
+                border-color: #283347;
                 clip: true;
 
                 Image {
@@ -82,26 +148,29 @@ export component PackageCard inherits Rectangle {
                     spacing: 8px;
                     alignment: start;
 
+                    // Nome pacchetto (15px bold #ffffff)
                     Text {
                         text: root.package-data.name;
-                        color: Theme.text-primary;
+                        color: #ffffff;
                         font-size: 15px;
-                        font-weight: 600;
+                        font-weight: 700;
                         vertical-alignment: center;
                     }
 
+                    // Filename mono/subtle (11px #6d7380)
                     Text {
                         text: root.package-data.filename;
-                        color: Theme.text-muted;
-                        font-size: 12px;
+                        color: #6d7380;
+                        font-size: 11px;
                         font-weight: 400;
                         vertical-alignment: center;
                     }
                 }
 
+                // Descrizione (13px #949ba4)
                 Text {
                     text: root.package-data.description;
-                    color: Theme.text-secondary;
+                    color: #949ba4;
                     font-size: 13px;
                     overflow: elide;
                     max-width: 580px;
@@ -109,19 +178,19 @@ export component PackageCard inherits Rectangle {
             }
         }
 
-        // Right Block: Status Pill, Size, and Action Button
+        // Right Block: Status Pill, Size Badge, and Action Button
         HorizontalLayout {
             alignment: end;
             spacing: 10px;
 
-            // Status Badge
+            // Badge stato: pillola con dot verde #23a55a "Installato" / "Verificato" o grigio #6d7380 "Non installato"
             Rectangle {
                 height: 28px;
                 y: (parent.height - self.height) / 2;
                 border-radius: Theme.radius-pill;
-                background: root.package-data.installed ? Theme.status-success-bg : #14182480;
+                background: root.package-data.installed ? #23a55a18 : #6d738018;
                 border-width: 1px;
-                border-color: root.package-data.installed ? Theme.status-success-border : Theme.border-normal;
+                border-color: root.package-data.installed ? #23a55a40 : #6d738033;
 
                 HorizontalLayout {
                     padding-left: 10px;
@@ -129,41 +198,42 @@ export component PackageCard inherits Rectangle {
                     spacing: 6px;
                     alignment: center;
 
+                    // Dot di stato
                     VerticalLayout {
                         alignment: center;
-                        Image {
-                            width: 12px;
-                            height: 12px;
-                            source: root.package-data.installed ? @image-url("../assets/icons/check.svg") : @image-url("../assets/icons/alert-circle.svg");
-                            colorize: root.package-data.installed ? Theme.status-success : Theme.text-muted;
-                            image-fit: contain;
+                        Rectangle {
+                            width: 6px;
+                            height: 6px;
+                            border-radius: 3px;
+                            background: root.package-data.installed ? #23a55a : #6d7380;
                         }
                     }
 
                     VerticalLayout {
                         alignment: center;
                         Text {
-                            text: root.package-data.installed ? "Installato" : "Non installato";
-                            color: root.package-data.installed ? Theme.status-success : Theme.text-muted;
+                            text: root.package-data.installed ? (root.package-data.verified ? "Verificato" : "Installato") : "Non installato";
+                            color: root.package-data.installed ? #23a55a : #6d7380;
                             font-size: 11px;
-                            font-weight: 500;
+                            font-weight: 600;
+                            vertical-alignment: center;
                         }
                     }
                 }
             }
 
-            // Size Badge
+            // Badge dimensione: pillola compatta #0a0d13
             Rectangle {
                 height: 28px;
                 y: (parent.height - self.height) / 2;
-                background: #090c13;
-                border-radius: Theme.radius-xs;
+                background: #0a0d13;
+                border-radius: Theme.radius-pill;
                 border-width: 1px;
-                border-color: Theme.border-subtle;
+                border-color: #283347;
 
                 HorizontalLayout {
-                    padding-left: 8px;
-                    padding-right: 8px;
+                    padding-left: 10px;
+                    padding-right: 10px;
                     alignment: center;
 
                     VerticalLayout {
@@ -173,26 +243,41 @@ export component PackageCard inherits Rectangle {
                             color: Theme.text-secondary;
                             font-size: 11px;
                             font-weight: 500;
+                            vertical-alignment: center;
                         }
                     }
                 }
             }
 
-            // Action Button
-            if root.package-data.installed : DangerButton {
+            // PillButton d'azione: "Installa" (Blurple #5865F2) o "Rimuovi" (Red tint #f23f4318), angoli pill 9999px
+            if root.package-data.installed : PillButton {
                 text: root.is-busy ? "Attendi..." : "Rimuovi";
                 icon: @image-url("../assets/icons/trash-2.svg");
                 custom-height: 28px;
                 enabled: !root.is-busy;
+                base-bg: #f23f4318;
+                hover-bg: #f23f4333;
+                pressed-bg: #f23f434d;
+                border-col: #f23f4340;
+                hover-border-col: #f23f4380;
+                text-col: #f87171;
+                hover-text-col: #ffffff;
                 y: (parent.height - self.height) / 2;
                 clicked => { root.remove-clicked(root.package-data.id); }
             }
 
-            if !root.package-data.installed : SecondaryButton {
+            if !root.package-data.installed : PillButton {
                 text: root.is-busy ? "Attendi..." : "Installa";
                 icon: @image-url("../assets/icons/download.svg");
                 custom-height: 28px;
                 enabled: !root.is-busy;
+                base-bg: #5865f2;
+                hover-bg: #4752c4;
+                pressed-bg: #3c45a5;
+                border-col: #5865f2;
+                hover-border-col: #4752c4;
+                text-col: #ffffff;
+                hover-text-col: #ffffff;
                 y: (parent.height - self.height) / 2;
                 clicked => { root.install-clicked(root.package-data.id); }
             }

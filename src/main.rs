@@ -524,7 +524,7 @@ async fn discover_and_refresh(ctx: &AppContext) {
         let is_installed = addons_dir.join("VivaVoce").exists() && addons_dir.join("VivaVoce/Core.lua").exists();
         let game_client_path = inst.game_client_path();
         let flavor_name = match flavor {
-            WowFlavor::Forever => "WoW Forever (1.12.1)".to_string(),
+            WowFlavor::Forever => "WoW Forever".to_string(),
             other => format!("{:?}", other),
         };
 
@@ -1077,7 +1077,11 @@ async fn create_bug_report_from_params(
 
     let (wow_path, client_flavor) = if let Some(ref inst) = installation {
         let flavor = inst.primary_flavor.unwrap_or(WowFlavor::Forever);
-        (inst.root_path.to_string_lossy().to_string(), format!("{:?}", flavor))
+        let flavor_str = match flavor {
+            WowFlavor::Forever => "WoW Forever".to_string(),
+            other => format!("{}", other),
+        };
+        (inst.root_path.to_string_lossy().to_string(), flavor_str)
     } else {
         ("Non configurato / Non rilevato".to_string(), "Sconosciuto".to_string())
     };

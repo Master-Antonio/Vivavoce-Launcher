@@ -16,13 +16,13 @@ export component StatusBadge inherits Rectangle {
     // Colors
     private property <color> badge-color:
         effective-state == 3 ? Theme.status-info :
-        (effective-state == 2 ? Theme.gold-bright :
+        (effective-state == 2 ? Theme.status-warning :
         (effective-state == 1 ? Theme.status-success : Theme.text-secondary));
 
     private property <color> badge-bg:
         effective-state == 3 ? Theme.status-info-bg :
         (effective-state == 2 ? Theme.status-warning-bg :
-        (effective-state == 1 ? Theme.status-success-bg : #14182480));
+        (effective-state == 1 ? Theme.status-success-bg : #161b2680));
 
     private property <color> badge-border:
         effective-state == 3 ? Theme.status-info-border :
@@ -36,7 +36,7 @@ export component StatusBadge inherits Rectangle {
         (effective-state == 1 ? ("Installato (v" + (root.installed-version != "" ? root.installed-version : "1.0.0") + ")") :
         "Non installato")));
 
-    height: 28px;
+    height: 26px;
     border-radius: Theme.radius-pill;
     background: badge-bg;
     border-width: 1px;
@@ -51,7 +51,7 @@ export component StatusBadge inherits Rectangle {
         spacing: 7px;
         alignment: center;
 
-        // Clean solid status dot
+        // Clean solid Discord status dot
         VerticalLayout {
             alignment: center;
             Rectangle {
@@ -63,14 +63,14 @@ export component StatusBadge inherits Rectangle {
             }
         }
 
-        // Status Label Text
+        // Status Label Text (high contrast & crisp legibility)
         VerticalLayout {
             alignment: center;
             Text {
                 text: root.display-text;
                 color: root.badge-color;
                 font-size: 12px;
-                font-weight: 500;
+                font-weight: 600;
                 animate color { duration: Theme.transition-normal; easing: ease-out; }
             }
         }

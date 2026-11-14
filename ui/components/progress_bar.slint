@@ -16,26 +16,26 @@ export component ProgressBar inherits VerticalLayout {
             text: root.title;
             color: Theme.text-primary;
             font-size: 12px;
-            font-weight: 500;
+            font-weight: 600;
             vertical-alignment: center;
         }
 
         Text {
             text: Math.round(Math.max(0.0, Math.min(1.0, root.progress)) * 100) + "%";
-            color: root.is-active ? Theme.gold-light : Theme.text-secondary;
+            color: root.is-active ? Theme.text-blurple : Theme.text-secondary;
             font-size: 12px;
             font-weight: 600;
             vertical-alignment: center;
         }
     }
 
-    // Progress Bar Track (Slim pill modern design)
+    // Progress Bar Track (Slim pill modern Discord design)
     Rectangle {
         height: 6px;
         border-radius: Theme.radius-pill;
-        background: Theme.bg-inset;
+        background: Theme.progress-track;
         border-width: 1px;
-        border-color: root.is-active ? Theme.border-gold-subtle : Theme.border-normal;
+        border-color: root.is-active ? Theme.border-blurple-subtle : Theme.border-subtle;
         clip: true;
 
         animate border-color { duration: Theme.transition-normal; easing: ease-out; }

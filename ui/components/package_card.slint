@@ -83,16 +83,16 @@ export component PackageCard inherits Rectangle {
     callback install-clicked(string);
     callback remove-clicked(string);
 
-    // Real native PNG AddOn Icon from textures
+    // Real native Vector SVG AddOn Icon (Matching https://vivavoce.duckdns.org/logo-icon.svg)
     private property <image> package-icon:
-        root.package-data.id == "vivavoce-core" || root.package-data.id == "vivavoce_core" ? @image-url("../assets/core.png") :
-        (root.package-data.id == "vivavoce-sounds" || root.package-data.id == "vivavoce_sounds" ? @image-url("../assets/sounds.png") :
-        (root.package-data.id == "vivavoce-quests" || root.package-data.id == "vivavoce_quests" ? @image-url("../assets/quests.png") :
-        (root.package-data.id == "vivavoce-books" || root.package-data.id == "vivavoce_books" ? @image-url("../assets/books.png") :
-        (root.package-data.id == "vivavoce-codex" || root.package-data.id == "vivavoce_codex" ? @image-url("../assets/codex.png") :
-        (root.package-data.id == "vivavoce-zones" || root.package-data.id == "vivavoce_zones" ? @image-url("../assets/zones.png") :
-        (root.package-data.id == "vivavoce-collector" || root.package-data.id == "vivavoce_collector" ? @image-url("../assets/collector.png") :
-        @image-url("../assets/logo.png")))))));
+        root.package-data.id == "vivavoce-core" || root.package-data.id == "vivavoce_core" ? @image-url("../assets/addons/core.svg") :
+        (root.package-data.id == "vivavoce-sounds" || root.package-data.id == "vivavoce_sounds" ? @image-url("../assets/addons/sounds.svg") :
+        (root.package-data.id == "vivavoce-quests" || root.package-data.id == "vivavoce_quests" ? @image-url("../assets/addons/quests.svg") :
+        (root.package-data.id == "vivavoce-books" || root.package-data.id == "vivavoce_books" ? @image-url("../assets/addons/books.svg") :
+        (root.package-data.id == "vivavoce-codex" || root.package-data.id == "vivavoce_codex" ? @image-url("../assets/addons/codex.svg") :
+        (root.package-data.id == "vivavoce-zones" || root.package-data.id == "vivavoce_zones" ? @image-url("../assets/addons/zones.svg") :
+        (root.package-data.id == "vivavoce-collector" || root.package-data.id == "vivavoce_collector" ? @image-url("../assets/addons/collector.svg") :
+        @image-url("../assets/addons/core.svg")))))));
 
     // Card orizzontale compatta ma ariosa: altezza 76px, sfondo #161b26, hover #1c2333, bordo #283347, angoli 12px
     height: 76px;
@@ -119,16 +119,12 @@ export component PackageCard inherits Rectangle {
             spacing: 14px;
             alignment: start;
 
-            // Box texture AddOn: 48x48px, angoli 10px, sfondo #0e121a, bordo #283347
+            // Box AddOn Vector Icon: 46x46px
             Rectangle {
-                width: 48px;
-                height: 48px;
+                width: 46px;
+                height: 46px;
                 y: (parent.height - self.height) / 2;
-                border-radius: 10px;
-                background: #0e121a;
-                border-width: 1px;
-                border-color: #283347;
-                clip: true;
+                background: transparent;
 
                 Image {
                     width: 100%;

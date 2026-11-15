@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <!-- Background Rounded Squircle in Discord Style -->
+  <rect width="512" height="512" rx="115" ry="115" fill="#db2777" filter="url(#shadow)"/>
+  
+  <!-- Centered White Lucide Vector Icon -->
+  <g transform="translate(102.4, 102.4) scale(12.8)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path>
+<path d="M5 3v4"></path>
+<path d="M19 17v4"></path>
+<path d="M3 5h4"></path>
+<path d="M17 19h4"></path>
+  </g>
+</svg>

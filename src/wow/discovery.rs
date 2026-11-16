@@ -659,8 +659,8 @@ fn scan_windows_registry() -> Vec<PathBuf> {
 
 /// Scans Battle.net Agent `product.db` for WoW paths.
 fn scan_bnet_product_db() -> Vec<PathBuf> {
-    let mut candidates = Vec::new();
-    let mut product_db_paths = Vec::new();
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    let mut product_db_paths: Vec<PathBuf> = Vec::new();
 
     #[cfg(target_os = "windows")]
     {
@@ -675,6 +675,21 @@ fn scan_bnet_product_db() -> Vec<PathBuf> {
         product_db_paths.push(PathBuf::from("/Users/Shared/Battle.net/Agent/product.db"));
         if let Ok(home) = std::env::var("HOME") {
             product_db_paths.push(PathBuf::from(home).join("Library/Application Support/Battle.net/Agent/product.db"));
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(home) = std::env::var("HOME") {
+            let linux_db_candidates = [
+                format!("{}/.wine/drive_c/ProgramData/Battle.net/Agent/product.db", home),
+                format!("{}/.local/share/bottles/bottles/battlenet/drive_c/ProgramData/Battle.net/Agent/product.db", home),
+                format!("{}/Games/battlenet/drive_c/ProgramData/Battle.net/Agent/product.db", home),
+                format!("{}/Games/battle-net/drive_c/ProgramData/Battle.net/Agent/product.db", home),
+            ];
+            for p in linux_db_candidates {
+                product_db_paths.push(PathBuf::from(p));
+            }
         }
     }
 

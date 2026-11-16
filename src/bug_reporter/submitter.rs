@@ -115,6 +115,11 @@ impl Submitter {
                 .args(["-e", &script])
                 .status();
         }
+
+        #[cfg(not(any(windows, target_os = "macos")))]
+        {
+            let _ = path;
+        }
     }
 
     /// Highlights the file in file manager (Windows: Explorer, macOS: Finder, Linux: file manager)

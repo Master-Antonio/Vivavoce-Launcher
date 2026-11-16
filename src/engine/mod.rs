@@ -9,6 +9,9 @@ pub mod downloader;
 pub mod extractor;
 pub mod uninstaller;
 pub mod launcher_updater;
+pub mod config;
+
+pub use config::LauncherConfig;
 
 pub use manifest::{normalize_relative_path, FileEntry, LocalState, PackageChunk, RemoteManifest};
 pub use scanner::{hash_file_blake3, scan_delta, DeltaScanResult, VIVAVOCE_MANAGED_MODULES};

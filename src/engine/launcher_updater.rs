@@ -114,6 +114,24 @@ pub fn find_platform_asset<'a>(assets: &'a [ReleaseAsset]) -> Option<&'a Release
         }
     }
 
+    #[cfg(target_os = "linux")]
+    {
+        // 1. Direct standalone linux binary
+        if let Some(a) = assets.iter().find(|a| {
+            let lower = a.name.to_ascii_lowercase();
+            lower.contains("linux") && !lower.ends_with(".tar.gz") && !lower.ends_with(".zip")
+        }) {
+            return Some(a);
+        }
+        // 2. Tar.gz archive
+        if let Some(a) = assets.iter().find(|a| {
+            let lower = a.name.to_ascii_lowercase();
+            lower.contains("linux") && lower.ends_with(".tar.gz")
+        }) {
+            return Some(a);
+        }
+    }
+
     // Fallback: first asset
     assets.first()
 }

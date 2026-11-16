@@ -15,6 +15,7 @@ pub mod engine;
 pub mod wow;
 
 use bug_reporter::{BugReport, IssueType, Submitter};
+use engine::config::LauncherConfig;
 use engine::downloader::{Downloader, ProgressEvent};
 use engine::extractor::extract_tar_zst_file;
 use engine::launcher_updater::{
@@ -174,6 +175,7 @@ struct AppContext {
     wow_installation: Arc<tokio::sync::RwLock<Option<WowInstallation>>>,
     recent_dialogues_cache: Arc<tokio::sync::RwLock<Vec<RecentDialogue>>>,
     cancel_token: Arc<AtomicBool>,
+    is_busy: Arc<AtomicBool>,
 }
 
 #[tokio::main]
@@ -223,6 +225,7 @@ async fn main() -> anyhow::Result<()> {
         wow_installation: Arc::new(tokio::sync::RwLock::new(None)),
         recent_dialogues_cache: Arc::new(tokio::sync::RwLock::new(Vec::new())),
         cancel_token: Arc::new(AtomicBool::new(false)),
+        is_busy: Arc::new(AtomicBool::new(false)),
     };
 
     // 3. Setup Window Management callbacks
@@ -500,35 +503,73 @@ fn setup_action_callbacks(main_window: &MainWindow, ctx: AppContext) {
     });
 }
 
-/// Auto-discovery of WoW on Windows, reading SavedVariables, and populating Slint models
+/// Auto-discovery or config reload of WoW, reading SavedVariables, and populating Slint models
 async fn discover_and_refresh(ctx: &AppContext) {
     info!("Scansione installazioni World of Warcraft...");
     update_ui_status(&ctx.main_window_weak, "Rilevamento installazione World of Warcraft in corso...", 0.0);
 
-    let installation = match find_wow_install_path() {
-        Ok(inst) => {
-            let flavor = inst.primary_flavor.unwrap_or(WowFlavor::Forever);
-            info!("WoW trovato: {:?} (Flavor: {:?})", inst.root_path, flavor);
+    // 1. Prioritize active in-memory installation if already present
+    let existing_inst = {
+        let lock = ctx.wow_installation.read().await;
+        lock.clone()
+    };
+
+    let installation = if let Some(inst) = existing_inst {
+        info!("Uso installazione WoW già attiva in memoria: {:?}", inst.root_path);
+        Some(inst)
+    } else {
+        // 2. Check saved persistent configuration on disk
+        let config = LauncherConfig::load();
+        let config_inst = if let Some(ref saved_path) = config.custom_wow_path {
+            let resolved = wow::discovery::resolve_candidate_root(saved_path);
+            if let Ok(flavors) = validate_wow_root(&resolved) {
+                info!("Uso percorso WoW salvato in configurazione: {:?}", resolved);
+                Some(WowInstallation::new(resolved, flavors))
+            } else {
+                warn!("Percorso WoW salvato non più valido ({:?}), avvio scansione...", saved_path);
+                None
+            }
+        } else {
+            None
+        };
+
+        if let Some(inst) = config_inst {
             Some(inst)
-        }
-        Err(e) => {
-            warn!("Auto-discovery non riuscita ({}). Controllo installazioni multiple...", e);
-            let multiple = detect_wow_installations();
-            multiple.into_iter().next()
+        } else {
+            // 3. Fall back to automatic OS discovery
+            match find_wow_install_path() {
+                Ok(inst) => {
+                    let flavor = inst.primary_flavor.unwrap_or(WowFlavor::Forever);
+                    info!("WoW trovato tramite auto-discovery: {:?} (Flavor: {:?})", inst.root_path, flavor);
+                    let _ = LauncherConfig::update_custom_path(&inst.root_path);
+                    Some(inst)
+                }
+                Err(e) => {
+                    warn!("Auto-discovery non riuscita ({}). Controllo installazioni multiple...", e);
+                    let multiple = detect_wow_installations();
+                    if let Some(first) = multiple.into_iter().next() {
+                        let _ = LauncherConfig::update_custom_path(&first.root_path);
+                        Some(first)
+                    } else {
+                        None
+                    }
+                }
+            }
         }
     };
 
     if let Some(inst) = installation {
         let flavor = inst.primary_flavor.unwrap_or(WowFlavor::Forever);
         let addons_dir = get_addons_path(&inst.root_path, flavor);
-        let is_installed = addons_dir.join("VivaVoce").exists() && addons_dir.join("VivaVoce/Core.lua").exists();
+        let is_installed = addons_dir.join("VivaVoce").exists()
+            && (addons_dir.join("VivaVoce/Core.lua").exists() || addons_dir.join("VivaVoce/VivaVoce.toc").exists());
         let game_client_path = inst.game_client_path();
         let flavor_name = match flavor {
             WowFlavor::Forever => "WoW Forever".to_string(),
             other => format!("{:?}", other),
         };
 
-        // Check installed version from .installed_version file or TOC if present
+        // Check installed version from .installed_version file or TOC or persistent config
         let installed_version = if is_installed {
             let ver_file = addons_dir.join("VivaVoce/.installed_version");
             if let Ok(ver) = std::fs::read_to_string(&ver_file) {
@@ -538,8 +579,10 @@ async fn discover_and_refresh(ctx: &AppContext) {
                 } else {
                     read_toc_version(&addons_dir.join("VivaVoce/VivaVoce.toc")).unwrap_or_else(|| "1.0.0".to_string())
                 }
+            } else if let Some(toc_ver) = read_toc_version(&addons_dir.join("VivaVoce/VivaVoce.toc")) {
+                toc_ver
             } else {
-                read_toc_version(&addons_dir.join("VivaVoce/VivaVoce.toc")).unwrap_or_else(|| "1.0.0".to_string())
+                LauncherConfig::load().last_known_version.unwrap_or_else(|| "1.0.0".to_string())
             }
         } else {
             "".to_string()
@@ -632,13 +675,27 @@ async fn discover_and_refresh(ctx: &AppContext) {
 
 /// Runs the complete update / installation / repair pipeline
 async fn run_update_pipeline(ctx: AppContext, is_repair: bool) {
+    if ctx.is_busy.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+        warn!("Operazione di installazione/aggiornamento già in corso, richiesta ignorata.");
+        return;
+    }
+
+    struct BusyGuard(AppContext);
+    impl Drop for BusyGuard {
+        fn drop(&mut self) {
+            self.0.is_busy.store(false, Ordering::SeqCst);
+        }
+    }
+    let _guard = BusyGuard(ctx.clone());
+
     let installation = {
         let lock = ctx.wow_installation.read().await;
         lock.clone()
     };
 
     let Some(inst) = installation else {
-        update_ui_status(&ctx.main_window_weak, "Errore: Seleziona prima la cartella di World of Warcraft", 0.0);
+        update_ui_status(&ctx.main_window_weak, "Seleziona prima la cartella di World of Warcraft...", 0.0);
+        run_browse_wow_folder(ctx.clone()).await;
         return;
     };
 
@@ -1449,6 +1506,9 @@ async fn apply_new_wow_path(ctx: AppContext, raw_path: PathBuf) {
         Ok(flavors) => {
             let inst = WowInstallation::new(resolved.clone(), flavors);
             info!("Percorso WoW confermato e impostato con successo: {:?}", resolved);
+            if let Err(e) = LauncherConfig::update_custom_path(&resolved) {
+                warn!("Impossibile salvare il percorso WoW in configurazione: {}", e);
+            }
             *ctx.wow_installation.write().await = Some(inst);
             discover_and_refresh(&ctx).await;
             update_ui_status(
@@ -1619,6 +1679,10 @@ fn update_installed_toc_version(addons_dir: &Path, version: &str) {
         let ver_file = vv_dir.join(".installed_version");
         let _ = std::fs::write(&ver_file, version);
     }
+
+    let mut config = LauncherConfig::load();
+    config.last_known_version = Some(version.to_string());
+    let _ = config.save();
 }
 
 /// Returns the 7 VivaVoce package descriptors with live on-disk installation status

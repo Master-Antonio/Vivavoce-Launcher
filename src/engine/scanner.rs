@@ -41,8 +41,8 @@ pub fn hash_file_blake3<P: AsRef<Path>>(path: P) -> std::io::Result<String> {
     }
 
     let file = File::open(path)?;
-    let mut reader = BufReader::with_capacity(128 * 1024, file);
-    let mut buffer = [0u8; 128 * 1024];
+    let mut reader = BufReader::with_capacity(32 * 1024, file);
+    let mut buffer = [0u8; 16 * 1024];
     let mut hasher = blake3::Hasher::new();
     loop {
         let n = reader.read(&mut buffer)?;

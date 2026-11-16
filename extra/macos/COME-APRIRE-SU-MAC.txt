@@ -1,0 +1,26 @@
+================================================================================
+ VIVAVOCE LAUNCHER - GUIDA DI AVVIO SU macOS (Apple Silicon & Intel)
+================================================================================
+
+Dato che VivaVoce e' un progetto open-source comunitario gratuito privo di licenza
+annuale a pagamento Apple Developer ($99/anno), macOS applica un blocco di sicurezza
+(Gatekeeper / Quarantena) ai file scaricati da Internet.
+
+COME APRIRE IL LAUNCHER IN 1 SECONDO:
+--------------------------------------------------------------------------------
+METODO 1 (Consigliato, 1-Click Rapido):
+1. Fai doppio clic sul file "Apri-VivaVoce.command" incluso in questa cartella.
+2. Si aprira' un terminale che rimuove automaticamente la quarantena e avvia subito il Launcher!
+
+METODO 2 (Terminale manuale):
+Se preferisci farlo a mano via Terminale, digita:
+    xattr -cr "VivaVoce Launcher.app"
+e poi aprilo con doppio clic normalmente.
+
+METODO 3 (Impostazioni di Sistema macOS):
+Se fai doppio clic sull'applicazione e macOS dice "Non puo' essere aperto":
+1. Apri 'Impostazioni di Sistema' -> 'Privacy e Sicurezza'.
+2. Scorri verso il basso fino alla sezione 'Sicurezza'.
+3. Vedrai la dicitura: "VivaVoce Launcher e' stato bloccato".
+4. Clicca su "Apri comunque" e autorizza con la tua password o Touch ID.
+================================================================================

@@ -205,14 +205,18 @@ pub fn find_wow_executable_in_dir(dir: &Path) -> Option<PathBuf> {
             return Some(found);
         }
     }
-    // Also check any .exe containing "wow" or "warcraft"
+    // Also check any .exe or native binary containing "wow" or "warcraft", and any .app bundle on macOS
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.is_file() {
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    let lower = name.to_ascii_lowercase();
-                    if lower.ends_with(".exe") && (lower.contains("wow") || lower.contains("warcraft")) {
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                let lower = name.to_ascii_lowercase();
+                if path.is_file() {
+                    if (lower.ends_with(".exe") || !lower.contains('.')) && (lower.contains("wow") || lower.contains("warcraft") || lower.contains("forever") || lower.contains("turtle")) {
+                        return Some(path);
+                    }
+                } else if path.is_dir() && lower.ends_with(".app") {
+                    if lower.contains("wow") || lower.contains("warcraft") || lower.contains("forever") || lower.contains("classic") {
                         return Some(path);
                     }
                 }
@@ -250,7 +254,9 @@ pub fn is_direct_wow_folder(dir: &Path) -> bool {
     }
     let has_interface = find_child_ignore_case(dir, "Interface").map_or(false, |p| p.is_dir());
     let has_data = find_child_ignore_case(dir, "Data").map_or(false, |p| p.is_dir());
-    has_interface || has_data
+    let has_realmlist = find_child_ignore_case(dir, "realmlist.wtf").is_some();
+    let has_wtf = find_child_ignore_case(dir, "WTF").map_or(false, |p| p.is_dir());
+    has_interface || has_data || has_realmlist || has_wtf
 }
 
 /// Finds the runnable game executable or app bundle for an installation (case-insensitive).
@@ -290,6 +296,22 @@ pub fn resolve_candidate_root(path: &Path) -> PathBuf {
     if current.is_file() {
         if let Some(parent) = current.parent() {
             current = parent.to_path_buf();
+        }
+    }
+
+    // 0b. If current path or any ancestor is a macOS .app bundle, unwrap to the parent folder of the bundle
+    let mut check_app = current.clone();
+    while let Some(name) = check_app.file_name().and_then(|n| n.to_str()) {
+        if name.to_ascii_lowercase().ends_with(".app") {
+            if let Some(parent) = check_app.parent() {
+                current = parent.to_path_buf();
+                break;
+            }
+        }
+        if let Some(parent) = check_app.parent() {
+            check_app = parent.to_path_buf();
+        } else {
+            break;
         }
     }
 
@@ -380,13 +402,15 @@ pub fn validate_wow_root(raw_path: &Path) -> Result<Vec<WowFlavor>> {
         return Ok(found_flavors);
     }
 
-    // Case 3: Directory has WoW files (e.g. Wow.exe, World of Warcraft.app, Data, Interface)
+    // Case 3: Directory has WoW files (e.g. Wow.exe, World of Warcraft.app, Data, Interface, realmlist.wtf)
     let has_exe = find_wow_executable_in_dir(&path).is_some();
     let has_interface = find_child_ignore_case(&path, "Interface").map_or(false, |p| p.is_dir());
     let has_data = find_child_ignore_case(&path, "Data").map_or(false, |p| p.is_dir());
+    let has_realmlist = find_child_ignore_case(&path, "realmlist.wtf").is_some();
+    let has_wtf = find_child_ignore_case(&path, "WTF").map_or(false, |p| p.is_dir());
 
-    if has_exe || (has_data && has_interface) || has_interface {
-        // Assume default Forever client if Interface, Mac app or WoW binaries are in root
+    if has_exe || has_data || has_interface || has_realmlist || has_wtf {
+        // Assume default Forever client if Interface, Data, realmlist, WTF, Mac app or WoW binaries are in root
         return Ok(vec![WowFlavor::Forever]);
     }
 
@@ -838,6 +862,35 @@ fn scan_common_paths() -> Vec<PathBuf> {
                 format!("{}/WoW", home),
             ];
             for path_str in user_paths {
+                let p = PathBuf::from(path_str);
+                if p.exists() && p.is_dir() {
+                    paths.push(p);
+                }
+            }
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(home) = std::env::var("HOME") {
+            let linux_paths = [
+                format!("{}/Games/World of Warcraft", home),
+                format!("{}/Games/WoW", home),
+                format!("{}/Games/WoW Forever", home),
+                format!("{}/Games/wow-forever", home),
+                format!("{}/Games/lutris/world-of-warcraft", home),
+                format!("{}/Games/heroic/World of Warcraft", home),
+                format!("{}/.wine/drive_c/Program Files (x86)/World of Warcraft", home),
+                format!("{}/.wine/drive_c/World of Warcraft", home),
+                format!("{}/.wine/drive_c/Games/World of Warcraft", home),
+                format!("{}/.local/share/Steam/steamapps/common/World of Warcraft", home),
+                format!("{}/World of Warcraft", home),
+                format!("{}/WoW", home),
+                "/opt/world-of-warcraft".to_string(),
+                "/opt/wow".to_string(),
+                "/usr/share/games/world-of-warcraft".to_string(),
+            ];
+            for path_str in linux_paths {
                 let p = PathBuf::from(path_str);
                 if p.exists() && p.is_dir() {
                     paths.push(p);

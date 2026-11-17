@@ -1,9 +1,47 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+/// Tentativi per file. Un tentativo che ha scaricato qualcosa non conta: su una
+/// linea instabile un archivio da 1,5 GB puo' cadere molte volte e va finito.
+const MAX_ATTEMPTS: u32 = 6;
+/// Nessun byte per questo tempo = connessione bloccata: si chiude e si riprende.
+const STALL_TIMEOUT: Duration = Duration::from_secs(60);
+
+async fn backoff(attempt: u32) {
+    tokio::time::sleep(Duration::from_secs(2u64.pow(attempt.min(5)))).await;
+}
+
+/// Blake3 di un file gia' su disco (archivio completo o parte scaricata).
+async fn hash_existing(path: &Path, hasher: &mut blake3::Hasher) -> std::io::Result<u64> {
+    let mut f = tokio::fs::File::open(path).await?;
+    let mut buf = vec![0u8; 1 << 20];
+    let mut total = 0u64;
+    loop {
+        let n = f.read(&mut buf).await?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+        total += n as u64;
+    }
+    Ok(total)
+}
+
+/// Archivio gia' scaricato da un tentativo precedente, integro: si riusa.
+async fn already_downloaded(path: &Path, expected_blake3: &str, expected_size: u64) -> bool {
+    match tokio::fs::metadata(path).await {
+        Ok(meta) if meta.len() == expected_size && expected_size > 0 => {
+            let mut hasher = blake3::Hasher::new();
+            hash_existing(path, &mut hasher).await.is_ok()
+                && hasher.finalize().to_hex().to_string().eq_ignore_ascii_case(expected_blake3)
+        }
+        _ => false,
+    }
+}
 use tokio::sync::mpsc::Sender;
 
 use crate::engine::manifest::{PackageChunk, PatchChunk};
@@ -42,6 +80,10 @@ pub enum DownloadError {
     HttpStatus(reqwest::StatusCode),
     #[error("Download cancelled")]
     Cancelled,
+    #[error("Download interrotto: {got} di {expected} byte dopo {attempts} tentativi")]
+    Incomplete { got: u64, expected: u64, attempts: u32 },
+    #[error("Connessione bloccata da {0} secondi")]
+    Stalled(u64),
 }
 
 /// Asynchronous downloader providing chunked streaming, Blake3 verification, and ETA telemetry.
@@ -84,7 +126,12 @@ impl Downloader {
         tokio::fs::create_dir_all(target_dir).await?;
 
         let output_file_path = target_dir.join(&package.filename);
-        let part_file_path = output_file_path.with_extension(format!("part.{}", std::process::id()));
+        if already_downloaded(&output_file_path, &package.blake3, package.compressed_size).await {
+            return Ok(output_file_path);
+        }
+        // Nome fisso (non piu' l'id del processo): un download interrotto
+        // riprende anche dopo aver chiuso e riaperto il launcher.
+        let part_file_path = output_file_path.with_extension("part");
 
         self.download_file_internal(
             &package.download_url,
@@ -113,7 +160,10 @@ impl Downloader {
         tokio::fs::create_dir_all(target_dir).await?;
 
         let output_file_path = target_dir.join(&patch.filename);
-        let part_file_path = output_file_path.with_extension(format!("part.{}", std::process::id()));
+        if already_downloaded(&output_file_path, &patch.blake3, patch.compressed_size).await {
+            return Ok(output_file_path);
+        }
+        let part_file_path = output_file_path.with_extension("part");
 
         self.download_file_internal(
             &patch.download_url,
@@ -188,36 +238,142 @@ impl Downloader {
             }).await;
         }
 
-        let response = self.client.get(url).send().await?;
-        if !response.status().is_success() {
-            return Err(DownloadError::HttpStatus(response.status()));
-        }
-
-        let content_length = response.content_length().or(expected_total_bytes).unwrap_or(0);
-
-        let mut file = tokio::fs::File::create(part_path).await?;
+        let expected = expected_total_bytes.filter(|t| *t > 0);
         let mut hasher = blake3::Hasher::new();
         let mut current_bytes = 0u64;
 
+        // Parte di un tentativo precedente (anche di un'altra sessione): si
+        // ripassa nel Blake3 e si chiede al server solo il resto.
+        if let Ok(meta) = tokio::fs::metadata(part_path).await {
+            let len = meta.len();
+            if len > 0 && expected.map_or(true, |t| len <= t) {
+                current_bytes = hash_existing(part_path, &mut hasher).await?;
+            } else {
+                let _ = tokio::fs::remove_file(part_path).await;
+            }
+        }
+
         let start_time = Instant::now();
+        let start_bytes = current_bytes;
         let mut last_sample_time = Instant::now();
-        let mut last_sample_bytes = 0u64;
+        let mut last_sample_bytes = current_bytes;
         let mut current_speed = 0.0f64;
+        let mut content_length = expected.unwrap_or(0);
+        let mut attempt = 0u32;
 
-        let mut stream = response;
-
-        while let Some(chunk) = stream.chunk().await? {
+        'attempts: loop {
+            if let Some(total) = expected {
+                if current_bytes >= total {
+                    break;
+                }
+            }
+            attempt += 1;
+            if attempt > 1 {
+                if let Some(ref sender) = progress {
+                    let _ = sender.send(ProgressEvent {
+                        stage: ProgressStage::Connecting,
+                        current_bytes,
+                        total_bytes: content_length,
+                        speed_bps: 0.0,
+                        message: format!("Connessione persa, riprendo da {:.1} MB (tentativo {}/{})...",
+                            current_bytes as f64 / 1_048_576.0, attempt, MAX_ATTEMPTS),
+                        eta_seconds: None,
+                    }).await;
+                }
+                backoff(attempt - 1).await;
+            }
             if let Some(ref token) = cancel_token {
                 if token.load(Ordering::Relaxed) {
-                    let _ = tokio::fs::remove_file(part_path).await;
                     return Err(DownloadError::Cancelled);
                 }
             }
 
-            hasher.update(&chunk);
-            file.write_all(&chunk).await?;
+            let mut request = self.client.get(url);
+            if current_bytes > 0 {
+                request = request.header(reqwest::header::RANGE, format!("bytes={}-", current_bytes));
+            }
+            let response = match request.send().await {
+                Ok(r) => r,
+                Err(e) => {
+                    if attempt >= MAX_ATTEMPTS {
+                        return Err(e.into());
+                    }
+                    continue 'attempts;
+                }
+            };
+            let status = response.status();
+            let resuming = current_bytes > 0 && status == reqwest::StatusCode::PARTIAL_CONTENT;
+            if status == reqwest::StatusCode::RANGE_NOT_SATISFIABLE {
+                // Parte su disco non valida per il server: si ricomincia da zero.
+                let _ = tokio::fs::remove_file(part_path).await;
+                hasher = blake3::Hasher::new();
+                current_bytes = 0;
+                last_sample_bytes = 0;
+                if attempt >= MAX_ATTEMPTS {
+                    return Err(DownloadError::HttpStatus(status));
+                }
+                continue 'attempts;
+            }
+            if !status.is_success() {
+                // 4xx (file assente, permessi): inutile insistere. 5xx: si riprova.
+                if attempt >= MAX_ATTEMPTS || status.is_client_error() {
+                    return Err(DownloadError::HttpStatus(status));
+                }
+                continue 'attempts;
+            }
+            if current_bytes > 0 && !resuming {
+                // Il server ha ignorato Range e rimanda tutto: si riparte.
+                hasher = blake3::Hasher::new();
+                current_bytes = 0;
+                last_sample_bytes = 0;
+            }
+            if content_length == 0 {
+                content_length = current_bytes + response.content_length().unwrap_or(0);
+            }
 
-            current_bytes += chunk.len() as u64;
+            let mut file = if current_bytes > 0 {
+                tokio::fs::OpenOptions::new().append(true).open(part_path).await?
+            } else {
+                tokio::fs::File::create(part_path).await?
+            };
+            let bytes_at_start = current_bytes;
+            let mut stream = response;
+
+            loop {
+                if let Some(ref token) = cancel_token {
+                    if token.load(Ordering::Relaxed) {
+                        // La parte resta su disco: al prossimo avvio si riprende da qui.
+                        let _ = file.flush().await;
+                        return Err(DownloadError::Cancelled);
+                    }
+                }
+                let chunk = match tokio::time::timeout(STALL_TIMEOUT, stream.chunk()).await {
+                    Ok(Ok(Some(chunk))) => chunk,
+                    Ok(Ok(None)) => break,
+                    Ok(Err(e)) => {
+                        file.flush().await?;
+                        if current_bytes > bytes_at_start {
+                            attempt = 0; // ha scaricato qualcosa: non si consuma un tentativo
+                        } else if attempt >= MAX_ATTEMPTS {
+                            return Err(e.into());
+                        }
+                        continue 'attempts;
+                    }
+                    Err(_) => {
+                        file.flush().await?;
+                        if current_bytes > bytes_at_start {
+                            attempt = 0;
+                        } else if attempt >= MAX_ATTEMPTS {
+                            return Err(DownloadError::Stalled(STALL_TIMEOUT.as_secs()));
+                        }
+                        continue 'attempts;
+                    }
+                };
+
+                hasher.update(&chunk);
+                file.write_all(&chunk).await?;
+
+                current_bytes += chunk.len() as u64;
 
             let now = Instant::now();
             let elapsed_sample = (now - last_sample_time).as_secs_f64();
@@ -262,10 +418,28 @@ impl Downloader {
                     }).await;
                 }
             }
-        }
+            }
 
-        file.flush().await?;
-        drop(file);
+            file.flush().await?;
+            drop(file);
+
+            // Corpo finito: se mancano byte (connessione chiusa senza errore)
+            // si riprende; altrimenti il file e' completo.
+            if let Some(total) = expected {
+                if current_bytes < total {
+                    if current_bytes > bytes_at_start {
+                        attempt = 0;
+                    } else if attempt >= MAX_ATTEMPTS {
+                        return Err(DownloadError::Incomplete {
+                            got: current_bytes, expected: total, attempts: attempt,
+                        });
+                    }
+                    continue 'attempts;
+                }
+            }
+            break 'attempts;
+        }
+        let _ = start_bytes;
 
         // Verification phase
         if let Some(ref sender) = progress {
@@ -331,6 +505,37 @@ mod tests {
         let json = serde_json::to_string(&event).unwrap();
         assert!(json.contains("\"stage\":\"Downloading\""));
         assert!(json.contains("\"speed_bps\":512.0"));
+    }
+
+    /// Ripresa reale da GitHub: meta' archivio gia' su disco come `.part`, il
+    /// downloader chiede solo il resto (Range) e il Blake3 finale torna.
+    /// Rete: `cargo test -- --ignored resume_from_partial_file`.
+    #[tokio::test]
+    #[ignore]
+    async fn resume_from_partial_file() {
+        let package = PackageChunk {
+            id: "vivavoce_codex".to_string(),
+            filename: "VivaVoce_Codex.tar.zst".to_string(),
+            blake3: "0cb1a30adf710c48cbdcbb467c024c8bc38b7410fa91580d62faa7335a8a4c2c".to_string(),
+            download_url: "https://github.com/Master-Antonio/Vivavoce-Releases/releases/download/v1.2.0/VivaVoce_Codex.tar.zst".to_string(),
+            compressed_size: 276886,
+            uncompressed_size: 1394735,
+        };
+        let client = reqwest::Client::new();
+        let half = package.compressed_size / 2;
+        let head = client.get(&package.download_url)
+            .header(reqwest::header::RANGE, format!("bytes=0-{}", half - 1))
+            .send().await.unwrap().bytes().await.unwrap();
+        assert_eq!(head.len() as u64, half);
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("VivaVoce_Codex.part"), &head).unwrap();
+
+        let downloader = Downloader::new();
+        let path = downloader.download_package(&package, dir.path(), None, None).await.unwrap();
+        assert_eq!(std::fs::metadata(&path).unwrap().len(), package.compressed_size);
+        // Secondo giro: archivio gia' completo e integro, niente download.
+        let again = downloader.download_package(&package, dir.path(), None, None).await.unwrap();
+        assert_eq!(again, path);
     }
 
     #[tokio::test]

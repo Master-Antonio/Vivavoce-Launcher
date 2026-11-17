@@ -93,6 +93,112 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for RingLogWriter {
 
 static GLOBAL_RING_LOG: OnceLock<RingLogWriter> = OnceLock::new();
 
+/// Ultimo manifest noto (remoto o dalla cache): da qui vengono i numeri della
+/// libreria e le dimensioni dei pacchetti, invece di valori scritti a mano.
+static CATALOG: Mutex<Option<RemoteManifest>> = Mutex::new(None);
+/// File audio installati per cartella AddOns, calcolati fuori dal thread UI.
+static INSTALLED_SOUNDS: Mutex<Option<(PathBuf, usize)>> = Mutex::new(None);
+
+fn set_catalog(manifest: &RemoteManifest) {
+    if let Ok(mut c) = CATALOG.lock() {
+        *c = Some(manifest.clone());
+    }
+}
+
+fn catalog() -> Option<RemoteManifest> {
+    CATALOG.lock().ok().and_then(|c| c.clone())
+}
+
+/// Conta (thread di lavoro) i file audio del manifest presenti in AddOns.
+fn refresh_installed_sounds(addons_dir: &Path) -> Option<(usize, usize)> {
+    let manifest = catalog()?;
+    let installed = manifest.installed_sounds(addons_dir);
+    let total = manifest.voice_stats().total;
+    if let Ok(mut s) = INSTALLED_SOUNDS.lock() {
+        *s = Some((addons_dir.to_path_buf(), installed));
+    }
+    Some((installed, total))
+}
+
+fn installed_sounds_cached(addons_dir: Option<&Path>) -> Option<usize> {
+    let dir = addons_dir?;
+    INSTALLED_SOUNDS.lock().ok().and_then(|s| match &*s {
+        Some((p, n)) if p == dir => Some(*n),
+        _ => None,
+    })
+}
+
+/// 27607 -> "27.607"
+fn fmt_it(n: usize) -> String {
+    let s = n.to_string();
+    let mut out = String::new();
+    for (i, ch) in s.chars().enumerate() {
+        if i > 0 && (s.len() - i) % 3 == 0 {
+            out.push('.');
+        }
+        out.push(ch);
+    }
+    out
+}
+
+fn fmt_size(bytes: u64) -> String {
+    let b = bytes as f64;
+    if b >= 1_073_741_824.0 {
+        format!("{:.2} GB", b / 1_073_741_824.0)
+    } else if b >= 1_048_576.0 {
+        format!("{:.1} MB", b / 1_048_576.0)
+    } else {
+        format!("{:.0} KB", (b / 1024.0).max(1.0))
+    }
+}
+
+fn short_hash(h: &str) -> String {
+    if h.len() > 8 {
+        format!("{}...{}", &h[..4], &h[h.len() - 4..])
+    } else {
+        h.to_string()
+    }
+}
+
+/// Numeri della dashboard e della libreria, dal manifest e dal disco.
+fn apply_stats(win: &MainWindow, addons_dir: Option<&Path>) {
+    let Some(manifest) = catalog() else { return };
+    let st = manifest.voice_stats();
+    win.set_stat_total(SharedString::from(fmt_it(st.total)));
+    win.set_stat_hero(SharedString::from(format!(
+        "{} battute vocali recitate per dialoghi NPC, gossip, tomi lore e quest di Azeroth in italiano.",
+        fmt_it(st.total)
+    )));
+    set_synced_ui(win, st.total, installed_sounds_cached(addons_dir));
+    win.set_stat_missions(SharedString::from(fmt_it(st.quests)));
+    win.set_stat_missions_label(SharedString::from(format!(
+        "Missioni doppiate · {} pagine di tomi", fmt_it(st.book_pages)
+    )));
+    win.set_stat_lore(SharedString::from(fmt_it(st.lore_lines())));
+    // Conteggio vero sul disco fuori dal thread UI; il numero si aggiorna
+    // appena pronto (una lettura della cartella Sounds, niente hash).
+    if let Some(dir) = addons_dir {
+        let dir = dir.to_path_buf();
+        let weak = win.as_weak();
+        std::thread::spawn(move || {
+            let before = installed_sounds_cached(Some(&dir));
+            if let Some((n, total)) = refresh_installed_sounds(&dir) {
+                if before != Some(n) {
+                    let _ = weak.upgrade_in_event_loop(move |w| set_synced_ui(&w, total, Some(n)));
+                }
+            }
+        });
+    }
+}
+
+fn set_synced_ui(win: &MainWindow, total: usize, synced: Option<usize>) {
+    win.set_stat_synced(SharedString::from(match synced {
+        Some(n) if n < total => format!("{} / {}", fmt_it(n), fmt_it(total)),
+        _ => fmt_it(total),
+    }));
+    win.set_stat_synced_incomplete(matches!(synced, Some(n) if n < total));
+}
+
 /// Restituisce le ultime righe di log diagnostici registrate in memoria durante l'esecuzione
 pub fn get_recent_launcher_logs() -> String {
     if let Some(writer) = GLOBAL_RING_LOG.get() {
@@ -132,6 +238,7 @@ pub async fn fetch_remote_manifest() -> Option<RemoteManifest> {
                                 info!("Manifest v{} scaricato con successo da {}", manifest.version, url);
                                 let _ = std::fs::create_dir_all(&cache_dir);
                                 let _ = std::fs::write(&cache_file, &bytes);
+                                set_catalog(&manifest);
                                 return Some(manifest);
                             }
                             Err(e) => {
@@ -158,6 +265,7 @@ pub async fn fetch_remote_manifest() -> Option<RemoteManifest> {
         if let Ok(bytes) = std::fs::read(&cache_file) {
             if let Ok(manifest) = serde_json::from_slice::<RemoteManifest>(&bytes) {
                 info!("Manifest recuperato dalla cache locale (offline/fallback, v{})", manifest.version);
+                set_catalog(&manifest);
                 return Some(manifest);
             }
         }
@@ -588,6 +696,8 @@ async fn discover_and_refresh(ctx: &AppContext) {
             "".to_string()
         };
 
+        let addons_for_remote = addons_dir.clone();
+
         // Cache installation
         *ctx.wow_installation.write().await = Some(inst.clone());
 
@@ -634,6 +744,7 @@ async fn discover_and_refresh(ctx: &AppContext) {
             // Populate package cards
             let packages = get_packages_status(Some(&addons_dir));
             win.set_packages(ModelRc::new(VecModel::from(packages)));
+            apply_stats(&win, Some(&addons_dir));
         });
 
         // Background check for latest remote manifest & delta patches
@@ -643,11 +754,27 @@ async fn discover_and_refresh(ctx: &AppContext) {
             if let Some(manifest) = fetch_remote_manifest().await {
                 let remote_ver = manifest.version.clone();
                 let has_delta = manifest.find_patch(&installed_for_remote).is_some();
-                let has_update = !is_installed || (!installed_for_remote.is_empty() && installed_for_remote != remote_ver);
+                let mut has_update = !is_installed || (!installed_for_remote.is_empty() && installed_for_remote != remote_ver);
+                // Versione giusta ma audio a meta' (download interrotto): va
+                // riproposto l'aggiornamento, altrimenti il gioco resta muto.
+                let dir = addons_for_remote.clone();
+                let sounds = tokio::task::spawn_blocking(move || refresh_installed_sounds(&dir)).await.ok().flatten();
+                let missing = sounds.map_or(0, |(n, t)| t.saturating_sub(n));
+                if is_installed && missing > 0 {
+                    warn!("Audio incompleto: {} file audio mancanti o diversi dal manifest", missing);
+                    has_update = true;
+                }
 
+                let addons_ui = addons_for_remote.clone();
                 let _ = weak_for_remote.upgrade_in_event_loop(move |win| {
                     win.set_remote_version(SharedString::from(&remote_ver));
-                    if is_installed && has_update {
+                    apply_stats(&win, Some(&addons_ui));
+                    if is_installed && missing > 0 {
+                        win.set_has_update(true);
+                        win.set_status_text(SharedString::from("Audio incompleto"));
+                        win.set_sub_status_text(SharedString::from(format!(
+                            "Mancano {} file audio: premi Aggiorna per riscaricarli", fmt_it(missing))));
+                    } else if is_installed && has_update {
                         win.set_has_update(true);
                         win.set_status_text(SharedString::from(format!("Aggiornamento v{} disponibile!", remote_ver)));
                         if has_delta {
@@ -669,6 +796,7 @@ async fn discover_and_refresh(ctx: &AppContext) {
             win.set_has_update(false);
             let packages = get_packages_status(None);
             win.set_packages(ModelRc::new(VecModel::from(packages)));
+            apply_stats(&win, None);
         });
     }
 }
@@ -814,8 +942,24 @@ async fn run_update_pipeline(ctx: AppContext, is_repair: bool) {
         }
     }
 
+    // Audio a meta' (un download delle parti audio interrotto): la patch delta
+    // porterebbe solo il codice e il gioco resterebbe muto. Si reinstallano i
+    // pacchetti (passo 5).
+    let sounds_missing = if let Some(ref manifest) = remote_manifest {
+        set_catalog(manifest);
+        let dir = addons_dir.clone();
+        tokio::task::spawn_blocking(move || refresh_installed_sounds(&dir))
+            .await.ok().flatten()
+            .map_or(0, |(n, t)| t.saturating_sub(n))
+    } else {
+        0
+    };
+    if sounds_missing > 0 {
+        warn!("{} file audio mancanti: salto la patch delta, reinstallo i pacchetti", sounds_missing);
+    }
+
     // 3. DELTA PATCH UPDATE: If user already has VivaVoce installed and a patch exists
-    if is_installed && !is_repair {
+    if is_installed && !is_repair && sounds_missing == 0 {
         if let Some(ref manifest) = remote_manifest {
             if let Some(patch) = manifest.find_patch(&local_version) {
                 info!("Trovata patch delta: v{} -> v{} ({} file)", patch.from_version, patch.to_version, patch.files_count);
@@ -850,6 +994,7 @@ async fn run_update_pipeline(ctx: AppContext, is_repair: bool) {
                                     win.set_is_updating(false);
                                     let packages = get_packages_status(Some(&addons_for_refresh));
                                     win.set_packages(ModelRc::new(VecModel::from(packages)));
+                                    apply_stats(&win, Some(&addons_for_refresh));
                                 });
                                 return;
                             }
@@ -887,13 +1032,14 @@ async fn run_update_pipeline(ctx: AppContext, is_repair: bool) {
             let _ = weak.upgrade_in_event_loop(move |win| {
                 win.set_progress(1.0);
                 win.set_status_text(SharedString::from("VivaVoce sincronizzato e pronto"));
-                win.set_sub_status_text(SharedString::from("27.420 battute italiane verificate"));
+                win.set_sub_status_text(SharedString::from(catalog().map_or_else(|| "Battute italiane verificate".to_string(), |m| format!("{} battute italiane verificate", fmt_it(m.voice_stats().total)))));
                 win.set_is_installed(true);
                 win.set_has_update(false);
                 win.set_installed_version(SharedString::from(&ver));
                 win.set_is_updating(false);
                 let packages = get_packages_status(Some(&addons_for_refresh));
                 win.set_packages(ModelRc::new(VecModel::from(packages)));
+                apply_stats(&win, Some(&addons_for_refresh));
             });
             return;
         }
@@ -901,8 +1047,14 @@ async fn run_update_pipeline(ctx: AppContext, is_repair: bool) {
 
     // 5. FULL CLOUD INSTALLATION (For fresh installs on any player's PC)
     if let Some(ref manifest) = remote_manifest {
-        let total_pkgs = manifest.packages.len();
-        for (i, pkg) in manifest.packages.iter().enumerate() {
+        // Audio prima, codice per ultimo: il codice porta il .toc con la
+        // versione nuova, e se arrivasse prima di un'audio interrotto
+        // l'installazione sembrerebbe aggiornata ma resterebbe muta.
+        let mut ordered = manifest.packages.clone();
+        ordered.sort_by_key(|p| !p.id.starts_with("vivavoce_sounds_"));
+        let total_pkgs = ordered.len();
+        let mut downloaded_archives: Vec<PathBuf> = Vec::new();
+        for (i, pkg) in ordered.iter().enumerate() {
             if ctx.cancel_token.load(Ordering::SeqCst) {
                 update_ui_status(&weak, "Operazione annullata dall'utente.", 0.0);
                 set_ui_updating(&weak, false);
@@ -922,6 +1074,7 @@ async fn run_update_pipeline(ctx: AppContext, is_repair: bool) {
 
             match downloader.download_package(&pkg_clone, &temp_dir_clone, Some(tx_clone), Some(cancel_clone)).await {
                 Ok(pkg_path) => {
+                    downloaded_archives.push(pkg_path.clone());
                     let addons_target = addons_dir.clone();
                     let hash_expected = pkg.blake3.clone();
                     let pkg_name = pkg.id.clone();
@@ -962,6 +1115,13 @@ async fn run_update_pipeline(ctx: AppContext, is_repair: bool) {
             }
         }
 
+        // Installazione riuscita: gli archivi (circa 4,5 GB) non servono piu'.
+        // Se qualcosa fallisce restano in %TEMP% e il prossimo tentativo li riusa.
+        for archive in &downloaded_archives {
+            let _ = std::fs::remove_file(archive);
+        }
+        let dir = addons_dir.clone();
+        let _ = tokio::task::spawn_blocking(move || refresh_installed_sounds(&dir)).await;
         let new_ver = manifest.version.clone();
         update_installed_toc_version(&addons_dir, &new_ver);
         let addons_for_refresh = addons_dir.clone();
@@ -975,6 +1135,7 @@ async fn run_update_pipeline(ctx: AppContext, is_repair: bool) {
             win.set_is_updating(false);
             let packages = get_packages_status(Some(&addons_for_refresh));
             win.set_packages(ModelRc::new(VecModel::from(packages)));
+            apply_stats(&win, Some(&addons_for_refresh));
         });
     } else {
         update_ui_status(&weak, "Impossibile scaricare gli aggiornamenti da GitHub.", 0.0);
@@ -1087,6 +1248,7 @@ async fn run_uninstall(ctx: AppContext) {
                 win.set_is_updating(false);
                 let packages = get_packages_status(Some(&addons_for_refresh));
                 win.set_packages(ModelRc::new(VecModel::from(packages)));
+                apply_stats(&win, Some(&addons_for_refresh));
             });
         }
         Ok(Err(e)) => {
@@ -1685,6 +1847,55 @@ fn update_installed_toc_version(addons_dir: &Path, version: &str) {
     let _ = config.save();
 }
 
+/// Descrizioni, dimensioni e checksum dal manifest (al posto dei valori di
+/// esempio), e l'audio "verificato" solo se sul disco ci sono tutti i file.
+fn enrich_packages(addons_dir: Option<&Path>, mut list: Vec<PackageInfo>) -> Vec<PackageInfo> {
+    let Some(manifest) = catalog() else { return list };
+    let st = manifest.voice_stats();
+    let sounds: Vec<_> = manifest.packages.iter().filter(|p| p.id.starts_with("vivavoce_sounds_")).collect();
+    let sounds_size: u64 = sounds.iter().map(|p| p.compressed_size).sum();
+    let synced = installed_sounds_cached(addons_dir);
+    for pkg in list.iter_mut() {
+        let id = pkg.id.to_string();
+        let description = match id.as_str() {
+            "vivavoce_sounds" => Some(format!(
+                "{} battute audio recitate in italiano ({} parti)", fmt_it(st.total), sounds.len())),
+            "vivavoce_quests" => Some(format!(
+                "{} battute: {} di {} missioni e {} saluti NPC",
+                fmt_it(st.quest_lines + st.gossip_lines), fmt_it(st.quest_lines),
+                fmt_it(st.quests), fmt_it(st.gossip_lines))),
+            "vivavoce_books" => Some(format!(
+                "{} battute: {} pagine di tomi, lettere, diari, pergamene e lapidi",
+                fmt_it(st.book_lines), fmt_it(st.book_pages))),
+            "vivavoce_codex" => Some(format!(
+                "{} battute: biografie, reliquie e grandi temi della lore", fmt_it(st.codex_lines))),
+            "vivavoce_zones" => Some(format!(
+                "{} narrazioni: {} zone e {} sottozone", fmt_it(st.zone_lines()),
+                fmt_it(st.zones), fmt_it(st.subzones))),
+            _ => None,
+        };
+        if let Some(d) = description {
+            pkg.description = SharedString::from(d);
+        }
+        if id == "vivavoce_sounds" {
+            pkg.size_str = SharedString::from(fmt_size(sounds_size));
+            pkg.filename = SharedString::from(format!("VivaVoce_Sounds ({} parti)", sounds.len()));
+            pkg.blake3_hash = SharedString::from(match synced {
+                Some(n) if n < st.total => format!("{} / {}", fmt_it(n), fmt_it(st.total)),
+                _ => format!("{} file", fmt_it(st.total)),
+            });
+            if let Some(n) = synced {
+                pkg.installed = pkg.installed && n > 0;
+                pkg.verified = n >= st.total;
+            }
+        } else if let Some(p) = manifest.get_package_by_id(&id) {
+            pkg.size_str = SharedString::from(fmt_size(p.compressed_size));
+            pkg.blake3_hash = SharedString::from(short_hash(&p.blake3));
+        }
+    }
+    list
+}
+
 /// Returns the 7 VivaVoce package descriptors with live on-disk installation status
 fn get_packages_status(addons_dir: Option<&Path>) -> Vec<PackageInfo> {
     let check = |folder: &str| -> bool {
@@ -1706,7 +1917,7 @@ fn get_packages_status(addons_dir: Option<&Path>) -> Vec<PackageInfo> {
         s.is_dir() && std::fs::read_dir(&s).map_or(false, |mut it| it.next().is_some())
     });
 
-    vec![
+    enrich_packages(addons_dir, vec![
         PackageInfo {
             id: SharedString::from("vivavoce_core"),
             name: SharedString::from("VivaVoce Core"),
@@ -1777,7 +1988,7 @@ fn get_packages_status(addons_dir: Option<&Path>) -> Vec<PackageInfo> {
             verified: collector_installed,
             blake3_hash: SharedString::from("d856...cb8e"),
         },
-    ]
+    ])
 }
 
 /// Installazione di un singolo modulo selezionato
@@ -1812,6 +2023,7 @@ async fn run_install_module(ctx: AppContext, module_id: String) {
                 let _ = weak.upgrade_in_event_loop(move |win| {
                     let packages = get_packages_status(Some(&addons_for_refresh));
                     win.set_packages(ModelRc::new(VecModel::from(packages)));
+                    apply_stats(&win, Some(&addons_for_refresh));
                     win.set_status_text(SharedString::from("Pacchetto Audio HQ sincronizzato!"));
                     win.set_sub_status_text(SharedString::from("27.420 tracce audio pronte in locale"));
                     win.set_is_updating(false);
@@ -1862,6 +2074,7 @@ async fn run_install_module(ctx: AppContext, module_id: String) {
             let _ = weak.upgrade_in_event_loop(move |win| {
                 let packages = get_packages_status(Some(&addons_for_refresh));
                 win.set_packages(ModelRc::new(VecModel::from(packages)));
+                apply_stats(&win, Some(&addons_for_refresh));
                 win.set_status_text(SharedString::from("Pacchetto Audio HQ installato!"));
                 win.set_sub_status_text(SharedString::from("Tutte le tracce audio sono pronte per giocare"));
                 win.set_is_updating(false);
@@ -1913,6 +2126,7 @@ async fn run_install_module(ctx: AppContext, module_id: String) {
                 let packages = get_packages_status(Some(&addons_for_refresh));
                 let is_any_installed = addons_for_refresh.join("VivaVoce").exists();
                 win.set_packages(ModelRc::new(VecModel::from(packages)));
+                apply_stats(&win, Some(&addons_for_refresh));
                 win.set_is_installed(is_any_installed);
                 win.set_status_text(SharedString::from(format!("Modulo {} installato!", folder_name)));
                 win.set_sub_status_text(SharedString::from("Modulo pronto all'uso in gioco"));
@@ -1952,6 +2166,7 @@ async fn run_install_module(ctx: AppContext, module_id: String) {
                         let packages = get_packages_status(Some(&addons_for_refresh));
                         let is_any_installed = addons_for_refresh.join("VivaVoce").exists();
                         win.set_packages(ModelRc::new(VecModel::from(packages)));
+                        apply_stats(&win, Some(&addons_for_refresh));
                         win.set_is_installed(is_any_installed);
                         win.set_status_text(SharedString::from(format!("Modulo {} installato con successo!", folder_name)));
                         win.set_sub_status_text(SharedString::from("Modulo pronto"));
@@ -1994,6 +2209,7 @@ async fn run_remove_module(ctx: AppContext, module_id: String) {
         let _ = ctx.main_window_weak.upgrade_in_event_loop(move |win| {
             let packages = get_packages_status(Some(&addons_for_refresh));
             win.set_packages(ModelRc::new(VecModel::from(packages)));
+            apply_stats(&win, Some(&addons_for_refresh));
             win.set_status_text(SharedString::from("Pacchetto Audio HQ rimosso"));
             win.set_sub_status_text(SharedString::from("I file audio sono stati eliminati"));
         });
@@ -2037,6 +2253,7 @@ async fn run_remove_module(ctx: AppContext, module_id: String) {
                 let packages = get_packages_status(Some(&addons_for_refresh));
                 let is_any_installed = addons_for_refresh.join("VivaVoce").exists();
                 win.set_packages(ModelRc::new(VecModel::from(packages)));
+                apply_stats(&win, Some(&addons_for_refresh));
                 win.set_is_installed(is_any_installed);
                 win.set_status_text(SharedString::from(format!("Modulo {} rimosso", folder_name)));
                 win.set_sub_status_text(SharedString::from("Gli altri addon non sono stati modificati"));

@@ -44,7 +44,7 @@ export component MainWindow inherits Window {
     in-out property <string> bug-attachment-filename: "";
 
     // Launcher self-updater reactive state
-    in-out property <string> launcher-version: "0.5.2";
+    in-out property <string> launcher-version: "0.5.3";
     in-out property <bool> launcher-has-update: false;
     in-out property <string> launcher-new-version: "";
     in-out property <bool> launcher-is-updating: false;
@@ -54,6 +54,14 @@ export component MainWindow inherits Window {
     // Data models
     in-out property <[DialogueEntry]> recent-dialogues: [];
     in-out property <[PackageInfo]> packages: [];
+    // Numeri reali dal manifest (main.rs: apply_stats), non piu' scritti a mano.
+    in-out property <string> stat-total: "—";
+    in-out property <string> stat-hero: "Battute vocali recitate per dialoghi NPC, gossip, tomi lore e quest di Azeroth in italiano.";
+    in-out property <string> stat-synced: "—";
+    in-out property <bool> stat-synced-incomplete: false;
+    in-out property <string> stat-missions: "—";
+    in-out property <string> stat-missions-label: "Missioni & Tomi Lore";
+    in-out property <string> stat-lore: "—";
 
     // === CALLBACKS EXPOSED TO RUST ===
     callback start-update();
@@ -584,7 +592,7 @@ export component MainWindow inherits Window {
 
                                             // Descrizione Chiara
                                             Text {
-                                                text: "Oltre 27.000 battute vocali recitate per dialoghi NPC, gossip, tomi lore e quest di Azeroth in italiano.";
+                                                text: root.stat-hero;
                                                 color: Theme.text-secondary;
                                                 font-size: 13px;
                                                 max-width: 560px;
@@ -728,7 +736,7 @@ export component MainWindow inherits Window {
                                                 VerticalLayout {
                                                     alignment: center;
                                                     Text {
-                                                        text: "27.420";
+                                                        text: root.stat-total;
                                                         color: #ffffff;
                                                         font-size: 22px;
                                                         font-weight: 700;
@@ -809,7 +817,7 @@ export component MainWindow inherits Window {
                                                 VerticalLayout {
                                                     alignment: center;
                                                     Text {
-                                                        text: "2.500+";
+                                                        text: root.stat-lore;
                                                         color: #ffffff;
                                                         font-size: 22px;
                                                         font-weight: 700;
@@ -1196,8 +1204,8 @@ export component MainWindow inherits Window {
                                             alignment: center;
                                             spacing: 2px;
                                             Text {
-                                                text: "27.420";
-                                                color: #ffffff;
+                                                text: root.stat-synced;
+                                                color: root.stat-synced-incomplete ? #f5b041 : #ffffff;
                                                 font-size: 17px;
                                                 font-weight: 700;
                                             }
@@ -1252,13 +1260,13 @@ export component MainWindow inherits Window {
                                             alignment: center;
                                             spacing: 2px;
                                             Text {
-                                                text: "2.500+";
+                                                text: root.stat-missions;
                                                 color: #ffffff;
                                                 font-size: 17px;
                                                 font-weight: 700;
                                             }
                                             Text {
-                                                text: "Missioni & Tomi Lore";
+                                                text: root.stat-missions-label;
                                                 color: Theme.text-secondary;
                                                 font-size: Theme.font-size-xs;
                                                 font-weight: 500;
@@ -1435,7 +1443,7 @@ export component MainWindow inherits Window {
                                             package-data: {
                                                 id: "vivavoce-quests",
                                                 name: "VivaVoce Quests",
-                                                description: "15.838 battute: dialoghi quest, gossip NPC, accettazione e completamento",
+                                                description: "Dialoghi quest, saluti NPC, accettazione e completamento",
                                                 filename: "vivavoce-quests.tar.zst",
                                                 size-str: "2.48 GB",
                                                 installed: root.is-installed,
@@ -1451,7 +1459,7 @@ export component MainWindow inherits Window {
                                             package-data: {
                                                 id: "vivavoce-books",
                                                 name: "VivaVoce Books",
-                                                description: "5.594 battute: tomi di Azeroth, lettere, diari, pergamene e lapidi",
+                                                description: "Tomi di Azeroth, lettere, diari, pergamene e lapidi",
                                                 filename: "vivavoce-books.tar.zst",
                                                 size-str: "1.10 GB",
                                                 installed: root.is-installed,
@@ -1467,7 +1475,7 @@ export component MainWindow inherits Window {
                                             package-data: {
                                                 id: "vivavoce-codex",
                                                 name: "VivaVoce Codex",
-                                                description: "1.606 battute: supporto a CodexIT e missioni lore classiche",
+                                                description: "Biografie, reliquie e grandi temi della lore",
                                                 filename: "vivavoce-codex.tar.zst",
                                                 size-str: "385 MB",
                                                 installed: root.is-installed,

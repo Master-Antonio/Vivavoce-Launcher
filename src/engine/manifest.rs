@@ -74,7 +74,100 @@ pub struct RemoteManifest {
     pub files: HashMap<String, FileEntry>,
 }
 
+/// Prefisso dei file audio nel manifest (relativo ad AddOns).
+pub const SOUNDS_PREFIX: &str = "VivaVoce/Sounds/";
+
+/// Conteggi reali del doppiaggio, ricavati dai nomi dei file audio del
+/// manifest: q<ID>-* quest, g* saluti, b* pagine di libri, c_* Codex,
+/// z<mapID> zone, s* sottozone.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct VoiceStats {
+    pub total: usize,
+    pub quest_lines: usize,
+    pub quests: usize,
+    pub gossip_lines: usize,
+    pub book_lines: usize,
+    pub book_pages: usize,
+    pub codex_lines: usize,
+    pub zones: usize,
+    pub subzones: usize,
+}
+
+impl VoiceStats {
+    pub fn zone_lines(&self) -> usize {
+        self.zones + self.subzones
+    }
+    /// Libri + Codex + zone: tutto quello che non e' quest o saluto.
+    pub fn lore_lines(&self) -> usize {
+        self.book_lines + self.codex_lines + self.zone_lines()
+    }
+}
+
 impl RemoteManifest {
+    /// Nomi (senza estensione) di tutti i file audio del manifest.
+    pub fn sound_stems(&self) -> impl Iterator<Item = &str> {
+        self.files.keys().filter_map(|k| {
+            k.strip_prefix(SOUNDS_PREFIX).and_then(|f| f.strip_suffix(".ogg"))
+        })
+    }
+
+    pub fn voice_stats(&self) -> VoiceStats {
+        use std::collections::HashSet;
+        let mut s = VoiceStats::default();
+        let mut quests: HashSet<&str> = HashSet::new();
+        let mut pages: HashSet<&str> = HashSet::new();
+        for stem in self.sound_stems() {
+            s.total += 1;
+            let bytes = stem.as_bytes();
+            match bytes.first() {
+                Some(b'q') => {
+                    s.quest_lines += 1;
+                    let id = stem[1..].split('-').next().unwrap_or("");
+                    if !id.is_empty() {
+                        quests.insert(id);
+                    }
+                }
+                Some(b'g') => s.gossip_lines += 1,
+                Some(b'b') => {
+                    s.book_lines += 1;
+                    let page = stem.trim_end_matches("-m").trim_end_matches("-f");
+                    pages.insert(page);
+                }
+                Some(b'c') => s.codex_lines += 1,
+                Some(b'z') => s.zones += 1,
+                Some(b's') => s.subzones += 1,
+                _ => {}
+            }
+        }
+        s.quests = quests.len();
+        s.book_pages = pages.len();
+        s
+    }
+
+    /// Quanti file audio del manifest ci sono davvero in `addons_dir` (stessa
+    /// dimensione). Una sola lettura della cartella Sounds, niente hash: serve
+    /// a vedere un'installazione rimasta a meta', non a verificarla.
+    pub fn installed_sounds(&self, addons_dir: &Path) -> usize {
+        use std::collections::HashMap;
+        let dir = addons_dir.join(SOUNDS_PREFIX.trim_end_matches('/'));
+        let mut on_disk: HashMap<String, u64> = HashMap::new();
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                if let (Ok(name), Ok(meta)) = (entry.file_name().into_string(), entry.metadata()) {
+                    on_disk.insert(name, meta.len());
+                }
+            }
+        }
+        self.files
+            .iter()
+            .filter(|(k, f)| {
+                k.strip_prefix(SOUNDS_PREFIX)
+                    .and_then(|name| on_disk.get(name))
+                    .map_or(false, |size| *size == f.size)
+            })
+            .count()
+    }
+
     /// Deserializes a `RemoteManifest` from a JSON string.
     pub fn from_json_str(s: &str) -> Result<Self, serde_json::Error> {
         serde_json::from_str(s)
@@ -268,5 +361,26 @@ mod tests {
 
         let p2 = PathBuf::from("VivaVoce/toc.txt");
         assert_eq!(normalize_relative_path(p2), "VivaVoce/toc.txt");
+    }
+}
+
+#[cfg(test)]
+mod stats_tests {
+    use super::*;
+
+    /// Numeri sul manifest pubblicato e sul client locale (solo su questo PC):
+    /// `cargo test -- --ignored real_manifest_stats --nocapture`.
+    #[test]
+    #[ignore]
+    fn real_manifest_stats() {
+        let m = RemoteManifest::from_json_str(
+            &std::fs::read_to_string("K:/WoW/Vivavoce-Releases/manifest.json").unwrap()).unwrap();
+        let s = m.voice_stats();
+        println!("{:?} lore={}", s, s.lore_lines());
+        assert_eq!(s.total, s.quest_lines + s.gossip_lines + s.book_lines + s.codex_lines + s.zone_lines());
+        let addons = Path::new("A:/Blizzard/World of Warcraft/_forever_/Interface/AddOns");
+        if addons.exists() {
+            println!("installati {} / {}", m.installed_sounds(addons), s.total);
+        }
     }
 }
